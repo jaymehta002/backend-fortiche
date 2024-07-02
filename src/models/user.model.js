@@ -12,6 +12,16 @@ const userSchema = new Schema(
             trim: true, 
             index: true
         },
+        accountType: {
+            type: String,
+            required: true,
+            enum: ["influencer", "brand"],
+            
+        },
+        categories: {
+            type: [String],
+            enum: ["fashion", "beauty", "lifestyle", "travel", "food", "fitness", "tech", "gaming", "sports", "music", "entertainment", "health", "education", "finance", "business", "politics", "news", "other"]
+        },
         email: {
             type: String,
             required: true,
@@ -27,17 +37,10 @@ const userSchema = new Schema(
         },
         avatar: {
             type: String, // cloudinary url
-            required: true,
         },
         coverImage: {
             type: String, // cloudinary url
-        },
-        watchHistory: [
-            {
-                type: Schema.Types.ObjectId,
-                ref: "Video"
-            }
-        ],
+        },       
         password: {
             type: String,
             required: [true, 'Password is required']
