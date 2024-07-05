@@ -54,7 +54,7 @@ const createProduct = asyncHandler(async(req, res) => {
     const {id} = req.params;
     const productById = await product.findById(id);
     if(!product){
-        throw new ApiError(404, "Product not found")
+        return next( ApiError(404, "Product not found"))
     }
     return res.status(200).json(new ApiResponse(200, productById));
 });
@@ -73,7 +73,7 @@ const createProduct = asyncHandler(async(req, res) => {
         image
     }, {new: true});
     if(!product){
-        throw new ApiError(404, "Product not found")
+        return next(ApiError(404, "Product not found"));
     }
     return ApiResponse(res, 200, product)
 });
