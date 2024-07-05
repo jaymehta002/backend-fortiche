@@ -1,36 +1,12 @@
-import nodemailer from "nodemailer";
 import { ApiError } from "../utils/apiError.js";
 import bcrypt from "bcrypt";
+import { sendEmail } from "./mail.service.js";
 
 const OTP_EXPIRY_MINUTES = 10;
 const SALT_ROUNDS = 10;
 
 const generateOTP = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
-
-const sendOTPEmail = async (email, otp) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USERNAME,
-      to: email,
-      subject: "OTP for Verification",
-      text: `Your OTP for verification is ${otp}. It will expire in ${OTP_EXPIRY_MINUTES} minutes.`,
-    };
-
-    await transporter.sendMail(mailOptions);
-  } catch (err) {
-    console.error(err);
-    throw new ApiError(500, "Error sending OTP email");
-  }
-};
 
 export const generateAndSendOTP = async (email) => {
   const otp = generateOTP();
@@ -39,7 +15,7 @@ export const generateAndSendOTP = async (email) => {
   const otpToHash = `${otp}.${otpExpiration}`;
   const hashedOTP = await bcrypt.hash(otpToHash, SALT_ROUNDS);
 
-  await sendOTPEmail(email, otp);
+  await sendEmail(email, otp);
 
   return { hashedOTP, otpExpiration };
 };

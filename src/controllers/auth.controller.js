@@ -1,7 +1,7 @@
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { generateAndSendOTP, verifyOTP } from "../services/email.service.js";
+import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
 import { generateTokens, verifyToken } from "../services/token.service.js";
 
 const registerUser = asyncHandler(async (req, res, next) => {
