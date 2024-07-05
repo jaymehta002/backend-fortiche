@@ -1,10 +1,9 @@
-import cookieParser from 'cookie-parser'
-import cors from 'cors'
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import { globalErrorHandler } from "./middlewares/globalErrorHandler.js";
+import express from "express";
 
-import express from 'express'
-
-const app = express()
-
+const app = express();
 
 // app.use(cors({
 //     origin: process.env.CORS_ORIGIN,
@@ -12,25 +11,24 @@ const app = express()
 // }))
 
 const corsOptions = {
-    credentials: true,
-    origin: [process.env.CLIENT_URL, 'localhost', '127.0.0.1'],
+  credentials: true,
+  origin: [process.env.CLIENT_URL, "localhost", "127.0.0.1"],
 };
 
 app.use(cors(corsOptions));
 
-app.use(express.json({limit: '14kb'}))
+app.use(express.json({ limit: "14kb" }));
 
-app.use(cookieParser())
-app.use(express.urlencoded({extended: true, limit: '14kb'}))
-app.use(express.static('public'))
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true, limit: "14kb" }));
+app.use(express.static("public"));
 
-import userRoutes from './routes/user.routes.js'
-import productRoutes from './routes/product.routes.js'
+import userRoutes from "./routes/user.routes.js";
+import productRoutes from "./routes/product.routes.js";
 
-app.use('/api/v1/users', userRoutes)
-app.use('/api/v1', productRoutes)
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1", productRoutes);
 
+app.use(globalErrorHandler);
 
-
-
-export { app }
+export { app };
