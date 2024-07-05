@@ -8,12 +8,14 @@ import {
   getUserChannelProfile,
   getWatchHistory,
 } from "../controllers/user.controller.js";
+import { auth } from "../middlewares/auth.middleware.js";
 
 const userRouter = express.Router();
+userRouter.use(auth);
 
 userRouter
   .post("/change-password", changeCurrentPassword)
-  .get("/me", getCurrentUser)
+  .get("/my-profile", getCurrentUser)
   .put("/update-account", updateAccountDetails)
   .put("/update-avatar", updateUserAvatar)
   .put("/update-cover-image", updateUserCoverImage)

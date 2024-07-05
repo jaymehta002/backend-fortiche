@@ -6,8 +6,8 @@ import authRoutes from "./auth.routes.js";
 const router = express.Router();
 
 router
-  .use("/users", userRoutes)
-  .use("/products", productRoutes)
+  .use("/user", userRoutes)
+  .use("/product", productRoutes)
   .use("/auth", authRoutes);
 
 export default router;
