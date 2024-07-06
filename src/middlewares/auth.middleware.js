@@ -16,9 +16,7 @@ export const auth = asyncHandler(async (req, _, next) => {
   try {
     const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
 
-    const user = await User.findById(decodedToken?._id).select(
-      "-password -refreshToken",
-    );
+    const user = await User.findById(decodedToken?._id);
 
     if (!user) {
       return next(ApiError(401, "Invalid Access Token"));

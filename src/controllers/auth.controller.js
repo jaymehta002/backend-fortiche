@@ -62,7 +62,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { accessToken, refreshToken } = generateTokens(user._id);
 
   user.refreshToken = refreshToken;
-  await user.save();
+  await user.save({ validateModifiedOnly: true });
 
   const options = {
     httpOnly: true,
@@ -89,7 +89,7 @@ const loginUser = asyncHandler(async (req, res, next) => {
 
   const user = await User.findOne({
     $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
-  }).select("password");
+  }).select("+password +refreshToken");
 
   const isPasswordCorrect = await compare(password, user.password);
 
@@ -99,11 +99,12 @@ const loginUser = asyncHandler(async (req, res, next) => {
 
   const { accessToken, refreshToken } = generateTokens(user._id);
 
-  const loggedInUser = await User.findById(user._id);
-
   user.refreshToken = refreshToken;
+  await user.save({ validateModifiedOnly: true });
 
-  await user.save();
+  const userResponse = user.toObject();
+  delete userResponse.password;
+  delete userResponse.refreshToken;
 
   const options = {
     httpOnly: true,
@@ -116,7 +117,7 @@ const loginUser = asyncHandler(async (req, res, next) => {
     .cookie("refreshToken", refreshToken, options)
     .json({
       success: true,
-      data: loggedInUser,
+      data: userResponse,
       message: "User logged in successfully",
     });
 });
@@ -154,9 +155,6 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 
   const user = await User.findById(decodedToken._id).select("+refreshToken");
 
-  console.log(user.refreshToken);
-  console.log(user);
-
   if (!user) {
     return next(ApiError(400, "Invalid refresh token"));
   }
@@ -164,16 +162,18 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   if (incomingRefreshToken !== user.refreshToken) {
     return next(ApiError(400, "Refresh token is expired or used"));
   }
-  console.log("second");
   const { accessToken, refreshToken: newRefreshToken } = generateTokens(
     user._id,
   );
-  console.log("third");
+
+  user.refreshToken = newRefreshToken;
+  await user.save({ validateModifiedOnly: true });
+
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
   };
-  console.log("fourth");
+
   res
     .status(200)
     .cookie("accessToken", accessToken, options)
