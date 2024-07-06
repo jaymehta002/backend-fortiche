@@ -3,6 +3,7 @@ import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
 import { generateTokens, verifyToken } from "../services/token.service.js";
+import { compare } from "bcrypt";
 
 const registerUser = asyncHandler(async (req, res, next) => {
   const { fullName, email, username, password } = req.body;
@@ -51,9 +52,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
     categories,
   });
 
-  const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken",
-  );
+  const createdUser = await User.findById(user._id);
   if (!createdUser) {
     return next(
       ApiError(500, "Something went wrong while registering the user"),
@@ -61,6 +60,10 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   }
 
   const { accessToken, refreshToken } = generateTokens(user._id);
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -86,16 +89,21 @@ const loginUser = asyncHandler(async (req, res, next) => {
 
   const user = await User.findOne({
     $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
-  });
+  }).select("password");
 
-  if (!user || !(await user.isPasswordCorrect(password))) {
-    return next(ApiError(401, "Invalid user credentials"));
+  const isPasswordCorrect = await compare(password, user.password);
+
+  if (!user || !isPasswordCorrect) {
+    return next(ApiError(403, "Invalid user credentials"));
   }
 
   const { accessToken, refreshToken } = generateTokens(user._id);
-  const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshToken",
-  );
+
+  const loggedInUser = await User.findById(user._id);
+
+  user.refreshToken = refreshToken;
+
+  await user.save();
 
   const options = {
     httpOnly: true,
@@ -136,28 +144,36 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
     req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
-    return next(ApiError(401, "Unauthorized request"));
+    return next(ApiError(400, "Refresh token is required"));
   }
 
   const decodedToken = verifyToken(
     incomingRefreshToken,
     process.env.REFRESH_TOKEN_SECRET,
   );
-  const user = await User.findById(decodedToken._id);
+
+  const user = await User.findById(decodedToken._id).select("+refreshToken");
+
+  console.log(user.refreshToken);
+  console.log(user);
 
   if (!user) {
-    return next(ApiError(401, "Invalid refresh token"));
+    return next(ApiError(400, "Invalid refresh token"));
   }
 
+  if (incomingRefreshToken !== user.refreshToken) {
+    return next(ApiError(400, "Refresh token is expired or used"));
+  }
+  console.log("second");
   const { accessToken, refreshToken: newRefreshToken } = generateTokens(
     user._id,
   );
-
+  console.log("third");
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
   };
-
+  console.log("fourth");
   res
     .status(200)
     .cookie("accessToken", accessToken, options)

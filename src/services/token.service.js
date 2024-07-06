@@ -19,6 +19,12 @@ export const verifyToken = (token, secret) => {
   try {
     return jwt.verify(token, secret);
   } catch (err) {
-    throw new ApiError(401, "Token verification failed");
+    if (err instanceof jwt.TokenExpiredError) {
+      throw ApiError(401, "Token has expired");
+    } else if (err instanceof jwt.JsonWebTokenError) {
+      throw ApiError(400, "Invalid token");
+    } else {
+      throw ApiError(500, "Token verification failed");
+    }
   }
 };

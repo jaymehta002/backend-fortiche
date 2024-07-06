@@ -15,6 +15,6 @@ authRouter
   .post("/verify-otp", verifyOTPAndRegister)
   .post("/login", loginUser)
   .post("/logout", auth, logoutUser)
-  .post("/refresh-token", auth, refreshAccessToken);
+  .post("/refresh-token", refreshAccessToken);
 
 export default authRouter;
