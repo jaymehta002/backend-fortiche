@@ -88,7 +88,10 @@ const loginUser = asyncHandler(async (req, res, next) => {
   }
 
   const user = await User.findOne({
-    $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
+    $or: [
+      { username: usernameOrEmail.toLowerCase() },
+      { email: usernameOrEmail },
+    ],
   }).select("+password +refreshToken");
 
   const isPasswordCorrect = await compare(password, user.password);
