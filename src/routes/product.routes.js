@@ -1,15 +1,17 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
-import { 
-    createProduct,
-    getProducts, 
-    getProduct, 
-    updateProduct
-    
+import {
+  createProduct,
+  getProducts,
+  getProduct,
+  updateProduct,
 } from "../controllers/product.controller.js";
 
+const userRouter = Router();
 
+userRouter.route("/products").post(createProduct).get(getProducts);
+userRouter.route("/products/:id").get(getProduct).patch(updateProduct);
 
 const router = Router()
 
