@@ -2,13 +2,10 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import { globalErrorHandler } from "./middlewares/globalErrorHandler.js";
 import express from "express";
+import session from "express-session";
+import router from "./routes/index.js";
 
 const app = express();
-
-// app.use(cors({
-//     origin: process.env.CORS_ORIGIN,
-//     credentials: true
-// }))
 
 const corsOptions = {
   credentials: true,
@@ -17,17 +14,26 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: process.env.NODE_ENV === "production" },
+  }),
+);
+
 app.use(express.json({ limit: "14kb" }));
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: "14kb" }));
 app.use(express.static("public"));
 
-import userRoutes from "./routes/user.routes.js";
-import productRoutes from "./routes/product.routes.js";
-
-app.use("/api/v1/users", userRoutes);
-app.use("/api/v1", productRoutes);
+app.get("/", (req, res) => {
+  res.send("hello world");
+});
+// Routes
+app.use("/api/v1", router);
 
 app.use(globalErrorHandler);
 
