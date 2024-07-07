@@ -15,12 +15,12 @@ export const sendEmail = async (email, otp) => {
       from: process.env.EMAIL_USERNAME,
       to: email,
       subject: "OTP for Verification",
-      text: `Your OTP for verification is ${otp}. It will expire in ${OTP_EXPIRY_MINUTES} minutes.`,
+      text: `Your OTP for verification is ${otp}. It will expire in ${process.env.OTP_EXPIRY_MINUTES} minutes.`,
     };
 
     await transporter.sendMail(mailOptions);
   } catch (err) {
     console.error(err);
-    throw new ApiError(500, "Error sending OTP email");
+    throw ApiError(500, "Error sending OTP email");
   }
 };

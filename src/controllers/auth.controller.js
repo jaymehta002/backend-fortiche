@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
 import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
+import { cookieOptions } from "../utils/config.js";
 
 const registerUser = asyncHandler(async (req, res, next) => {
   const { fullName, email, username, password } = req.body;
@@ -18,7 +19,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   }
 
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
-  console.log(hashedOTP, otpExpiration);
+
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
 
   res.status(200).json({
@@ -64,15 +65,10 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   user.refreshToken = refreshToken;
   await user.save({ validateModifiedOnly: true });
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   res
     .status(201)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
     .json({
       success: true,
       data: createdUser,
@@ -109,15 +105,10 @@ const loginUser = asyncHandler(async (req, res, next) => {
   delete userResponse.password;
   delete userResponse.refreshToken;
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
     .json({
       success: true,
       data: userResponse,
