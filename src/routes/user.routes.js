@@ -9,17 +9,9 @@ import {
     getCurrentUser, 
     updateUserAvatar, 
     updateUserCoverImage, 
-    getUserChannelProfile, 
-    getWatchHistory, 
     updateAccountDetails
 } from "../controllers/user.controller.js";
-import { 
-    createProduct,
-    getProducts, 
-    getProduct, 
-    updateProduct
-    
-} from "../controllers/product.controller.js";
+
 import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -42,8 +34,7 @@ router.route("/register").post(
 
 router.route("/login").post(loginUser)
 router.route("/verify-otp").post(verifyOTP)
-router.route("/products").post(createProduct).get(getProducts);
-router.route("/products/:id").get(getProduct).patch(updateProduct);
+
 
 
 //secured routes
@@ -57,7 +48,5 @@ router.route("/update-account").patch(verifyJWT, updateAccountDetails)
 router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
 router.route("/cover-image").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage)
 
-router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
-router.route("/history").get(verifyJWT, getWatchHistory)
-
+ 
 export default router

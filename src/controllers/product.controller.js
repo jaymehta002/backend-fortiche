@@ -9,15 +9,21 @@ import mongoose from "mongoose";
 
 //create a post request to create a product
 
-const createProduct = asyncHandler(async(req, res) => {
+const createProduct = asyncHandler(async(req, res, next) => {
     const {
          title, brand, description, category, categoryName, stock, stockStatus,
-        price, discountPercent, productType, imageUrls, rating, isRecommended, brandId
+        price, discountPercent, productType, imageUrls, rating, isRecommended
     } = req.body;
-    // const user = await User.findById(userId); 
-    //todo: add brand id here 
+    const brandId = req.user.id; // or req.user._id depending on your user object structure
+    
 
-
+    const existedProduct = await product.findOne({
+        $or: [{ title }, { brand }],
+      });
+    
+      if (existedProduct) {
+        return next(ApiError(409, "Product already exists"));
+      }
 
     const products = await product.create({
         title,
