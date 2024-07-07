@@ -68,7 +68,10 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   res
     .status(201)
     .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, {
+      ...cookieOptions,
+      maxAge: 10 * 24 * 60 * 60 * 1000, //10 days
+    })
     .json({
       success: true,
       data: createdUser,
@@ -108,7 +111,10 @@ const loginUser = asyncHandler(async (req, res, next) => {
   res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, {
+      ...cookieOptions,
+      maxAge: 10 * 24 * 60 * 60 * 1000, //10 days
+    })
     .json({
       success: true,
       data: userResponse,
@@ -139,7 +145,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
     req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
-    return next(ApiError(400, "Refresh token is required"));
+    return next(ApiError(401, "Refresh token is required"));
   }
 
   const decodedToken = verifyToken(
@@ -150,11 +156,11 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   const user = await User.findById(decodedToken._id).select("+refreshToken");
 
   if (!user) {
-    return next(ApiError(400, "Invalid refresh token"));
+    return next(ApiError(401, "Invalid refresh token"));
   }
 
   if (incomingRefreshToken !== user.refreshToken) {
-    return next(ApiError(400, "Refresh token is expired or used"));
+    return next(ApiError(401, "Refresh token is expired or used"));
   }
   const { accessToken, refreshToken: newRefreshToken } = generateTokens(
     user._id,
@@ -163,15 +169,13 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   user.refreshToken = newRefreshToken;
   await user.save({ validateModifiedOnly: true });
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", newRefreshToken, options)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", newRefreshToken, {
+      ...cookieOptions,
+      maxAge: 10 * 24 * 60 * 60 * 1000, //10 days
+    })
     .json({
       success: true,
       message: "Access token refreshed",
