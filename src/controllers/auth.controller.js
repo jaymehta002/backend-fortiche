@@ -4,7 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
 import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
-import { cookieOptions } from "../utils/config.js";
+import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 
 const registerUser = asyncHandler(async (req, res, next) => {
   const { fullName, email, username, password } = req.body;
@@ -68,10 +68,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   res
     .status(201)
     .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, {
-      ...cookieOptions,
-      maxAge: 10 * 24 * 60 * 60 * 1000, //10 days
-    })
+    .cookie("refreshToken", refreshToken, refreshCookieOptions)
     .json({
       success: true,
       data: createdUser,
@@ -111,10 +108,7 @@ const loginUser = asyncHandler(async (req, res, next) => {
   res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, {
-      ...cookieOptions,
-      maxAge: 10 * 24 * 60 * 60 * 1000, //10 days
-    })
+    .cookie("refreshToken", refreshToken, refreshCookieOptions)
     .json({
       success: true,
       data: userResponse,
@@ -172,10 +166,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", newRefreshToken, {
-      ...cookieOptions,
-      maxAge: 10 * 24 * 60 * 60 * 1000, //10 days
-    })
+    .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
     .json({
       success: true,
       message: "Access token refreshed",
