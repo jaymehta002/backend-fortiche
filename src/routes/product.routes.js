@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { auth } from "../middlewares/auth.middleware.js";
 
 import {
   createProduct,
@@ -12,4 +13,9 @@ const userRouter = Router();
 userRouter.route("/products").post(createProduct).get(getProducts);
 userRouter.route("/products/:id").get(getProduct).patch(updateProduct);
 
-export default userRouter;
+const router = Router();
+
+router.route("/products").post(auth, createProduct).get(getProducts);
+router.route("/products/:id").get(getProduct).patch(updateProduct);
+
+export default router;

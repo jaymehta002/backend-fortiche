@@ -1,4 +1,4 @@
-import { ApiError } from "../utils/apiError.js";
+import { ApiError } from "../utils/APIError.js";
 import bcrypt from "bcrypt";
 import { sendEmail } from "./mail.service.js";
 

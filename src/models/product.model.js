@@ -56,7 +56,7 @@ const productSchema = new mongoose.Schema({
     },
     brandId: {
       type: Schema.Types.ObjectId,
-      ref: 'users',
+      ref: 'User',
     },
     rating: {
       type: Number,

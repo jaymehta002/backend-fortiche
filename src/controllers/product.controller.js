@@ -1,11 +1,11 @@
 import { product } from "../models/product.model.js";
 import { ApiResponse } from "../utils/APIResponse.js";
-import { ApiError } from "../utils/apiError.js";
+import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 //create a post request to create a product
 
-const createProduct = asyncHandler(async (req, res) => {
+const createProduct = asyncHandler(async (req, res, next) => {
   const {
     title,
     brand,
@@ -20,10 +20,16 @@ const createProduct = asyncHandler(async (req, res) => {
     imageUrls,
     rating,
     isRecommended,
-    brandId,
   } = req.body;
-  // const user = await User.findById(userId);
-  //todo: add brand id here
+  const brandId = req.user.id; // or req.user._id depending on your user object structure
+
+  const existedProduct = await product.findOne({
+    $or: [{ title }, { brand }],
+  });
+
+  if (existedProduct) {
+    return next(ApiError(409, "Product already exists"));
+  }
 
   const products = await product.create({
     title,
