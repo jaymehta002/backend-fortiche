@@ -14,14 +14,14 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: process.env.NODE_ENV === "production" },
-  }),
-);
+// app.use(
+//   session({
+//     secret: process.env.SESSION_SECRET,
+//     resave: false,
+//     saveUninitialized: true,
+//     cookie: { secure: process.env.NODE_ENV === "production" },
+//   }),
+// );
 
 app.use(express.json({ limit: "14kb" }));
 
