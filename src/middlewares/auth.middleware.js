@@ -2,6 +2,51 @@ import { User } from "../models/user.model.js";
 import { verifyToken } from "../services/token.service.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import passport from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+
+
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: "/api/v1/auth/google/callback"
+},
+async (accessToken, refreshToken, profile, done) => {
+  try {
+    let user = await User.findOne({ email: profile.emails[0].value });
+    if (!user) {
+      user = new User({
+        fullName: profile.displayName,
+        email: profile.emails[0].value,
+        username: profile.displayName.split(" ").join(".").toLowerCase(),
+        password: "null",
+        accountType: "brand"
+      });
+      await user.save();
+    }
+    return done(null, user);
+  } catch (err) {
+    return done(err, null);
+  }
+}));
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+});
+
+export const initializePassport = () => {
+  return passport.initialize();
+};
+
+export const sessionPassport = () => {
+  return passport.session();
+};
+
 
 export const auth = asyncHandler(async (req, _, next) => {
   const token =
