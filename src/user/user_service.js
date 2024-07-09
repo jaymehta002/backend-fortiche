@@ -3,7 +3,7 @@ import { ApiError } from "../utils/APIError.js";
 
 const findUserByUsername = async (username) => {
   try {
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username }).select("-password");
     if (!user) {
       return ApiError(404, "user not found with the username: " + username);
     }
@@ -15,24 +15,17 @@ const findUserByUsername = async (username) => {
   }
 };
 
-const updateUserByUsername = async (username) => {
+const updateUserByUsername = async (username, updates) => {
   try {
     const user = await findUserByUsername(username);
     if (!user) {
       return ApiError(404, "user not found with the username: " + username);
     }
 
-    const { userName, categories, fullName, bio } = req.body;
-    const updates = {};
-
-    if (userName) updates.username = userName;
-    if (categories) updates.categories = categories;
-    if (fullName) updates.fullName = fullName;
-    if (bio) updates.bio = bio;
-
+    // TODO - handle for unique username
     const updatedUser = await User.findOneAndUpdate({ username }, updates, {
       new: true,
-    });
+    }).select("-password");
     if (!updatedUser) {
       return ApiError(
         404,

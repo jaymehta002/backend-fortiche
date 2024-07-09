@@ -1,9 +1,15 @@
 import { Router } from "express";
-import { getUser, updateUser } from "./user_controller.js";
+import {
+  getUserDetails,
+  updateUserDetails,
+  updateUserAvatar,
+  updateUserCoverImage,
+} from "./user_controller.js";
 
 const userRouter = Router();
 
-userRouter.route("/:username").get(getUser);
-userRouter.route("/:username").patch(updateUser);
+userRouter.route("/:username").get(getUserDetails).patch(updateUserDetails);
+userRouter.route("/:username/update-avatar").patch(updateUserAvatar);
+userRouter.route("/:username/update-cover-image").patch(updateUserCoverImage);
 
 export default userRouter;
