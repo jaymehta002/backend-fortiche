@@ -1,11 +1,11 @@
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/APIError.js";
 
-const findUserByUsername = async (username) => {
+const findUserByUserId = async (userId) => {
   try {
-    const user = await User.findOne({ username }).select("-password");
+    const user = await User.findById({ userId }).select("-password");
     if (!user) {
-      return ApiError(404, "user not found with the username: " + username);
+      return ApiError(404, "user not found with the userId: " + userId);
     }
 
     return user;
@@ -15,21 +15,19 @@ const findUserByUsername = async (username) => {
   }
 };
 
-const updateUserByUsername = async (username, updates) => {
+const updateUserByUserId = async (userId, updates) => {
   try {
-    const user = await findUserByUsername(username);
-    if (!user) {
-      return ApiError(404, "user not found with the username: " + username);
-    }
-
     // TODO - handle for unique username
-    const updatedUser = await User.findOneAndUpdate({ username }, updates, {
-      new: true,
-    }).select("-password");
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true },
+    ).select("-password");
+
     if (!updatedUser) {
       return ApiError(
         404,
-        "issue with updateUserByUsername for username: " + username,
+        "issue with updateUserByUserId for userId: " + userId,
       );
     }
 
@@ -40,4 +38,4 @@ const updateUserByUsername = async (username, updates) => {
   }
 };
 
-export { findUserByUsername, updateUserByUsername };
+export { findUserByUserId, updateUserByUserId };

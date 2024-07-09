@@ -8,8 +8,8 @@ import {
 
 const userRouter = Router();
 
-userRouter.route("/:username").get(getUserDetails).patch(updateUserDetails);
-userRouter.route("/:username/update-avatar").patch(updateUserAvatar);
-userRouter.route("/:username/update-cover-image").patch(updateUserCoverImage);
+userRouter.route("/:userId").get(getUserDetails).patch(updateUserDetails);
+userRouter.route("/:userId/update-avatar").patch(updateUserAvatar);
+userRouter.route("/:userId/update-cover-image").patch(updateUserCoverImage);
 
 export default userRouter;

@@ -1,20 +1,17 @@
 import { ApiError } from "../utils/APIError.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import {
-  findUserByUsername,
-  updateUserByUsername,
-} from "../user/user_service.js";
+import { findUserByUserId, updateUserByUserId } from "../user/user_service.js";
 import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
 
 const getUserDetails = asyncHandler(async (req, res) => {
-  const { username } = req.params;
-  if (!username || username.trim() === "") {
-    return next(ApiError(404, "user not found, as the username was empty"));
+  const { userId } = req.params;
+  if (!userId || userId.trim() === "") {
+    return next(ApiError(404, "user not found, as the userId was empty"));
   }
 
   try {
-    const user = await findUserByUsername(username);
+    const user = await findUserByUserId(userId);
     return res
       .status(200)
       .json(new ApiResponse(200, user, "User fetched successfully"));
@@ -24,10 +21,9 @@ const getUserDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserDetails = asyncHandler(async (req, res) => {
-  const { username } = req.params;
-
-  if (!username || username.trim() === "") {
-    return next(ApiError(404, "user not found, as the username was empty"));
+  const { userId } = req.params;
+  if (!userId || userId.trim() === "") {
+    return next(ApiError(404, "user not found, as the userId was empty"));
   }
 
   try {
@@ -39,7 +35,7 @@ const updateUserDetails = asyncHandler(async (req, res) => {
     if (fullName) updates.fullName = fullName;
     if (bio) updates.bio = bio;
 
-    const updatedUser = await updateUserByUsername(username, updates);
+    const updatedUser = await updateUserByUserId(userId, updates);
     return res
       .status(200)
       .json(
@@ -55,10 +51,10 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const { username } = req.params;
+  const { userId } = req.params;
 
-  if (!username || username.trim() === "") {
-    return next(ApiError(404, "user not found, as the username was empty"));
+  if (!userId || userId.trim() === "") {
+    return next(ApiError(404, "user not found, as the userId was empty"));
   }
 
   const avatarLocalPath = req.file?.path;
@@ -76,7 +72,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   try {
     const updates = { avatar: avatar.url };
 
-    const updatedUser = await updateUserByUsername(username, updates);
+    const updatedUser = await updateUserByUserId(userId, updates);
     return res
       .status(200)
       .json(
@@ -88,10 +84,10 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res, next) => {
-  const { username } = req.params;
+  const { userId } = req.params;
 
-  if (!username || username.trim() === "") {
-    return next(ApiError(404, "user not found, as the username was empty"));
+  if (!userId || userId.trim() === "") {
+    return next(ApiError(404, "user not found, as the userId was empty"));
   }
 
   const coverImageLocalPath = req.file?.path;
@@ -109,7 +105,7 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
   try {
     const updates = { coverImage: coverImage.url };
 
-    const updatedUser = await updateUserByUsername(username, updates);
+    const updatedUser = await updateUserByUserId(userId, updates);
     return res
       .status(200)
       .json(
