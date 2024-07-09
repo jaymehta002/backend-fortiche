@@ -5,26 +5,14 @@ import { findUserByUserId, updateUserByUserId } from "../user/user_service.js";
 import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
 
 const getUserDetails = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-  if (!userId || userId.trim() === "") {
-    return next(ApiError(404, "user not found, as the userId was empty"));
-  }
-
-  try {
-    const user = await findUserByUserId(userId);
-    return res
-      .status(200)
-      .json(new ApiResponse(200, user, "User fetched successfully"));
-  } catch (err) {
-    return next(err);
-  }
+  const user = req.user;
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User fetched successfully"));
 });
 
 const updateUserDetails = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-  if (!userId || userId.trim() === "") {
-    return next(ApiError(404, "user not found, as the userId was empty"));
-  }
+  const user = req.user;
 
   try {
     const { userName, categories, fullName, bio } = req.body;
@@ -35,7 +23,7 @@ const updateUserDetails = asyncHandler(async (req, res) => {
     if (fullName) updates.fullName = fullName;
     if (bio) updates.bio = bio;
 
-    const updatedUser = await updateUserByUserId(userId, updates);
+    const updatedUser = await updateUserByUserId(user._id, updates);
     return res
       .status(200)
       .json(
@@ -51,11 +39,7 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-
-  if (!userId || userId.trim() === "") {
-    return next(ApiError(404, "user not found, as the userId was empty"));
-  }
+  const user = req.user;
 
   const avatarLocalPath = req.file?.path;
 
@@ -72,7 +56,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   try {
     const updates = { avatar: avatar.url };
 
-    const updatedUser = await updateUserByUserId(userId, updates);
+    const updatedUser = await updateUserByUserId(user._id, updates);
     return res
       .status(200)
       .json(
@@ -84,11 +68,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res, next) => {
-  const { userId } = req.params;
-
-  if (!userId || userId.trim() === "") {
-    return next(ApiError(404, "user not found, as the userId was empty"));
-  }
+  const user = req.user;
 
   const coverImageLocalPath = req.file?.path;
 
@@ -105,7 +85,7 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
   try {
     const updates = { coverImage: coverImage.url };
 
-    const updatedUser = await updateUserByUserId(userId, updates);
+    const updatedUser = await updateUserByUserId(user._id, updates);
     return res
       .status(200)
       .json(

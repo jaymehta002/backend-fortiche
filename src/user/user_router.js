@@ -5,11 +5,15 @@ import {
   updateUserAvatar,
   updateUserCoverImage,
 } from "./user_controller.js";
+import { auth } from "../middlewares/auth.middleware.js";
 
 const userRouter = Router();
+userRouter.use(auth);
 
-userRouter.route("/:userId").get(getUserDetails).patch(updateUserDetails);
-userRouter.route("/:userId/update-avatar").patch(updateUserAvatar);
-userRouter.route("/:userId/update-cover-image").patch(updateUserCoverImage);
+userRouter
+  .get("/my-profile", getUserDetails)
+  .put("/update-account", updateUserDetails)
+  .put("/update-avatar", updateUserAvatar)
+  .put("/update-cover-image", updateUserCoverImage);
 
 export default userRouter;
