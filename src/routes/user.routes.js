@@ -8,7 +8,7 @@ import {
 import { auth } from "../middlewares/auth.middleware.js";
 
 const userRouter = express.Router();
-// userRouter.use(auth);
+userRouter.use(auth);
 
 userRouter
   .get("/my-profile", getCurrentUser)
