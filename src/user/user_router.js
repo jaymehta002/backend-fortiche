@@ -1,18 +1,18 @@
-import express from "express";
+import { Router } from "express";
 import {
-  getCurrentUser,
-  updateAccountDetails,
+  getUserDetails,
+  updateUserDetails,
   updateUserAvatar,
   updateUserCoverImage,
-} from "../controllers/user.controller.js";
+} from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
-const userRouter = express.Router();
+const userRouter = Router();
 userRouter.use(auth);
 
 userRouter
-  .get("/my-profile", getCurrentUser)
-  .put("/update-account", updateAccountDetails)
+  .get("/my-profile", getUserDetails)
+  .put("/update-account", updateUserDetails)
   .put("/update-avatar", updateUserAvatar)
   .put("/update-cover-image", updateUserCoverImage);
 
