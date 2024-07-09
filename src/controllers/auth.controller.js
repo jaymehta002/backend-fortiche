@@ -4,7 +4,36 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
 import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
+import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
+import passport from "passport";
 
+export const googleLogin = passport.authenticate('google', {
+  scope: ['profile', 'email']
+});
+
+export const googleCallback = (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user, info) => {
+    if (err) {
+      console.error('Google authentication error:', err);
+      return next(ApiError(500, "Error during Google authentication"));
+    }
+    if (!user) {
+      return next(ApiError(401, "Google authentication failed"));
+    }
+    try {
+      const { accessToken, refreshToken } = generateTokens(user._id);
+
+      res 
+        .status(200)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, refreshCookieOptions)
+        .redirect(`${process.env.CLIENT_URL}`);
+    } catch (error) {
+      console.error('Token generation error:', error);
+      return next(ApiError(500, "Error generating authentication tokens"));
+    }
+  })(req, res, next);
+};
 const registerUser = asyncHandler(async (req, res, next) => {
   const { fullName, email, username, password } = req.body;
 
@@ -18,7 +47,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   }
 
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
-  console.log(hashedOTP, otpExpiration);
+
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
 
   res.status(200).json({
@@ -64,15 +93,10 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   user.refreshToken = refreshToken;
   await user.save({ validateModifiedOnly: true });
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   res
     .status(201)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, refreshCookieOptions)
     .json({
       success: true,
       data: createdUser,
@@ -109,15 +133,10 @@ const loginUser = asyncHandler(async (req, res, next) => {
   delete userResponse.password;
   delete userResponse.refreshToken;
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, refreshCookieOptions)
     .json({
       success: true,
       data: userResponse,
@@ -148,7 +167,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
     req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
-    return next(ApiError(400, "Refresh token is required"));
+    return next(ApiError(401, "Refresh token is required"));
   }
 
   const decodedToken = verifyToken(
@@ -159,11 +178,11 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   const user = await User.findById(decodedToken._id).select("+refreshToken");
 
   if (!user) {
-    return next(ApiError(400, "Invalid refresh token"));
+    return next(ApiError(401, "Invalid refresh token"));
   }
 
   if (incomingRefreshToken !== user.refreshToken) {
-    return next(ApiError(400, "Refresh token is expired or used"));
+    return next(ApiError(401, "Refresh token is expired or used"));
   }
   const { accessToken, refreshToken: newRefreshToken } = generateTokens(
     user._id,
@@ -172,15 +191,10 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   user.refreshToken = newRefreshToken;
   await user.save({ validateModifiedOnly: true });
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
   res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", newRefreshToken, options)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
     .json({
       success: true,
       message: "Access token refreshed",
