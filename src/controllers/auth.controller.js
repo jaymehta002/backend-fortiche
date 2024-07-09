@@ -5,7 +5,35 @@ import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
 import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
 import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
+import passport from "passport";
 
+export const googleLogin = passport.authenticate('google', {
+  scope: ['profile', 'email']
+});
+
+export const googleCallback = (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user, info) => {
+    if (err) {
+      console.error('Google authentication error:', err);
+      return next(ApiError(500, "Error during Google authentication"));
+    }
+    if (!user) {
+      return next(ApiError(401, "Google authentication failed"));
+    }
+    try {
+      const { accessToken, refreshToken } = generateTokens(user._id);
+
+      res 
+        .status(200)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, refreshCookieOptions)
+        .redirect(`${process.env.CLIENT_URL}`);
+    } catch (error) {
+      console.error('Token generation error:', error);
+      return next(ApiError(500, "Error generating authentication tokens"));
+    }
+  })(req, res, next);
+};
 const registerUser = asyncHandler(async (req, res, next) => {
   const { fullName, email, username, password } = req.body;
 
