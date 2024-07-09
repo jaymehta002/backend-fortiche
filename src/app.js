@@ -4,15 +4,19 @@ import { globalErrorHandler } from "./middlewares/globalErrorHandler.js";
 import express from "express";
 import session from "express-session";
 import router from "./routes/index.js";
-import { initializePassport, sessionPassport } from "./middlewares/auth.middleware.js";
+import {
+  initializePassport,
+  sessionPassport,
+} from "./middlewares/auth.middleware.js";
 const app = express();
 
 const corsOptions = {
   credentials: true,
   origin: [
     process.env.CLIENT_URL,
+    "https://fortiche-frontend.vercel.app",
     "localhost",
-    "127.0.0.1",
+    "127.0.0.1", 
     "http://localhost:5173",
   ],
 };
@@ -23,7 +27,7 @@ app.use(
   session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true, 
+    saveUninitialized: true,
     cookie: { secure: process.env.NODE_ENV === "production" },
   }),
 );
