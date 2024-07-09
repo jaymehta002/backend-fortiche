@@ -50,7 +50,7 @@ export const sessionPassport = () => {
 
 export const auth = asyncHandler(async (req, _, next) => {
   const token =
-    // req.cookies?.accessToken ||
+    req.cookies?.accessToken ||
     req.header("Authorization")?.replace("Bearer ", "");
 
   if (!token) {
