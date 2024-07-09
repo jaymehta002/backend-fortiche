@@ -1,7 +1,11 @@
 import { ApiError } from "../utils/APIError.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { findUserByUserId, updateUserByUserId } from "../user/user_service.js";
+import {
+  findUserByUserId,
+  updateUserByUserId,
+  validateAdditionalLink,
+} from "../user/user_service.js";
 import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
 
 const getUserDetails = asyncHandler(async (req, res) => {
@@ -96,9 +100,53 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
   }
 });
 
+const updateAdditionalLinks = asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  try {
+    const { additionalLinks } = req.body;
+
+    if (additionalLinks) {
+      const updates = {};
+
+      const validatedLinks = additionalLinks.map((link) => {
+        validateAdditionalLink(link);
+        return link;
+      });
+
+      const existingHosts = new Map();
+
+      if (user.additionalLinks) {
+        for (const existingLink of user.additionalLinks) {
+          existingHosts.set(existingLink.host, existingLink.url); // Store existing host-url pairs
+        }
+      }
+
+      // Update links using MongoDB update operators
+      updates.additionalLinks = validatedLinks.map((link) => {
+        const updateOperator = existingHosts.has(link.host)
+          ? { $set: { "additionalLinks.$[elem].url": link.url } } // Update URL for existing host
+          : { $addToSet: { additionalLinks: link } }; // Add new link if host doesn't exist
+
+        existingHosts.set(link.host, link.url); // Update existingHosts Map if necessary
+
+        return updateOperator;
+      });
+
+      const updatedUser = await updateUserByUserId(user._id, updates);
+      return res
+        .status(200)
+        .json(new ApiResponse(200, updatedUser, "links updated successfully"));
+    }
+  } catch (err) {
+    return next(err);
+  }
+});
+
 export {
   getUserDetails,
   updateUserDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  updateAdditionalLinks,
 };
