@@ -22,11 +22,11 @@ export const googleCallback = (req, res, next) => {
     }
     try {
       const { accessToken, refreshToken } = generateTokens(user._id);
-
       res 
         .status(200)
         .cookie("accessToken", accessToken, cookieOptions)
         .cookie("refreshToken", refreshToken, refreshCookieOptions)
+        .redirect(process.env.CLIENT_URL)
     } catch (error) {
       console.error('Token generation error:', error);
       return next(ApiError(500, "Error generating authentication tokens"));
