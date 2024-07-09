@@ -1,6 +1,22 @@
 import mongoose, { Schema } from "mongoose";
-import jwt from "jsonwebtoken";
+import {
+  additionalLinkHost,
+  accountType,
+  category,
+} from "../common/common_constants.js";
 import bcrypt from "bcrypt";
+
+const additionalLinkSchema = new Schema({
+  host: {
+    type: String,
+    enum: Object.values(additionalLinkHost), // Use enum values directly
+    required: true,
+  },
+  url: {
+    type: String,
+    required: true,
+  },
+});
 
 const userSchema = new Schema(
   {
@@ -13,32 +29,11 @@ const userSchema = new Schema(
       index: true,
     },
     accountType: {
-      type: String,
+      type: Object.values(accountType),
       required: true,
-      enum: ["influencer", "brand"],
     },
     categories: {
-      type: [String],
-      enum: [
-        "fashion",
-        "beauty",
-        "lifestyle",
-        "travel",
-        "food",
-        "fitness",
-        "tech",
-        "gaming",
-        "sports",
-        "music",
-        "entertainment",
-        "health",
-        "education",
-        "finance",
-        "business",
-        "politics",
-        "news",
-        "other",
-      ],
+      type: [Object.values(category)],
     },
     email: {
       type: String,
@@ -71,6 +66,9 @@ const userSchema = new Schema(
       type: String,
       select: false,
     },
+    additionalLinks: {
+      type: additionalLinkSchema,
+    },
   },
   {
     timestamps: true,
@@ -88,4 +86,7 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-export const User = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+const AdditionalLink = mongoose.model("AdditionalLink", additionalLinkSchema);
+
+export { User, AdditionalLink };

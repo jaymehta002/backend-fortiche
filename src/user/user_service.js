@@ -3,7 +3,7 @@ import { ApiError } from "../utils/APIError.js";
 
 const findUserByUserId = async (userId) => {
   try {
-    const user = await User.findById({ userId }).select("-password");
+    const user = await User.findById({ userId });
     if (!user) {
       return ApiError(404, "user not found with the userId: " + userId);
     }
@@ -22,7 +22,7 @@ const updateUserByUserId = async (userId, updates) => {
       userId,
       { $set: updates },
       { new: true },
-    ).select("-password");
+    );
 
     if (!updatedUser) {
       return ApiError(
@@ -38,4 +38,14 @@ const updateUserByUserId = async (userId, updates) => {
   }
 };
 
-export { findUserByUserId, updateUserByUserId };
+function validateAdditionalLink(link) {
+  if (!link.host || !link.url) {
+    return ApiError(422, "link host or link url is missing");
+  }
+
+  if (!Object.values(additionalLinkHost).includes(link.host)) {
+    return ApiError(422, "invalid host");
+  }
+}
+
+export { findUserByUserId, updateUserByUserId, validateAdditionalLink };
