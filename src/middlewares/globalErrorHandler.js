@@ -19,6 +19,10 @@ export const globalErrorHandler = (err, req, res, next) => {
     err.message = `Validation error: ${messages.join(", ")}`;
   }
 
+  console.log(
+    `error occured with status code: ${err.statusCode} and message: ${err.message}`,
+  );
+
   res.status(err.statusCode).json({
     success: false,
     message: err.message,

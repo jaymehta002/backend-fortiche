@@ -1,4 +1,4 @@
-import { User } from "../models/user.model.js";
+import { User } from "../user/user.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
@@ -7,14 +7,14 @@ import { compare } from "bcrypt";
 import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 import passport from "passport";
 
-export const googleLogin = passport.authenticate('google', {
-  scope: ['profile', 'email']
+export const googleLogin = passport.authenticate("google", {
+  scope: ["profile", "email"],
 });
 
 export const googleCallback = (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user, info) => {
+  passport.authenticate("google", { session: false }, (err, user, info) => {
     if (err) {
-      console.error('Google authentication error:', err);
+      console.error("Google authentication error:", err);
       return next(ApiError(500, "Error during Google authentication"));
     }
     if (!user) {
@@ -23,13 +23,13 @@ export const googleCallback = (req, res, next) => {
     try {
       const { accessToken, refreshToken } = generateTokens(user._id);
 
-      res 
+      res
         .status(200)
         .cookie("accessToken", accessToken, cookieOptions)
         .cookie("refreshToken", refreshToken, refreshCookieOptions)
         .redirect(`${process.env.CLIENT_URL}`);
     } catch (error) {
-      console.error('Token generation error:', error);
+      console.error("Token generation error:", error);
       return next(ApiError(500, "Error generating authentication tokens"));
     }
   })(req, res, next);

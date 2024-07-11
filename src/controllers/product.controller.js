@@ -1,4 +1,4 @@
-import { product } from "../models/product.model.js";
+import { Product as product } from "../product/product.model.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";

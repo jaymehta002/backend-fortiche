@@ -2,23 +2,29 @@ import { ApiError } from "../utils/APIError.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
-  findUserByUserId,
+  fetchBrandDetailsAndProducts,
   updateUserByUserId,
   validateAdditionalLink,
+  fetchUsers,
 } from "../user/user_service.js";
 import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
+import { accountType } from "../common/common_constants.js";
 
-const getUserDetails = asyncHandler(async (req, res) => {
-  const user = req.user;
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, "User fetched successfully"));
+const getUserDetails = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    return res
+      .status(200)
+      .json(new ApiResponse(200, user, "user fetched successfully"));
+  } catch (err) {
+    return next(err);
+  }
 });
 
-const updateUserDetails = asyncHandler(async (req, res) => {
-  const user = req.user;
-
+const updateUserDetails = asyncHandler(async (req, res, next) => {
   try {
+    const user = req.user;
+
     const { userName, categories, fullName, bio } = req.body;
     const updates = {};
 
@@ -28,13 +34,14 @@ const updateUserDetails = asyncHandler(async (req, res) => {
     if (bio) updates.bio = bio;
 
     const updatedUser = await updateUserByUserId(user._id, updates);
+
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
           updatedUser,
-          "Account details updated successfully",
+          "account details updated successfully",
         ),
       );
   } catch (err) {
@@ -42,29 +49,27 @@ const updateUserDetails = asyncHandler(async (req, res) => {
   }
 });
 
-const updateUserAvatar = asyncHandler(async (req, res) => {
-  const user = req.user;
-
-  const avatarLocalPath = req.file?.path;
-
-  if (!avatarLocalPath) {
-    return next(ApiError(400, "Avatar file is missing"));
-  }
-
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-
-  if (!avatar.url) {
-    return next(ApiError(400, "Error while uploading avatar"));
-  }
-
+const updateUserAvatar = asyncHandler(async (req, res, next) => {
   try {
-    const updates = { avatar: avatar.url };
+    const user = req.user;
 
+    const avatarLocalPath = req.file?.path;
+    if (!avatarLocalPath) {
+      throw ApiError(400, "avatar file is missing");
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    if (!avatar.url) {
+      throw ApiError(400, "error while uploading avatar");
+    }
+
+    const updates = { avatar: avatar.url };
     const updatedUser = await updateUserByUserId(user._id, updates);
+
     return res
       .status(200)
       .json(
-        new ApiResponse(200, updatedUser, "Avatar image updated successfully"),
+        new ApiResponse(200, updatedUser, "avatar image updated successfully"),
       );
   } catch (err) {
     return next(err);
@@ -72,35 +77,33 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res, next) => {
-  const user = req.user;
-
-  const coverImageLocalPath = req.file?.path;
-
-  if (!coverImageLocalPath) {
-    return next(ApiError(400, "Cover image file is missing"));
-  }
-
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-
-  if (!coverImage.url) {
-    return next(ApiError(400, "Error while uploading cover image"));
-  }
-
   try {
-    const updates = { coverImage: coverImage.url };
+    const user = req.user;
 
+    const coverImageLocalPath = req.file?.path;
+    if (!coverImageLocalPath) {
+      throw ApiError(400, "cover image file is missing");
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    if (!coverImage.url) {
+      throw ApiError(400, "error while uploading cover image");
+    }
+
+    const updates = { coverImage: coverImage.url };
     const updatedUser = await updateUserByUserId(user._id, updates);
+
     return res
       .status(200)
       .json(
-        new ApiResponse(200, updatedUser, "Cover image updated successfully"),
+        new ApiResponse(200, updatedUser, "cover image updated successfully"),
       );
   } catch (err) {
     return next(err);
   }
 });
 
-const updateAdditionalLinks = asyncHandler(async (req, res) => {
+const updateAdditionalLinks = asyncHandler(async (req, res, next) => {
   const user = req.user;
 
   try {
@@ -143,10 +146,62 @@ const updateAdditionalLinks = asyncHandler(async (req, res) => {
   }
 });
 
+const getAllBrands = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (user.accountType !== accountType.INFLUENCER) {
+      throw ApiError(403, "user should be an influencer");
+    }
+
+    const allBrands = await fetchUsers({ accountType: accountType.BRAND });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, allBrands, "all brands fetched successfully"));
+  } catch (err) {
+    return next(err);
+  }
+});
+
+const getBrandDetailsAndProducts = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    const brandId = req.body.brandId;
+
+    if (
+      user.accountType !== accountType.INFLUENCER &&
+      user.accountType !== accountType.BRAND
+    ) {
+      throw ApiError(403, "user should be an influencer or a brand");
+    } else if (user.accountType === accountType.BRAND && user._id !== brandId) {
+      throw ApiError(
+        403,
+        "brand is trying to access details of any other brand",
+      );
+    }
+
+    const resp = await fetchBrandDetailsAndProducts(brandId);
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          resp,
+          "brand details and products fetched successfully",
+        ),
+      );
+  } catch (err) {
+    return next(err);
+  }
+});
+
 export {
   getUserDetails,
   updateUserDetails,
   updateUserAvatar,
   updateUserCoverImage,
   updateAdditionalLinks,
+  getAllBrands,
+  getBrandDetailsAndProducts,
 };
