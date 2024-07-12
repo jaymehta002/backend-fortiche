@@ -7,57 +7,33 @@ import { compare } from "bcrypt";
 import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 import passport from "passport";
 import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
-import { response } from "express";
 
-export const googleLogin = passport.authenticate("google", {
-  scope: ["profile", "email"],
+export const googleLogin = passport.authenticate('google', {
+  scope: ['profile', 'email']
 });
 
-export const googleCallback = asyncHandler(async (req, res, next) => {
-  passport.authenticate("google", { session: false }, async (err, user, info) => {
+export const googleCallback = (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user, info) => {
     if (err) {
-      console.error("Google authentication error:", err);
+      console.error('Google authentication error:', err);
       return next(ApiError(500, "Error during Google authentication"));
     }
     if (!user) {
       return next(ApiError(401, "Google authentication failed"));
     }
     try {
-      const email = user.emails[0].value;
-      const existedUser = User.findOne({ email });
-
-      if(existedUser){
-
-        const { accessToken, refreshToken } = generateTokens(existedUser._id);
-
-        return res.status(200)
-          .cookie("accessToken", accessToken, cookieOptions)
-          .cookie("refreshToken", refreshToken, refreshCookieOptions)
-          .json({
-            success: true,
-            data: existedUser,
-            message: "User logged in successfully",
-          });
-      }
-
-      
-      const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
-
-      req.session.registrationOTP = { email, hashedOTP, otpExpiration, isGoogle: true };
-
-      res.status(200).json({
-        success: true,
-        message: "OTP sent to email. Please verify.",
-        data: {email}
-      });
+      const { accessToken, refreshToken } = generateTokens(user._id);
+      res 
+        .status(200)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, refreshCookieOptions)
+        .redirect(process.env.CLIENT_URL)
     } catch (error) {
-      console.error("Token generation error:", error);
+      console.error('Token generation error:', error);
       return next(ApiError(500, "Error generating authentication tokens"));
     }
   })(req, res, next);
-});
-
-
+};
 const registerUser = asyncHandler(async (req, res, next) => {
   const { fullName, email, username, password } = req.body;
 
@@ -91,43 +67,10 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
     return next(ApiError(400, "Invalid session or email mismatch"));
   }
 
-  const { hashedOTP, otpExpiration, isGoogle } = req.session.registrationOTP;
+  const { hashedOTP, otpExpiration } = req.session.registrationOTP;
   await verifyOTP(hashedOTP, otp, otpExpiration);
 
   delete req.session.registrationOTP;
-
-  if(isGoogle){
-    const user = await User.create({
-      fullName,
-      email,
-      password: 'GoogleUser@Fortiche123',
-      username: username.toLowerCase(),
-      accountType,
-      categories,
-    });
-
-    const createdUser = await User.findOne(user._id);
-
-    if(!createdUser){
-      return next(ApiError(500, "Something went wrong while creating user"));
-    }
-
-    const { accessToken, refreshToken } = generateTokens(user._id);
-
-    user.refreshToken = refreshToken;
-    await user.save({ validateModifiedOnly: true });
-
-    return res
-      .status(201)
-      .cookie("accessToken", accessToken, cookieOptions)
-      .cookie("refreshToken", refreshToken, refreshCookieOptions)
-      .json({
-        success: true,
-        data: createdUser,
-        message: "User registered successfully via Google",
-      });
-  } else {
-
 
   const user = await User.create({
     fullName,
@@ -159,7 +102,6 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
       data: createdUser,
       message: "User registered successfully",
     });
-  }
 });
 
 const loginUser = asyncHandler(async (req, res, next) => {
