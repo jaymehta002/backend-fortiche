@@ -14,8 +14,9 @@ const corsOptions = {
   credentials: true,
   origin: [
     process.env.CLIENT_URL,
+    "https://fortiche-frontend.vercel.app",
     "localhost",
-    "127.0.0.1",
+    "127.0.0.1", 
     "http://localhost:5173",
   ],
 };
