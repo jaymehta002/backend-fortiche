@@ -1,4 +1,4 @@
-import { User } from "../models/user.model.js";
+import { User } from "../user/user.model.js";
 import { verifyToken } from "../services/token.service.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -47,7 +47,6 @@ export const initializePassport = () => {
 export const sessionPassport = () => {
   return passport.session();
 };
-
 
 export const auth = asyncHandler(async (req, _, next) => {
   const token =

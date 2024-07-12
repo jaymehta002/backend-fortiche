@@ -29,11 +29,13 @@ const userSchema = new Schema(
       index: true,
     },
     accountType: {
-      type: Object.values(accountType),
+      type: String,
+      enum: Object.values(accountType),
       required: true,
     },
     categories: {
-      type: [Object.values(category)],
+      type: [String],
+      enum: Object.values(category),
     },
     email: {
       type: String,
