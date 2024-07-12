@@ -6,6 +6,7 @@ import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
 import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 import passport from "passport";
+import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
 
 export const googleLogin = passport.authenticate('google', {
   scope: ['profile', 'email']
@@ -201,10 +202,64 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
     });
 });
 
+const forgotPassword = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return next(ApiError(400, "Email is required"));
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+
+  const token = generateTokens(user._id).accessToken;
+
+  const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+
+  await sendResetPasswordMail(email, resetPasswordLink);
+
+  res.status(200).json({
+    success: true,
+    message: "Password reset link sent to email",
+  });
+
+
+})
+
+const resetPassword = asyncHandler(async (req, res, next) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return next(ApiError(400, "Token and new password are required"));
+  }
+
+  const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
+
+  const user = await User.findById(decodedToken._id);
+
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Password updated successfully",
+  });
+})
+
+
 export {
   registerUser,
   verifyOTPAndRegister,
   loginUser,
   logoutUser,
   refreshAccessToken,
+  forgotPassword,
+  resetPassword,
 };
