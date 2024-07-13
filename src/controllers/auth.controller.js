@@ -50,6 +50,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
+  console.log(req.session);
 
   res.status(200).json({
     success: true,
@@ -61,6 +62,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
+  console.log(req.session.registrationOTP);
   if (
     !req.session.registrationOTP ||
     req.session.registrationOTP.email !== email
@@ -151,7 +153,7 @@ const logoutUser = asyncHandler(async (req, res, next) => {
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: 'None',
+    sameSite: "none",
   };
 
   res
@@ -226,9 +228,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Password reset link sent to email",
   });
-
-
-})
+});
 
 const resetPassword = asyncHandler(async (req, res, next) => {
   const { token, newPassword } = req.body;
@@ -252,8 +252,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Password updated successfully",
   });
-})
-
+});
 
 export {
   registerUser,
