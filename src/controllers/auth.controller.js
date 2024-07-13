@@ -49,6 +49,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
+  console.log(req.session);
 
   res.status(200).json({
     success: true,
