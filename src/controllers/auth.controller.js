@@ -60,6 +60,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
+  console.log(req.session.registrationOTP);
   if (
     !req.session.registrationOTP ||
     req.session.registrationOTP.email !== email
@@ -150,6 +151,7 @@ const logoutUser = asyncHandler(async (req, res, next) => {
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+    sameSite: "None",
   };
 
   res
@@ -199,6 +201,55 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
       success: true,
       message: "Access token refreshed",
     });
+});
+
+const forgotPassword = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return next(ApiError(400, "Email is required"));
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+
+  const token = generateTokens(user._id).accessToken;
+
+  const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+
+  await sendResetPasswordMail(email, resetPasswordLink);
+
+  res.status(200).json({
+    success: true,
+    message: "Password reset link sent to email",
+  });
+});
+
+const resetPassword = asyncHandler(async (req, res, next) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return next(ApiError(400, "Token and new password are required"));
+  }
+
+  const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
+
+  const user = await User.findById(decodedToken._id);
+
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Password updated successfully",
+  });
 });
 
 export {
