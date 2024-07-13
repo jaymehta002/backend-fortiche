@@ -5,33 +5,31 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/v1/auth/google/callback",
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        let user = await User.findOne({ email: profile.emails[0].value });
-        if (!user) {
-          user = new User({
-            fullName: profile.displayName,
-            email: profile.emails[0].value,
-            username: profile.displayName.split(" ").join(".").toLowerCase(),
-            password: "null",
-            accountType: "brand",
-          });
-          await user.save();
-        }
-        return done(null, user);
-      } catch (err) {
-        return done(err, null);
-      }
-    },
-  ),
-);
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: `https://belly-backend-tpc6.onrender.com/api/v1/auth/google/callback`,
+  scope: ['profile', 'email']
+},
+
+async (accessToken, refreshToken, profile, done) => {
+  try {
+    let user = await User.findOne({ email: profile.emails[0].value });
+    if (!user) {
+      user = new User({
+        fullName: profile.displayName,
+        email: profile.emails[0].value,
+        username: profile.displayName.split(" ").join(".").toLowerCase(),
+        password: "null",
+        accountType: "brand"
+      });
+      await user.save();
+    }
+    return done(null, user);
+  } catch (err) {
+    return done(err, null);
+  }
+}));
 
 passport.deserializeUser(async (id, done) => {
   try {

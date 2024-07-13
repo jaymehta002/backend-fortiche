@@ -6,6 +6,7 @@ import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
 import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 import passport from "passport";
+import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
 
 export const googleLogin = passport.authenticate("google", {
   scope: ["profile", "email"],
@@ -152,7 +153,7 @@ const logoutUser = asyncHandler(async (req, res, next) => {
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    sameSite: "none",
   };
 
   res
@@ -259,4 +260,6 @@ export {
   loginUser,
   logoutUser,
   refreshAccessToken,
+  forgotPassword,
+  resetPassword,
 };
