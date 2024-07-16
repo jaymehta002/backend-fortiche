@@ -8,14 +8,15 @@ import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 import passport from "passport";
 import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
 
-export const googleLogin = passport.authenticate('google', {
-  scope: ['profile', 'email']
+export const googleLogin = passport.authenticate("google", {
+  scope: ["profile", "email"],
 });
 
 export const googleCallback = (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user, info) => {
+  passport.authenticate("google", { session: false }, (err, user, info) => {
     if (err) {
-      console.error('Google authentication error:', err);
+      console.log(err);
+      console.error("Google authentication error:", err);
       return next(ApiError(500, "Error during Google authentication"));
     }
     if (!user) {
@@ -23,17 +24,21 @@ export const googleCallback = (req, res, next) => {
     }
     try {
       const { accessToken, refreshToken } = generateTokens(user._id);
-      res 
+      res
         .status(200)
         .cookie("accessToken", accessToken, cookieOptions)
         .cookie("refreshToken", refreshToken, refreshCookieOptions)
-        .redirect(process.env.CLIENT_URL)
+        .send(
+          "<script>window.close(); window.opener.location.reload();</script>",
+        );
+      // .redirect(process.env.CLIENT_URL);
     } catch (error) {
-      console.error('Token generation error:', error);
+      console.error("Token generation error:", error);
       return next(ApiError(500, "Error generating authentication tokens"));
     }
   })(req, res, next);
 };
+
 const registerUser = asyncHandler(async (req, res, next) => {
   const { fullName, email, username, password } = req.body;
 
@@ -49,7 +54,6 @@ const registerUser = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
-  console.log(req.session);
 
   res.status(200).json({
     success: true,
@@ -61,7 +65,6 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
-  console.log(req.session.registrationOTP);
   if (
     !req.session.registrationOTP ||
     req.session.registrationOTP.email !== email
