@@ -42,6 +42,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   }
 
   const existedUser = await User.findOne({ $or: [{ username }, { email }] });
+  console.log(existedUser);
   if (existedUser) {
     return next(ApiError(409, "User with email or username already exists"));
   }
@@ -61,7 +62,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
-  console.log(req.session.registrationOTP);
+  console.log(req.session);
   if (
     !req.session.registrationOTP ||
     req.session.registrationOTP.email !== email
