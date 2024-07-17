@@ -79,7 +79,6 @@ const updateUserAvatar = asyncHandler(async (req, res, next) => {
 const updateUserCoverImage = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-
     const coverImageLocalPath = req.file?.path;
     if (!coverImageLocalPath) {
       throw ApiError(400, "cover image file is missing");
@@ -108,11 +107,12 @@ const updateAdditionalLinks = asyncHandler(async (req, res, next) => {
 
   try {
     const { additionalLinks } = req.body;
-
+    console.log(additionalLinks);
     if (additionalLinks) {
       const updates = {};
 
       const validatedLinks = additionalLinks.map((link) => {
+        console.log(link);
         validateAdditionalLink(link);
         return link;
       });
@@ -124,7 +124,6 @@ const updateAdditionalLinks = asyncHandler(async (req, res, next) => {
           existingHosts.set(existingLink.host, existingLink.url); // Store existing host-url pairs
         }
       }
-
       // Update links using MongoDB update operators
       updates.additionalLinks = validatedLinks.map((link) => {
         const updateOperator = existingHosts.has(link.host)
