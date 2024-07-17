@@ -9,7 +9,7 @@ const publicRouter = express.Router();
 publicRouter.get("/affiliation", publicAffiliationRouter);
 
 router
-  .use("/user", userRouter)
+  .use("/users", userRouter)
   .use("/product", productRouter)
   .use("/auth", authRoutes)
   .use("/public", publicRouter);

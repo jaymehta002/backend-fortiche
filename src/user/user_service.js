@@ -33,13 +33,12 @@ function validateAdditionalLink(link) {
   if (!link.host || !link.url) {
     throw ApiError(422, "link host or link url is missing");
   }
-
   if (!Object.values(additionalLinkHost).includes(link.host)) {
     throw ApiError(422, "invalid host");
   }
 }
 
-// brand specific
+
 const fetchBrandDetailsAndProducts = async (brandId) => {
   const brandDetails = await fetchUserByUserId(brandId);
 
