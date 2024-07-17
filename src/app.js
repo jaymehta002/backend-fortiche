@@ -12,7 +12,7 @@ import MongoStore from "connect-mongo";
 import { DB_NAME } from "./constants.js";
 
 const app = express();
-// app.set("trust proxy", 1);
+app.set("trust proxy", 1);
 
 const mongoStore = new MongoStore({
   mongoUrl: `${process.env.MONGODB_URI}/${DB_NAME}`, // Use the established Mongoose connection
