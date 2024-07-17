@@ -5,7 +5,9 @@ import {
   refreshAccessToken,
   registerUser,
   verifyOTPAndRegister,
-  googleCallback
+  googleCallback,
+  forgotPassword,
+  resetPassword
 } from "../controllers/auth.controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import passport from "passport";
@@ -19,7 +21,9 @@ authRouter
   .post("/logout", auth, logoutUser)
   .post("/refresh-token", refreshAccessToken)
   .get("/google", passport.authenticate('google', { scope: ['profile', 'email'] }))
-  .get("/google/callback", googleCallback);
+  .get("/google/callback", googleCallback)
+  .post('/forgot-password', forgotPassword)
+  .post('/reset-password', resetPassword);
 
 
 

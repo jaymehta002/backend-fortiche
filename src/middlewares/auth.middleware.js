@@ -1,4 +1,4 @@
-import { User } from "../models/user.model.js";
+import { User } from "../user/user.model.js";
 import { verifyToken } from "../services/token.service.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -8,7 +8,8 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "https://belly-backend-tpc6.onrender.com/api/v1/auth/google/callback",
+  callbackURL: `https://belly-backend-tpc6.onrender.com/api/v1/auth/google/callback`,
+  // callbackURL: `http://localhost:8000/api/v1/auth/google/callback`,
   scope: ['profile', 'email']
 },
 
@@ -47,7 +48,6 @@ export const initializePassport = () => {
 export const sessionPassport = () => {
   return passport.session();
 };
-
 
 export const auth = asyncHandler(async (req, _, next) => {
   const token =

@@ -1,4 +1,4 @@
-import { User } from "../models/user.model.js";
+import { User } from "../user/user.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
@@ -6,6 +6,7 @@ import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
 import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 import passport from "passport";
+import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
 
 export const googleLogin = passport.authenticate('google', {
   scope: ['profile', 'email']
@@ -48,6 +49,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
+  console.log(req.session);
 
   res.status(200).json({
     success: true,
@@ -59,6 +61,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
+  console.log(req.session.registrationOTP);
   if (
     !req.session.registrationOTP ||
     req.session.registrationOTP.email !== email
@@ -149,6 +152,7 @@ const logoutUser = asyncHandler(async (req, res, next) => {
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+    sameSite: "none",
   };
 
   res
@@ -200,10 +204,61 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
     });
 });
 
+const forgotPassword = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return next(ApiError(400, "Email is required"));
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+
+  const token = generateTokens(user._id).accessToken;
+
+  const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+
+  await sendResetPasswordMail(email, resetPasswordLink);
+
+  res.status(200).json({
+    success: true,
+    message: "Password reset link sent to email",
+  });
+});
+
+const resetPassword = asyncHandler(async (req, res, next) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return next(ApiError(400, "Token and new password are required"));
+  }
+
+  const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
+
+  const user = await User.findById(decodedToken._id);
+
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Password updated successfully",
+  });
+});
+
 export {
   registerUser,
   verifyOTPAndRegister,
   loginUser,
   logoutUser,
   refreshAccessToken,
+  forgotPassword,
+  resetPassword,
 };

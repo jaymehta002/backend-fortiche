@@ -5,6 +5,8 @@ import {
   updateUserAvatar,
   updateUserCoverImage,
   updateAdditionalLinks,
+  getAllBrands,
+  getBrandDetailsAndProducts,
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
@@ -16,6 +18,8 @@ userRouter
   .patch("/update-account", updateUserDetails)
   .patch("/update-avatar", updateUserAvatar)
   .patch("/update-cover-image", updateUserCoverImage)
-  .patch("/update-additional-links", updateAdditionalLinks);
+  .patch("/update-additional-links", updateAdditionalLinks)
+  .get("/get-all-brands", getAllBrands)
+  .get("/get-brand-details-and-products", getBrandDetailsAndProducts);
 
 export default userRouter;

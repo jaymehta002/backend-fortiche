@@ -1,8 +1,7 @@
-import mongoose, {Schema} from "mongoose";
+import mongoose from "mongoose";
 
-
-const productSchema = new mongoose.Schema({
-
+const productSchema = new mongoose.Schema(
+  {
     title: {
       type: String,
       required: true,
@@ -17,31 +16,31 @@ const productSchema = new mongoose.Schema({
       trim: true,
     },
     category: {
-        type: String,
-        trim: true,
+      type: String,
+      trim: true,
     },
     categoryName: {
-      type: String, 
+      type: String,
     },
     stock: {
       type: Number,
       required: true,
-      min: 0, 
+      min: 0,
     },
     stockStatus: {
       type: Boolean,
-      default: true, 
+      default: true,
     },
     price: {
       type: Number,
       required: true,
-      min: 0, 
+      min: 0,
     },
     discountPercent: {
       type: Number,
       default: 0,
       min: 0,
-      max: 100, 
+      max: 100,
     },
     productType: {
       type: String,
@@ -49,14 +48,10 @@ const productSchema = new mongoose.Schema({
     },
     imageUrls: {
       type: [String],
-    //   validate: {
-    //     validator: (urls) => urls.every((url) => URLValidator.isURL(url)),
-    //     message: (props) => `${props.value} is not a valid URL`,
-    //   },
     },
     brandId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     rating: {
       type: Number,
@@ -64,14 +59,13 @@ const productSchema = new mongoose.Schema({
       max: 5,
     },
     isRecommended: {
-        type: Boolean,
-        default: false,
-        },
-   
+      type: Boolean,
+      default: false,
+    },
   },
   {
-    timestamps: true
-}
+    timestamps: true,
+  },
 );
-  
-  export const product = mongoose.model('product', productSchema);
+
+export const Product = mongoose.model("product", productSchema);
