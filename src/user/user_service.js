@@ -43,7 +43,6 @@ function validateAdditionalLink(link) {
   }
 }
 
-
 const fetchBrandDetailsAndProducts = async (brandId) => {
   const brandDetails = await fetchUserByUserId(brandId);
 
@@ -58,8 +57,8 @@ const fetchBrandDetailsAndProducts = async (brandId) => {
 };
 
 // influencer specific
-const getInfluencerProfile = async (influencerId) => {
-  const user = await fetchUserByUserId(influencerId);
+const getInfluencerProfile = async (influencerId, projection) => {
+  const user = await fetchUserByUserId(influencerId, projection);
 
   if (user.accountType !== accountType.INFLUENCER) {
     throw ApiError(

@@ -209,6 +209,7 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       avatar: 1,
       coverImage: 1,
       additionalLinks: 1,
+      accountType: 1,
     });
 
     const affiliations = await Affiliation.aggregate([
@@ -229,8 +230,7 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       {
         $project: {
           _id: 1,
-          productId: 1,
-          productDetails: 1, // This renames 'productId' to 'product'
+          productDetails: 1,
         },
       },
     ]);
@@ -240,7 +240,16 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       affiliations,
     };
 
-    await increasePageViewCount(influencerId, 1);
+    const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
+    const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
+    if (!lastVisitTime) {
+      await increasePageViewCount(influencerId, 1);
+      res.cookie(lastVisitTimeCookieKey, Date.now(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 1000 * 60 * 60, // can make configurable in case of multiple usecases
+      });
+    }
 
     return res
       .status(200)
