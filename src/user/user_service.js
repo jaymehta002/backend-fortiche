@@ -1,9 +1,10 @@
 import { User } from "./user.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { fetchProducts } from "../product/product_service.js";
+import { accountType } from "../common/common_constants.js";
 
-const fetchUserByUserId = async (userId) => {
-  const user = await User.findById(userId);
+const fetchUserByUserId = async (userId, projection) => {
+  const user = await User.findById(userId, projection);
   if (!user) {
     throw ApiError(
       404,
@@ -26,6 +27,10 @@ const updateUserByUserId = async (userId, updates) => {
     { new: true },
   );
 
+  if (!updatedUser) {
+    throw ApiError(404, `invalid userId: ${userId}`);
+  }
+
   return updatedUser;
 };
 
@@ -37,7 +42,6 @@ function validateAdditionalLink(link) {
     throw ApiError(422, "invalid host");
   }
 }
-
 
 const fetchBrandDetailsAndProducts = async (brandId) => {
   const brandDetails = await fetchUserByUserId(brandId);
@@ -52,10 +56,25 @@ const fetchBrandDetailsAndProducts = async (brandId) => {
   return resp;
 };
 
+// influencer specific
+const getInfluencerProfile = async (influencerId, projection) => {
+  const user = await fetchUserByUserId(influencerId, projection);
+
+  if (user.accountType !== accountType.INFLUENCER) {
+    throw ApiError(
+      404,
+      "account type is not influencer, it is: " + user.accountType,
+    );
+  }
+
+  return user;
+};
+
 export {
   fetchUserByUserId,
   fetchUsers,
   updateUserByUserId,
   validateAdditionalLink,
   fetchBrandDetailsAndProducts,
+  getInfluencerProfile,
 };

@@ -5,52 +5,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 //create a post request to create a product
 
-const createProduct = asyncHandler(async (req, res, next) => {
-  const {
-    title,
-    brand,
-    description,
-    category,
-    categoryName,
-    stock,
-    stockStatus,
-    price,
-    discountPercent,
-    productType,
-    imageUrls,
-    rating,
-    isRecommended,
-  } = req.body;
-  const brandId = req.user.id; // or req.user._id depending on your user object structure
-
-  const existedProduct = await product.findOne({
-    $or: [{ title }, { brand }],
-  });
-
-  if (existedProduct) {
-    return next(ApiError(409, "Product already exists"));
-  }
-
-  const products = await product.create({
-    title,
-    brand,
-    description,
-    category,
-    categoryName,
-    stock,
-    stockStatus,
-    price,
-    discountPercent,
-    productType,
-    imageUrls,
-    rating,
-    isRecommended,
-    brandId,
-  });
-
-  return res.status(201).json(new ApiResponse(201, products));
-});
-
 //create a get request to get all products
 
 const getProducts = asyncHandler(async (req, res) => {
