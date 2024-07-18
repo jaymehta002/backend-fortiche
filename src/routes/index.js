@@ -14,7 +14,7 @@ publicRouter
   .use("/user", publicUserRouter);
 
 router
-  .use("/user", userRouter)
+  .use("/users", userRouter)
   .use("/product", productRouter)
   .use("/auth", authRoutes)
   .use("/public", publicRouter)

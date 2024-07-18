@@ -87,7 +87,6 @@ const updateUserAvatarController = asyncHandler(async (req, res, next) => {
 const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-
     const coverImageLocalPath = req.file?.path;
     if (!coverImageLocalPath) {
       throw ApiError(400, "cover image file is missing");
@@ -116,7 +115,7 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
 
   try {
     const { additionalLinks } = req.body;
-
+    console.log(additionalLinks);
     if (additionalLinks) {
       additionalLinks.forEach((newLink) => {
         const existingLinkIndex = user.additionalLinks.findIndex(
