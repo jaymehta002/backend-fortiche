@@ -40,7 +40,7 @@ export const sendResetPasswordMail = async (email, resetToken) => {
       from: process.env.EMAIL_USERNAME,
       to: email,
       subject: "Reset Password",
-      text: `Click on the link to reset your password: ${process.env.CLIENT_URL}/reset-password/${resetToken}`,
+      text: `Click on the link to reset your password: ${resetToken}`,
     };
 
     await transporter.sendMail(mailOptions);

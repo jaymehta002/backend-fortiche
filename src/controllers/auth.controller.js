@@ -61,7 +61,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
-  console.log(req.session.registrationOTP);
+  console.log('session', req.session.registrationOTP);
   if (
     !req.session.registrationOTP ||
     req.session.registrationOTP.email !== email
