@@ -1,25 +1,29 @@
 import { Router } from "express";
 import {
-  getUserDetails,
-  updateUserDetails,
-  updateUserAvatar,
-  updateUserCoverImage,
-  updateAdditionalLinks,
-  getAllBrands,
-  getBrandDetailsAndProducts,
+  getUserDetailsController,
+  updateUserDetailsController,
+  updateUserAvatarController,
+  updateUserCoverImageController,
+  updateAdditionalLinksController,
+  getAllBrandsController,
+  getBrandDetailsAndProductsController,
+  getInfluencerPageController,
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
 const userRouter = Router();
+const publicUserRouter = Router();
 userRouter.use(auth);
 
 userRouter
-  .get("/my-profile", getUserDetails)
-  .patch("/update-account", updateUserDetails)
-  .patch("/update-avatar", updateUserAvatar)
-  .patch("/update-cover-image", updateUserCoverImage)
-  .patch("/update-additional-links", updateAdditionalLinks)
-  .get("/get-all-brands", getAllBrands)
-  .get("/get-brand-details-and-products", getBrandDetailsAndProducts);
+  .get("/my-profile", getUserDetailsController)
+  .patch("/update-account", updateUserDetailsController)
+  .patch("/update-avatar", updateUserAvatarController)
+  .patch("/update-cover-image", updateUserCoverImageController)
+  .patch("/update-additional-links", updateAdditionalLinksController)
+  .get("/get-all-brands", getAllBrandsController)
+  .get("/get-brand-details-and-products", getBrandDetailsAndProductsController);
 
-export default userRouter;
+publicUserRouter.get("/get-influencer-page", getInfluencerPageController);
+
+export { userRouter, publicUserRouter };

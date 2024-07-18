@@ -6,6 +6,53 @@ import { ApiResponse } from "../utils/APIResponse.js";
 import { fetchProductById, fetchProducts } from "./product_service.js";
 import { fetchUserByUserId } from "../user/user_service.js";
 
+const createProduct = asyncHandler(async (req, res, next) => {
+  try {
+    const {
+      title,
+      description,
+      category,
+      categoryName,
+      stock,
+      stockStatus,
+      price,
+      discountPercent,
+      productType,
+      imageUrls,
+      rating,
+      isRecommended,
+    } = req.body;
+
+    if (req.user.accountType != accountType.BRAND) {
+      throw ApiError(409, "account type should be brand");
+    }
+
+    const brandId = req.user.id;
+    const brand = req.user.fullName;
+
+    const products = await Product.create({
+      title,
+      brand,
+      description,
+      category,
+      categoryName,
+      stock,
+      stockStatus,
+      price,
+      discountPercent,
+      productType,
+      imageUrls,
+      rating,
+      isRecommended,
+      brandId,
+    });
+
+    return res.status(201).json(new ApiResponse(201, products));
+  } catch (err) {
+    next(err);
+  }
+});
+
 const getAllProducts = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
@@ -51,4 +98,4 @@ const getProductDetails = asyncHandler(async (req, res, next) => {
   }
 });
 
-export { getAllProducts, getProductDetails };
+export { createProduct, getAllProducts, getProductDetails };

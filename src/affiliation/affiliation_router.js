@@ -1,8 +1,19 @@
 import { Router } from "express";
-import { getAffiliationProduct } from "./affiliation_controller.js";
+import {
+  createAffiliationController,
+  getAffiliationProductController,
+} from "./affiliation_controller.js";
+import { auth } from "../middlewares/auth.middleware.js";
 
 const publicAffiliationRouter = Router();
+const affiliationRouter = Router();
+affiliationRouter.use(auth);
 
-publicAffiliationRouter.get("/get-affiliation-product", getAffiliationProduct);
+publicAffiliationRouter.get(
+  "/get-affiliation-product",
+  getAffiliationProductController,
+);
 
-export default publicAffiliationRouter;
+affiliationRouter.post("/create-affiliation", createAffiliationController);
+
+export { publicAffiliationRouter, affiliationRouter };

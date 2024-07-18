@@ -4,13 +4,15 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   fetchBrandDetailsAndProducts,
   updateUserByUserId,
-  validateAdditionalLink,
   fetchUsers,
 } from "../user/user_service.js";
+import { getInfluencerProfile } from "../user/user_service.js";
 import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
 import { accountType } from "../common/common_constants.js";
+import { increasePageViewCount } from "../analytics/analytics_service.js";
+import { Affiliation } from "../affiliation/affiliation_model.js";
 
-const getUserDetails = asyncHandler(async (req, res, next) => {
+const getUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
     return res
@@ -21,11 +23,17 @@ const getUserDetails = asyncHandler(async (req, res, next) => {
   }
 });
 
-const updateUserDetails = asyncHandler(async (req, res, next) => {
+const updateUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
 
     const { userName, categories, fullName, bio } = req.body;
+
+    const existingUser = await fetchUsers({ username: userName });
+    if (existingUser) {
+      throw ApiError(409, "username already exists");
+    }
+
     const updates = {};
 
     if (userName) updates.username = userName;
@@ -49,7 +57,7 @@ const updateUserDetails = asyncHandler(async (req, res, next) => {
   }
 });
 
-const updateUserAvatar = asyncHandler(async (req, res, next) => {
+const updateUserAvatarController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
 
@@ -76,7 +84,7 @@ const updateUserAvatar = asyncHandler(async (req, res, next) => {
   }
 });
 
-const updateUserCoverImage = asyncHandler(async (req, res, next) => {
+const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
     const coverImageLocalPath = req.file?.path;
@@ -102,40 +110,29 @@ const updateUserCoverImage = asyncHandler(async (req, res, next) => {
   }
 });
 
-const updateAdditionalLinks = asyncHandler(async (req, res, next) => {
+const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
   const user = req.user;
 
   try {
     const { additionalLinks } = req.body;
     console.log(additionalLinks);
     if (additionalLinks) {
-      const updates = {};
-
-      const validatedLinks = additionalLinks.map((link) => {
-        console.log(link);
-        validateAdditionalLink(link);
-        return link;
-      });
-
-      const existingHosts = new Map();
-
-      if (user.additionalLinks) {
-        for (const existingLink of user.additionalLinks) {
-          existingHosts.set(existingLink.host, existingLink.url); // Store existing host-url pairs
+      additionalLinks.forEach((newLink) => {
+        const existingLinkIndex = user.additionalLinks.findIndex(
+          (link) => link.host === newLink.host,
+        );
+        if (existingLinkIndex !== -1) {
+          // Update existing link
+          user.additionalLinks[existingLinkIndex].url = newLink.url;
+        } else {
+          // Add new link
+          user.additionalLinks.push(newLink);
         }
-      }
-      // Update links using MongoDB update operators
-      updates.additionalLinks = validatedLinks.map((link) => {
-        const updateOperator = existingHosts.has(link.host)
-          ? { $set: { "additionalLinks.$[elem].url": link.url } } // Update URL for existing host
-          : { $addToSet: { additionalLinks: link } }; // Add new link if host doesn't exist
-
-        existingHosts.set(link.host, link.url); // Update existingHosts Map if necessary
-
-        return updateOperator;
       });
 
-      const updatedUser = await updateUserByUserId(user._id, updates);
+      // Save the updated user
+      const updatedUser = await user.save();
+
       return res
         .status(200)
         .json(new ApiResponse(200, updatedUser, "links updated successfully"));
@@ -145,7 +142,7 @@ const updateAdditionalLinks = asyncHandler(async (req, res, next) => {
   }
 });
 
-const getAllBrands = asyncHandler(async (req, res, next) => {
+const getAllBrandsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
 
@@ -163,31 +160,95 @@ const getAllBrands = asyncHandler(async (req, res, next) => {
   }
 });
 
-const getBrandDetailsAndProducts = asyncHandler(async (req, res, next) => {
-  try {
-    const user = req.user;
-    const brandId = req.body.brandId;
+const getBrandDetailsAndProductsController = asyncHandler(
+  async (req, res, next) => {
+    try {
+      const user = req.user;
+      const brandId = req.body.brandId;
 
-    if (
-      user.accountType !== accountType.INFLUENCER &&
-      user.accountType !== accountType.BRAND
-    ) {
-      throw ApiError(403, "user should be an influencer or a brand");
-    } else if (user.accountType === accountType.BRAND && user._id !== brandId) {
-      throw ApiError(
-        403,
-        "brand is trying to access details of any other brand",
-      );
+      if (
+        user.accountType !== accountType.INFLUENCER &&
+        user.accountType !== accountType.BRAND
+      ) {
+        throw ApiError(403, "user should be an influencer or a brand");
+      } else if (
+        user.accountType === accountType.BRAND &&
+        user._id !== brandId
+      ) {
+        throw ApiError(
+          403,
+          "brand is trying to access details of any other brand",
+        );
+      }
+
+      const resp = await fetchBrandDetailsAndProducts(brandId);
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            resp,
+            "brand details and products fetched successfully",
+          ),
+        );
+    } catch (err) {
+      return next(err);
     }
+  },
+);
 
-    const resp = await fetchBrandDetailsAndProducts(brandId);
+const getInfluencerPageController = asyncHandler(async (req, res, next) => {
+  try {
+    const influencerId = req.body.influencerId;
+
+    const influencer = await getInfluencerProfile(influencerId, {
+      _id: 1,
+      fullName: 1,
+      username: 1,
+      bio: 1,
+      avatar: 1,
+      coverImage: 1,
+      additionalLinks: 1,
+    });
+
+    const affiliations = await Affiliation.aggregate([
+      {
+        $match: { influencerId: influencer._id },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "productDetails",
+        },
+      },
+      {
+        $unwind: "$productDetails",
+      },
+      {
+        $project: {
+          _id: 1,
+          productId: 1,
+          productDetails: 1, // This renames 'productId' to 'product'
+        },
+      },
+    ]);
+
+    const influencerPageInfo = {
+      influencerInfo: influencer,
+      affiliations,
+    };
+
+    await increasePageViewCount(influencerId, 1);
+
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          resp,
-          "brand details and products fetched successfully",
+          influencerPageInfo,
+          "influencer page fetched successfully",
         ),
       );
   } catch (err) {
@@ -196,11 +257,12 @@ const getBrandDetailsAndProducts = asyncHandler(async (req, res, next) => {
 });
 
 export {
-  getUserDetails,
-  updateUserDetails,
-  updateUserAvatar,
-  updateUserCoverImage,
-  updateAdditionalLinks,
-  getAllBrands,
-  getBrandDetailsAndProducts,
+  getUserDetailsController,
+  updateUserDetailsController,
+  updateUserAvatarController,
+  updateUserCoverImageController,
+  updateAdditionalLinksController,
+  getAllBrandsController,
+  getBrandDetailsAndProductsController,
+  getInfluencerPageController,
 };

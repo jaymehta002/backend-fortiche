@@ -35,6 +35,7 @@ export const googleCallback = (req, res, next) => {
   })(req, res, next);
 };
 const registerUser = asyncHandler(async (req, res, next) => {
+  // console.log("reach");
   const { fullName, email, username, password } = req.body;
 
   if ([fullName, email, username, password].some((field) => !field?.trim())) {

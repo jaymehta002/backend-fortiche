@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { category } from "../common/common_constants.js";
 
 const productSchema = new mongoose.Schema(
   {
@@ -17,6 +18,7 @@ const productSchema = new mongoose.Schema(
     },
     category: {
       type: String,
+      enum: category,
       trim: true,
     },
     categoryName: {
