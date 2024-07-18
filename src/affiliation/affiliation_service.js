@@ -25,4 +25,40 @@ const updateAffiliationById = async (affiliationId, updates) => {
   return updatedAffiliation;
 };
 
-export { fetchAffiliationById, updateAffiliationById };
+const increaseAffiliationClickCount = async (affiliationId, increase) => {
+  if (increase <= 0) {
+    throw new ApiError(
+      500,
+      `invalid increase value: ${increase} for affiliation click count`,
+    );
+  }
+
+  const updatedAffiliation = await updateAffiliationById(affiliationId, {
+    $inc: { clicks: increase },
+  });
+
+  return updatedAffiliation;
+};
+
+const affiliationUpdatesForSuccessfulOrder = async (
+  affiliationId,
+  qty,
+  amount,
+) => {
+  if (qty <= 0 || amount <= 0) {
+    throw new ApiError(404, `invalid qty ${qty} or amount ${amount}`);
+  }
+
+  const updatedAffiliation = await updateAffiliationById(affiliationId, {
+    $inc: { totalSaleQty: qty, totalSaleRevenue: amount },
+  });
+
+  return updatedAffiliation;
+};
+
+export {
+  fetchAffiliationById,
+  updateAffiliationById,
+  increaseAffiliationClickCount,
+  affiliationUpdatesForSuccessfulOrder,
+};

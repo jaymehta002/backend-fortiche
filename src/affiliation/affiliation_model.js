@@ -4,12 +4,12 @@ const affiliationSchema = new mongoose.Schema(
   {
     productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Product", // Reference to the Product model
+      ref: "Product",
       required: true,
     },
-    userId: {
+    influencerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // Reference to the User model
+      ref: "User",
       required: true,
     },
     totalSaleQty: {

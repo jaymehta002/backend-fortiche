@@ -25,7 +25,6 @@ export const sendEmail = async (email, otp) => {
   }
 };
 
-
 export const sendResetPasswordMail = async (email, resetToken) => {
   try {
     const transporter = nodemailer.createTransport({
@@ -48,4 +47,4 @@ export const sendResetPasswordMail = async (email, resetToken) => {
     console.error(err);
     throw ApiError(500, "Error sending reset password email");
   }
-}
+};
