@@ -5,6 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { fetchProductById, fetchProducts } from "./product_service.js";
 import { fetchUserByUserId } from "../user/user_service.js";
+import { Affiliation } from "../affiliation/affiliation_model.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
@@ -98,4 +99,66 @@ const getProductDetails = asyncHandler(async (req, res, next) => {
   }
 });
 
-export { createProduct, getAllProducts, getProductDetails };
+const getMostViewedProductsController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (
+      user.accountType !== accountType.INFLUENCER &&
+      user.accountType !== accountType.BRAND
+    ) {
+      throw ApiError(403, "user should be an influencer or a brand");
+    }
+
+    const mostViewedProducts = await Affiliation.aggregate([
+      {
+        $match: {
+          influencerId: user._id,
+        },
+      },
+      {
+        $sort: {
+          clicks: -1,
+        },
+      },
+      {
+        $limit: 5,
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "productDetails",
+        },
+      },
+      {
+        $unwind: "$productDetails",
+      },
+      {
+        $project: {
+          productDetails: 1,
+        },
+      },
+    ]);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          mostViewedProducts,
+          "most viewed products fetched successfully",
+        ),
+      );
+  } catch (err) {
+    return next(err);
+  }
+});
+
+export {
+  createProduct,
+  getAllProducts,
+  getProductDetails,
+  getMostViewedProductsController,
+};
