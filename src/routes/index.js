@@ -3,6 +3,7 @@ import authRoutes from "./auth.routes.js";
 import userRouter from "../user/user_router.js";
 import productRouter from "../product/product_routes.js";
 import publicAffiliationRouter from "../affiliation/affiliation_router.js";
+import brandRouter from "../brand/brand_router.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -12,6 +13,7 @@ router
   .use("/users", userRouter)
   .use("/product", productRouter)
   .use("/auth", authRoutes)
-  .use("/public", publicRouter);
+  .use("/public", publicRouter)
+  .use("/brand", brandRouter);
 
 export default router;

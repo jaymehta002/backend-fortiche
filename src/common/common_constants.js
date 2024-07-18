@@ -9,6 +9,7 @@ const additionalLinkHost = {
 const accountType = {
   BRAND: "Brand",
   INFLUENCER: "Influencer",
+  DEFAULT: "Default"
 };
 
 const category = {

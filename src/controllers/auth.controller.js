@@ -14,6 +14,7 @@ export const googleLogin = passport.authenticate('google', {
 
 export const googleCallback = (req, res, next) => {
   passport.authenticate('google', { session: false }, (err, user, info) => {
+    console.log(user)
     if (err) {
       console.error('Google authentication error:', err);
       return next(ApiError(500, "Error during Google authentication"));
@@ -27,7 +28,7 @@ export const googleCallback = (req, res, next) => {
         .status(200)
         .cookie("accessToken", accessToken, cookieOptions)
         .cookie("refreshToken", refreshToken, refreshCookieOptions)
-        .redirect(process.env.CLIENT_URL)
+        .redirect(user.accountType === "Default" ? '/' :process.env.CLIENT_URL)
     } catch (error) {
       console.error('Token generation error:', error);
       return next(ApiError(500, "Error generating authentication tokens"));
