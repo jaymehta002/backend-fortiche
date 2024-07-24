@@ -6,6 +6,7 @@ import {
   affiliationRouter,
   publicAffiliationRouter,
 } from "../affiliation/affiliation_router.js";
+import brandRouter from "../brand/brand_router.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -18,6 +19,7 @@ router
   .use("/product", productRouter)
   .use("/auth", authRoutes)
   .use("/public", publicRouter)
-  .use("/affiliation", affiliationRouter);
+  .use("/affiliation", affiliationRouter)
+  .use("/brand", brandRouter);
 
 export default router;

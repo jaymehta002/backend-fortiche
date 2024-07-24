@@ -27,10 +27,18 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
 
+    // const { userName, categories, fullName, bio } = req.body;
+    // console.log(req.body, userName, categories, fullName, bio);
+    // const existingUser = await fetchUsers({ username: userName });
+    // console.log(existingUser);
+    // if (existingUser) {
+    //   throw ApiError(409, "username already exists");
+    // }
+
     const { userName, categories, fullName, bio } = req.body;
 
     const existingUser = await fetchUsers({ username: userName });
-    if (existingUser) {
+    if (userName && existingUser) {
       throw ApiError(409, "username already exists");
     }
 
@@ -40,7 +48,6 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
     if (categories) updates.categories = categories;
     if (fullName) updates.fullName = fullName;
     if (bio) updates.bio = bio;
-
     const updatedUser = await updateUserByUserId(user._id, updates);
 
     return res
@@ -62,7 +69,7 @@ const updateUserAvatarController = asyncHandler(async (req, res, next) => {
     const user = req.user;
 
     const avatarLocalPath = req.file?.path;
-    console.log(req.file)
+    console.log(req.file);
     if (!avatarLocalPath) {
       throw ApiError(400, "avatar file is missing");
     }
@@ -123,10 +130,8 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
           (link) => link.host === newLink.host,
         );
         if (existingLinkIndex !== -1) {
-          // Update existing link
           user.additionalLinks[existingLinkIndex].url = newLink.url;
         } else {
-          // Add new link
           user.additionalLinks.push(newLink);
         }
       });

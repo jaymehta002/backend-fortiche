@@ -24,10 +24,6 @@ const createProduct = asyncHandler(async (req, res, next) => {
       isRecommended,
     } = req.body;
 
-    if (req.user.accountType != accountType.BRAND) {
-      throw ApiError(409, "account type should be brand");
-    }
-
     const brandId = req.user.id;
     const brand = req.user.fullName;
 
@@ -84,13 +80,11 @@ const getProductDetails = asyncHandler(async (req, res, next) => {
     ) {
       throw ApiError(403, "user should be an influencer or a brand");
     }
-
     const productId = req.body.productId;
     const product = await fetchProductById(productId);
     if (!product) {
       throw ApiError(404, "invalid productId, not found in the database");
     }
-
     return res
       .status(200)
       .json(new ApiResponse(200, product, "product fetched successfully"));
