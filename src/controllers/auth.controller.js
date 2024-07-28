@@ -237,7 +237,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
 const resetPassword = asyncHandler(async (req, res, next) => {
   const { token, newPassword } = req.body;
-
+  console.log(token, newPassword);
   if (!token || !newPassword) {
     return next(ApiError(400, "Token and new password are required"));
   }
@@ -259,6 +259,28 @@ const resetPassword = asyncHandler(async (req, res, next) => {
   });
 });
 
+const validateToken = asyncHandler(async (req, res, next) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return next(ApiError(400, "Token is required"));
+  }
+
+  try {
+    const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
+
+    const user = await User.findById(decodedToken._id);
+
+    if (!user) {
+      return res.status(200).json({ valid: false });
+    }
+
+    res.status(200).json({ valid: true });
+  } catch (error) {
+    return res.status(200).json({ valid: false });
+  }
+});
+
 export {
   registerUser,
   verifyOTPAndRegister,
@@ -267,4 +289,5 @@ export {
   refreshAccessToken,
   forgotPassword,
   resetPassword,
+  validateToken,
 };

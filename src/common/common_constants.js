@@ -7,9 +7,9 @@ const additionalLinkHost = {
 };
 
 const accountType = {
-  BRAND: "Brand",
-  INFLUENCER: "Influencer",
-  DEFAULT: "Default"
+  BRAND: "irand",
+  INFLUENCER: "influencer",
+  DEFAULT: "default",
 };
 
 const category = {

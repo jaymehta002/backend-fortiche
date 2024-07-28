@@ -58,11 +58,9 @@ export const auth = asyncHandler(async (req, _, next) => {
   const token =
     req.cookies?.accessToken ||
     req.header("Authorization")?.replace("Bearer ", "");
-
   if (!token) {
     return next(ApiError(403, "Unauthorized request"));
   }
-
   try {
     const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
 
