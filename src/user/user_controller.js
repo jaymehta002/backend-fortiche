@@ -119,37 +119,50 @@ const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
   }
 });
 
-const updateAdditionalLinks = asyncHandler(async (req, res, next) => {
-  const user = req.user;
-
-  const { host, url } = req.body;
-  const { thumbnail } = req.file?.path;
-});
-
 const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
   const user = req.user;
-
   try {
-    const { additionalLinks } = req.body;
-    console.log(additionalLinks);
+    // const { additionalLinks } = req.body;
+    const { host, url, isActive } = req.body;
+    const thumbnail = req.file?.path;
+    const additionalLinks = [
+      {
+        host,
+        url,
+        thumbnail,
+        isActive: isActive ? isActive : true,
+      },
+    ];
     if (additionalLinks) {
-      additionalLinks.forEach((newLink) => {
+      for (const newLink of additionalLinks) {
         const existingLinkIndex = user.additionalLinks.findIndex(
           (link) => link.host === newLink.host,
         );
+
+        if (newLink.thumbnail && !newLink.thumbnail.startsWith("http")) {
+          // Upload new thumbnail to Cloudinary if it's a new file path
+          newLink.thumbnail = (await uploadOnCloudinary(newLink.thumbnail)).url;
+        }
+
         if (existingLinkIndex !== -1) {
-          user.additionalLinks[existingLinkIndex].url = newLink.url;
+          user.additionalLinks[existingLinkIndex].url = newLink;
+          user.additionalLinks[existingLinkIndex].thumbnail =
+            newLink.thumbnail.url.toString();
+          user.additionalLinks[existingLinkIndex].isActive = newLink.isActive;
         } else {
           user.additionalLinks.push(newLink);
         }
-      });
-
+      }
       // Save the updated user
+      // console.log(user);
       const updatedUser = await user.save();
-
       return res
         .status(200)
-        .json(new ApiResponse(200, updatedUser, "links updated successfully"));
+        .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
+    } else {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "No links provided"));
     }
   } catch (err) {
     return next(err);
@@ -278,6 +291,23 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const getAdditionalLinksController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          user.additionalLinks,
+          "Links fetched successfully",
+        ),
+      );
+  } catch (err) {
+    return next(err);
+  }
+});
+
 export {
   getUserDetailsController,
   updateUserDetailsController,
@@ -287,4 +317,5 @@ export {
   getAllBrandsController,
   getBrandDetailsAndProductsController,
   getInfluencerPageController,
+  getAdditionalLinksController,
 };

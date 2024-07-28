@@ -149,9 +149,26 @@ const getMostViewedProductsController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const getProductsByUser = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw ApiError(401, "Unauthorized");
+    }
+    const products = await Product.find({ brandId: user._id });
+    return res.json({
+      message: "All products fetched successfully",
+      products,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export {
   createProduct,
   getAllProducts,
   getProductDetails,
   getMostViewedProductsController,
+  getProductsByUser,
 };

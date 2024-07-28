@@ -9,16 +9,19 @@ import bcrypt from "bcrypt";
 const additionalLinkSchema = new Schema({
   thumbnail: {
     type: String,
-    // required: true,
+    required: true,
   },
   host: {
     type: String,
-    enum: Object.values(additionalLinkHost), // Use enum values directly
     required: true,
   },
   url: {
     type: String,
     required: true,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
   },
 });
 

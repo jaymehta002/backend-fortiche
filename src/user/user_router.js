@@ -8,6 +8,7 @@ import {
   getAllBrandsController,
   getBrandDetailsAndProductsController,
   getInfluencerPageController,
+  getAdditionalLinksController,
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -24,7 +25,12 @@ userRouter
     upload.single("coverImage"),
     updateUserCoverImageController,
   )
-  .patch("/update-additional-links", updateAdditionalLinksController)
+  .patch(
+    "/update-additional-links",
+    upload.single("thumbnail"),
+    updateAdditionalLinksController,
+  )
+  .get("/get-additional-links", getAdditionalLinksController)
   .get("/get-all-brands", getAllBrandsController)
   .get("/get-brand-details-and-products", getBrandDetailsAndProductsController);
 

@@ -4,6 +4,7 @@ import {
   getAllProducts,
   getMostViewedProductsController,
   getProductDetails,
+  getProductsByUser,
 } from "./product_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
@@ -14,6 +15,7 @@ productRouter
   .get("/get-all-products", getAllProducts)
   .get("/get-product-details", getProductDetails)
   .get("/get-most-viewed-products", getMostViewedProductsController)
-  .post("/create-product", createProduct);
+  .post("/create-product", createProduct)
+  .get("/get-products-by-user", getProductsByUser);
 
 export default productRouter;

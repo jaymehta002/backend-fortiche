@@ -1,13 +1,13 @@
 const additionalLinkHost = {
-  INSTAGRAM: "Instagram",
-  PINTEREST: "Pinterest",
-  FACEBOOK: "Facebook",
-  YOUTUBE: "YouTube",
-  SPOTIFY: "Spotify",
+  INSTAGRAM: "instagram",
+  PINTEREST: "pinterest",
+  FACEBOOK: "facebook",
+  YOUTUBE: "youTube",
+  SPOTIFY: "spotify",
 };
 
 const accountType = {
-  BRAND: "irand",
+  BRAND: "brand",
   INFLUENCER: "influencer",
   DEFAULT: "default",
 };
