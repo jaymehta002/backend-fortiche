@@ -8,15 +8,15 @@ import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
 import passport from "passport";
 import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
 
-export const googleLogin = passport.authenticate('google', {
-  scope: ['profile', 'email']
+export const googleLogin = passport.authenticate("google", {
+  scope: ["profile", "email"],
 });
 
 export const googleCallback = (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user, info) => {
-    console.log(user)
+  passport.authenticate("google", { session: false }, (err, user, info) => {
+    console.log(user);
     if (err) {
-      console.error('Google authentication error:', err);
+      console.error("Google authentication error:", err);
       return next(ApiError(500, "Error during Google authentication"));
     }
     if (!user) {
@@ -24,13 +24,15 @@ export const googleCallback = (req, res, next) => {
     }
     try {
       const { accessToken, refreshToken } = generateTokens(user._id);
-      res 
+      res
         .status(200)
         .cookie("accessToken", accessToken, cookieOptions)
         .cookie("refreshToken", refreshToken, refreshCookieOptions)
-        .redirect(user.accountType === "Default" ? '/' :process.env.CLIENT_URL)
+        .redirect(
+          user.accountType === "Default" ? "/" : process.env.CLIENT_URL,
+        );
     } catch (error) {
-      console.error('Token generation error:', error);
+      console.error("Token generation error:", error);
       return next(ApiError(500, "Error generating authentication tokens"));
     }
   })(req, res, next);
@@ -222,7 +224,8 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
   const token = generateTokens(user._id).accessToken;
 
-  const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+  // const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+  const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
 
   await sendResetPasswordMail(email, resetPasswordLink);
 

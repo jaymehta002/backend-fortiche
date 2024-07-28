@@ -36,9 +36,10 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
     // }
 
     const { userName, categories, fullName, bio } = req.body;
-
+    console.log(userName);
     const existingUser = await fetchUsers({ username: userName });
-    if (userName && existingUser) {
+    console.log(existingUser);
+    if (userName && existingUser.length > 0) {
       throw ApiError(409, "username already exists");
     }
 
@@ -95,17 +96,17 @@ const updateUserAvatarController = asyncHandler(async (req, res, next) => {
 const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    const coverImageLocalPath = req.file?.path;
-    if (!coverImageLocalPath) {
+    const coverImage = req.file?.path;
+    if (!coverImage) {
       throw ApiError(400, "cover image file is missing");
     }
 
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-    if (!coverImage.url) {
+    const coverImageUrl = await uploadOnCloudinary(coverImage);
+    if (!coverImageUrl.url) {
       throw ApiError(400, "error while uploading cover image");
     }
 
-    const updates = { coverImage: coverImage.url };
+    const updates = { coverImage: coverImageUrl.url };
     const updatedUser = await updateUserByUserId(user._id, updates);
 
     return res
@@ -116,6 +117,13 @@ const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
+});
+
+const updateAdditionalLinks = asyncHandler(async (req, res, next) => {
+  const user = req.user;
+
+  const { host, url } = req.body;
+  const { thumbnail } = req.file?.path;
 });
 
 const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
@@ -206,7 +214,6 @@ const getBrandDetailsAndProductsController = asyncHandler(
 const getInfluencerPageController = asyncHandler(async (req, res, next) => {
   try {
     const influencerId = req.body.influencerId;
-
     const influencer = await getInfluencerProfile(influencerId, {
       _id: 1,
       fullName: 1,
@@ -245,7 +252,6 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       influencerInfo: influencer,
       affiliations,
     };
-
     const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
     const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
     if (!lastVisitTime) {
@@ -256,6 +262,7 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
         maxAge: 1000 * 60 * 60, // can make configurable in case of multiple usecases
       });
     }
+    console.log("cj");
 
     return res
       .status(200)

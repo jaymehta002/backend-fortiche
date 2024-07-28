@@ -9,13 +9,12 @@ import { Affiliation } from "../affiliation/affiliation_model.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
+    console.log("check");
     const {
       title,
       description,
       category,
-      categoryName,
       stock,
-      stockStatus,
       price,
       discountPercent,
       productType,
@@ -32,9 +31,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
       brand,
       description,
       category,
-      categoryName,
       stock,
-      stockStatus,
       price,
       discountPercent,
       productType,
@@ -52,11 +49,13 @@ const createProduct = asyncHandler(async (req, res, next) => {
 
 const getAllProducts = asyncHandler(async (req, res, next) => {
   try {
+    console.log("hello");
     const user = req.user;
+    console.log(user);
 
-    if (user.accountType !== accountType.INFLUENCER) {
-      throw ApiError(403, "user should be an influencer");
-    }
+    // if (user.accountType !== accountType.INFLUENCER) {
+    //   throw ApiError(403, "user should be an influencer");
+    // }
 
     const allProducts = await fetchProducts();
 

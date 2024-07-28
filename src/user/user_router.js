@@ -18,8 +18,12 @@ userRouter.use(auth);
 userRouter
   .get("/my-profile", getUserDetailsController)
   .patch("/update-account", updateUserDetailsController)
-  .patch("/update-avatar", updateUserAvatarController)
-  .patch("/update-cover-image", updateUserCoverImageController)
+  .patch("/update-avatar", upload.single("avatar"), updateUserAvatarController)
+  .patch(
+    "/update-cover-image",
+    upload.single("coverImage"),
+    updateUserCoverImageController,
+  )
   .patch("/update-additional-links", updateAdditionalLinksController)
   .get("/get-all-brands", getAllBrandsController)
   .get("/get-brand-details-and-products", getBrandDetailsAndProductsController);

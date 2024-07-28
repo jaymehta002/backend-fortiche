@@ -7,7 +7,7 @@ const updateAnalyticsByUserId = async (userId, updates) => {
   });
 
   if (!updatedAnalytics) {
-    throw new ApiError(404, "invalid userId: " + userId);
+    throw new ApiError(404, `invalid userId:  ${userId}`);
   }
 
   return updatedAnalytics;
@@ -20,7 +20,6 @@ const increasePageViewCount = async (userId, increase) => {
       `invalid increase value: ${increase} for page view count`,
     );
   }
-
   const updatedAnalytics = await updateAnalyticsByUserId(userId, {
     $inc: { pageViews: increase },
   });

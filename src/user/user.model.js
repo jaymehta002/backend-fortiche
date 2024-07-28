@@ -7,6 +7,10 @@ import {
 import bcrypt from "bcrypt";
 
 const additionalLinkSchema = new Schema({
+  thumbnail: {
+    type: String,
+    // required: true,
+  },
   host: {
     type: String,
     enum: Object.values(additionalLinkHost), // Use enum values directly
