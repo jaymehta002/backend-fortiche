@@ -28,15 +28,17 @@ export const googleCallback = (req, res, next) => {
         .status(200)
         .cookie("accessToken", accessToken, cookieOptions)
         .cookie("refreshToken", refreshToken, refreshCookieOptions)
-        .redirect(
-          user.accountType === "Default" ? "/" : process.env.CLIENT_URL,
+        .send(
+          "<script>window.close(); window.opener.location.reload();</script>",
         );
+      // .redirect(process.env.CLIENT_URL);
     } catch (error) {
       console.error("Token generation error:", error);
       return next(ApiError(500, "Error generating authentication tokens"));
     }
   })(req, res, next);
 };
+
 const registerUser = asyncHandler(async (req, res, next) => {
   // console.log("reach");
   const { fullName, email, username, password } = req.body;
@@ -54,7 +56,6 @@ const registerUser = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
-  console.log(req.session);
 
   res.status(200).json({
     success: true,

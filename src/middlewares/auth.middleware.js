@@ -24,7 +24,7 @@ passport.use(
             email: profile.emails[0].value,
             username: profile.displayName.split(" ").join(".").toLowerCase(),
             password: "null",
-            accountType: "Default",
+            accountType: "default",
             categories: [],
           });
           await user.save();
