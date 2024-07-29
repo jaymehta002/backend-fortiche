@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/APIResponse.js";
 import { fetchProductById, fetchProducts } from "./product_service.js";
 import { fetchUserByUserId } from "../user/user_service.js";
 import { Affiliation } from "../affiliation/affiliation_model.js";
+import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
@@ -18,13 +19,21 @@ const createProduct = asyncHandler(async (req, res, next) => {
       price,
       discountPercent,
       productType,
-      imageUrls,
       rating,
       isRecommended,
     } = req.body;
 
     const brandId = req.user.id;
     const brand = req.user.fullName;
+
+    const imageUrlsLocal = req.files.map((file) => file.path);
+
+    const imageUrls = await Promise.all(
+      imageUrlsLocal.map(async (image) => {
+        const result = await uploadOnCloudinary(image);
+        return result.url;
+      }),
+    );
 
     const products = await Product.create({
       title,
