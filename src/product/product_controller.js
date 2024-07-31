@@ -1,12 +1,11 @@
+import { Affiliation } from "../affiliation/affiliation_model.js";
 import { accountType } from "../common/common_constants.js";
+import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
 import { Product } from "../product/product.model.js";
 import { ApiError } from "../utils/APIError.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/APIResponse.js";
-import { fetchProductById, fetchProducts } from "./product_service.js";
-import { fetchUserByUserId } from "../user/user_service.js";
-import { Affiliation } from "../affiliation/affiliation_model.js";
-import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { fetchProductByFilter, fetchProductById } from "./product_service.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
@@ -58,21 +57,28 @@ const createProduct = asyncHandler(async (req, res, next) => {
 
 const getAllProducts = asyncHandler(async (req, res, next) => {
   try {
-    console.log("hello");
-    const user = req.user;
-    console.log(user);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    // if (user.accountType !== accountType.INFLUENCER) {
-    //   throw ApiError(403, "user should be an influencer");
-    // }
+    const [allProducts, totalCount] = await Promise.all([
+      fetchProductByFilter(skip, limit),
+      Product.countDocuments(),
+    ]);
 
-    const allProducts = await fetchProducts();
-
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(200, allProducts, "all products fetched successfully"),
-      );
+    const totalPages = Math.ceil(totalCount / limit);
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          products: allProducts,
+          currentPage: page,
+          totalPages: totalPages,
+          totalProducts: totalCount,
+        },
+        "Products fetched successfully",
+      ),
+    );
   } catch (err) {
     return next(err);
   }
@@ -177,7 +183,7 @@ const getProductsByUser = asyncHandler(async (req, res, next) => {
 export {
   createProduct,
   getAllProducts,
-  getProductDetails,
   getMostViewedProductsController,
+  getProductDetails,
   getProductsByUser,
 };
