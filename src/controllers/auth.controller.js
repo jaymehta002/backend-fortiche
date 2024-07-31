@@ -14,8 +14,8 @@ export const googleLogin = passport.authenticate("google", {
 
 export const googleCallback = (req, res, next) => {
   passport.authenticate("google", { session: false }, (err, user, info) => {
+    console.log(user);
     if (err) {
-      console.log(err);
       console.error("Google authentication error:", err);
       return next(ApiError(500, "Error during Google authentication"));
     }
@@ -40,6 +40,7 @@ export const googleCallback = (req, res, next) => {
 };
 
 const registerUser = asyncHandler(async (req, res, next) => {
+  // console.log("reach");
   const { fullName, email, username, password } = req.body;
 
   if ([fullName, email, username, password].some((field) => !field?.trim())) {
@@ -47,6 +48,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   }
 
   const existedUser = await User.findOne({ $or: [{ username }, { email }] });
+  console.log(existedUser);
   if (existedUser) {
     return next(ApiError(409, "User with email or username already exists"));
   }
@@ -65,6 +67,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
+  console.log(req.session);
   if (
     !req.session.registrationOTP ||
     req.session.registrationOTP.email !== email
@@ -222,7 +225,8 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
   const token = generateTokens(user._id).accessToken;
 
-  const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+  // const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+  const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
 
   await sendResetPasswordMail(email, resetPasswordLink);
 
@@ -234,7 +238,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
 const resetPassword = asyncHandler(async (req, res, next) => {
   const { token, newPassword } = req.body;
-
+  console.log(token, newPassword);
   if (!token || !newPassword) {
     return next(ApiError(400, "Token and new password are required"));
   }
@@ -256,6 +260,28 @@ const resetPassword = asyncHandler(async (req, res, next) => {
   });
 });
 
+const validateToken = asyncHandler(async (req, res, next) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return next(ApiError(400, "Token is required"));
+  }
+
+  try {
+    const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
+
+    const user = await User.findById(decodedToken._id);
+
+    if (!user) {
+      return res.status(200).json({ valid: false });
+    }
+
+    res.status(200).json({ valid: true });
+  } catch (error) {
+    return res.status(200).json({ valid: false });
+  }
+});
+
 export {
   registerUser,
   verifyOTPAndRegister,
@@ -264,4 +290,5 @@ export {
   refreshAccessToken,
   forgotPassword,
   resetPassword,
+  validateToken,
 };

@@ -9,6 +9,8 @@ export const generateAndSendOTP = async (email) => {
   const otp = generateOTP();
   const otpExpiration = Date.now() + process.env.OTP_EXPIRY_MINUTES * 60 * 1000;
 
+  // console.log(otp);
+
   const otpToHash = `${otp}.${otpExpiration}`;
   const hashedOTP = await bcrypt.hash(otpToHash, 10);
 

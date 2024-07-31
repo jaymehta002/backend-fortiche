@@ -10,8 +10,8 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `https://belly-backend-tpc6.onrender.com/api/v1/auth/google/callback`,
-      // callbackURL: `http://localhost:8000/api/v1/auth/google/callback`,
+      // callbackURL: `https://belly-backend-tpc6.onrender.com/api/v1/auth/google/callback`,
+      callbackURL: `http://localhost:8000/api/v1/auth/google/callback`,
       scope: ["profile", "email"],
     },
 
@@ -24,7 +24,8 @@ passport.use(
             email: profile.emails[0].value,
             username: profile.displayName.split(" ").join(".").toLowerCase(),
             password: "null",
-            accountType: "brand",
+            accountType: "default",
+            categories: [],
           });
           await user.save();
         }
@@ -57,11 +58,9 @@ export const auth = asyncHandler(async (req, _, next) => {
   const token =
     req.cookies?.accessToken ||
     req.header("Authorization")?.replace("Bearer ", "");
-
   if (!token) {
     return next(ApiError(403, "Unauthorized request"));
   }
-
   try {
     const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
 

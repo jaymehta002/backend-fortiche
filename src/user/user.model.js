@@ -7,14 +7,21 @@ import {
 import bcrypt from "bcrypt";
 
 const additionalLinkSchema = new Schema({
+  thumbnail: {
+    type: String,
+    required: true,
+  },
   host: {
     type: String,
-    enum: Object.values(additionalLinkHost), // Use enum values directly
     required: true,
   },
   url: {
     type: String,
     required: true,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
   },
 });
 
@@ -69,7 +76,7 @@ const userSchema = new Schema(
       select: false,
     },
     additionalLinks: {
-      type: additionalLinkSchema,
+      type: [additionalLinkSchema],
     },
   },
   {
@@ -89,6 +96,5 @@ userSchema.pre("save", async function (next) {
 });
 
 const User = mongoose.model("User", userSchema);
-const AdditionalLink = mongoose.model("AdditionalLink", additionalLinkSchema);
 
-export { User, AdditionalLink };
+export { User };

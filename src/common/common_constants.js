@@ -2,13 +2,14 @@ const additionalLinkHost = {
   INSTAGRAM: "instagram",
   PINTEREST: "pinterest",
   FACEBOOK: "facebook",
-  YOUTUBE: "youtube",
+  YOUTUBE: "youTube",
   SPOTIFY: "spotify",
 };
 
 const accountType = {
   BRAND: "brand",
   INFLUENCER: "influencer",
+  DEFAULT: "default",
 };
 
 const category = {
