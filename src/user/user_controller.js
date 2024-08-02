@@ -12,7 +12,7 @@ import { accountType } from "../common/common_constants.js";
 import { increasePageViewCount } from "../analytics/analytics_service.js";
 import { Affiliation } from "../affiliation/affiliation_model.js";
 import { Product } from "../product/product.model.js";
-
+import { User } from "./user.model.js";
 const getUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
@@ -328,6 +328,64 @@ const getAdditionalLinksController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const handleLinkOrder = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    const { linkIds } = req.body;
+
+    if (!user || user.accountType !== "influencer") {
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    // Create a map of existing links for quick lookup
+    const linkMap = new Map(
+      user.additionalLinks.map((link) => [link._id.toString(), link]),
+    );
+
+    // Rearrange links based on the provided order
+    const rearrangedLinks = linkIds.map((id) => {
+      const link = linkMap.get(id);
+      if (!link) {
+        throw new ApiError(400, `Link with id ${id} not found`);
+      }
+      return link;
+    });
+
+    // Update the user with rearranged links
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      { $set: { additionalLinks: rearrangedLinks } },
+      { new: true, runValidators: true },
+    );
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedUser, "Links rearranged successfully"));
+  } catch (error) {
+    next(error);
+  }
+});
+
+const deleteLink = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    const { linkId } = req.body;
+    if (!user) {
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(user._id, {
+      $pull: { additionalLinks: { _id: linkId } },
+    });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedUser, "Link deleted successfully"));
+  } catch (error) {
+    next(error);
+  }
+});
+
 export {
   getUserDetailsController,
   updateUserDetailsController,
@@ -338,4 +396,6 @@ export {
   getBrandDetailsAndProductsController,
   getInfluencerPageController,
   getAdditionalLinksController,
+  handleLinkOrder,
+  deleteLink,
 };

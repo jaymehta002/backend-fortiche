@@ -9,6 +9,8 @@ import {
   getBrandDetailsAndProductsController,
   getInfluencerPageController,
   getAdditionalLinksController,
+  handleLinkOrder,
+  deleteLink,
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -30,6 +32,8 @@ userRouter
     upload.single("thumbnail"),
     updateAdditionalLinksController,
   )
+  .patch("/handle-link-order", handleLinkOrder)
+  .delete("/delete-link", deleteLink)
   .get("/get-additional-links", getAdditionalLinksController)
   .get("/get-all-brands", getAllBrandsController)
   .get("/get-brand-details-and-products", getBrandDetailsAndProductsController);
