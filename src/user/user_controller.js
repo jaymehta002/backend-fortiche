@@ -248,64 +248,53 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
     if (influencer.accountType !== accountType.INFLUENCER) {
       throw ApiError(404, "influencer not found");
     }
-    const payload = {
-      links: influencer.additionalLinks,
-      products: products,
+
+    const affiliations = await Affiliation.aggregate([
+      {
+        $match: { influencerId: influencer._id },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "productDetails",
+        },
+      },
+      {
+        $unwind: "$productDetails",
+      },
+      {
+        $project: {
+          _id: 1,
+          productDetails: 1,
+        },
+      },
+    ]);
+    const influencerPageInfo = {
+      influencerInfo: influencer,
+      affiliations,
     };
+    const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
+    const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
+    if (!lastVisitTime) {
+      await increasePageViewCount(influencerId, 1);
+      res.cookie(lastVisitTimeCookieKey, Date.now(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 1000 * 60 * 60, // can make configurable in case of multiple usecases
+      });
+    }
 
     return res
       .status(200)
       .json(
-        new ApiResponse(200, payload, "influencer page fetched successfully"),
+        new ApiResponse(
+          200,
+          influencerPageInfo,
+          "influencer page fetched successfully",
+        ),
       );
-
-    // const affiliations = await Affiliation.aggregate([
-    //   {
-    //     $match: { influencerId: influencer._id },
-    //   },
-    //   {
-    //     $lookup: {
-    //       from: "products",
-    //       localField: "productId",
-    //       foreignField: "_id",
-    //       as: "productDetails",
-    //     },
-    //   },
-    //   {
-    //     $unwind: "$productDetails",
-    //   },
-    //   {
-    //     $project: {
-    //       _id: 1,
-    //       productDetails: 1,
-    //     },
-    //   },
-    // ]);
-    // console.log(affiliations);
-    // const influencerPageInfo = {
-    // influencerInfo: influencer,
-    // affiliations,
-    // };
-    // const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
-    // const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
-    // if (!lastVisitTime) {
-    //   await increasePageViewCount(influencerId, 1);
-    //   res.cookie(lastVisitTimeCookieKey, Date.now(), {
-    //     httpOnly: true,
-    //     secure: process.env.NODE_ENV === "production",
-    //     maxAge: 1000 * 60 * 60, // can make configurable in case of multiple usecases
-    //   });
-    // }
-
-    // return res
-    //   .status(200)
-    //   .json(
-    //     new ApiResponse(
-    //       200,
-    //       influencerPageInfo,
-    //       "influencer page fetched successfully",
-    //     ),
-    //   );
   } catch (err) {
     return next(err);
   }

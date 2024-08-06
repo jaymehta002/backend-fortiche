@@ -7,6 +7,8 @@ import {
   publicAffiliationRouter,
 } from "../affiliation/affiliation_router.js";
 import brandRouter from "../brand/brand_router.js";
+import postRouter from "../post/post.router.js";
+import feedRouter from "../feed/feed.router.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -20,6 +22,8 @@ router
   .use("/auth", authRoutes)
   .use("/public", publicRouter)
   .use("/affiliation", affiliationRouter)
-  .use("/brand", brandRouter);
+  .use("/brand", brandRouter)
+  .use("/post", postRouter)
+  .use("/feed", feedRouter);
 
 export default router;
