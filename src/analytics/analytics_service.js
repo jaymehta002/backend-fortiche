@@ -2,9 +2,17 @@ import { Analytics } from "./analytics_model.js";
 import { ApiError } from "../utils/APIError.js";
 
 const updateAnalyticsByUserId = async (userId, updates) => {
-  const updatedAnalytics = await Analytics.findByIdAndUpdate(userId, updates, {
-    new: true,
-  });
+  console.log(userId, updates);
+  const updatedAnalytics = await Analytics.findOneAndUpdate(
+    { userId: userId },
+    updates,
+    {
+      new: true,
+      upsert: true,
+    },
+  );
+
+  console.log(updatedAnalytics);
 
   if (!updatedAnalytics) {
     throw ApiError(404, `invalid userId:  ${userId}`);

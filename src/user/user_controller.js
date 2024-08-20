@@ -248,7 +248,6 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
     if (influencer.accountType !== accountType.INFLUENCER) {
       throw ApiError(404, "influencer not found");
     }
-
     const affiliations = await Affiliation.aggregate([
       {
         $match: { influencerId: influencer._id },
@@ -275,17 +274,18 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       influencerInfo: influencer,
       affiliations,
     };
+    // await increasePageViewCount(influencerId, 1);
+
     const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
     const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
     if (!lastVisitTime) {
       await increasePageViewCount(influencerId, 1);
       res.cookie(lastVisitTimeCookieKey, Date.now(), {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 1000 * 60 * 60, // can make configurable in case of multiple usecases
+        secure: process.env.NODE_ENV === "PRODUCTION",
+        maxAge: 1000 * 60 * 60,
       });
     }
-
     return res
       .status(200)
       .json(

@@ -4,14 +4,19 @@ import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // callbackURL: `https://belly-backend-tpc6.onrender.com/api/v1/auth/google/callback`,
-      callbackURL: `${process.env.LIVE_URL}/auth/google/callback`,
+      callbackURL:
+        process.env.NODE_ENV === "PRODUCTION"
+          ? `${process.env.LIVE_URL}/auth/google/callback`
+          : `${process.env.LOCAL_URL}/auth/google/callback`,
       scope: ["profile", "email"],
     },
 

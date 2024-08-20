@@ -9,6 +9,7 @@ import {
 import brandRouter from "../brand/brand_router.js";
 import postRouter from "../post/post.router.js";
 import feedRouter from "../feed/feed.router.js";
+import orderRouter from "../orders/order.route.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -24,6 +25,7 @@ router
   .use("/affiliation", affiliationRouter)
   .use("/brand", brandRouter)
   .use("/post", postRouter)
-  .use("/feed", feedRouter);
+  .use("/feed", feedRouter)
+  .use("/order", orderRouter);
 
 export default router;

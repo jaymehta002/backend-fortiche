@@ -23,7 +23,7 @@ productRouter.use(auth);
 
 productRouter
   .get("/get-all-products", getAllProducts)
-  .get("/get-product-details", getProductDetails)
+  .get("/get-product-details/:id", getProductDetails)
   .get("/get-most-viewed-products", getMostViewedProductsController)
   .post("/create-product", upload.array("imageUrls"), createProduct)
   .delete("/delete-product/:id", deleteProduct)

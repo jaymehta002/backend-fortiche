@@ -78,7 +78,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = req.session.registrationOTP;
   await verifyOTP(hashedOTP, otp, otpExpiration);
 
-  delete req.session.registrationOTP;
+  delete req.session.registrationOTP;got
 
   const user = await User.create({
     fullName,
@@ -157,7 +157,7 @@ const logoutUser = asyncHandler(async (req, res, next) => {
 
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "PRODUCTION",
     sameSite: "none",
   };
 

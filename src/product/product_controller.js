@@ -103,7 +103,7 @@ const getProductDetails = asyncHandler(async (req, res, next) => {
     if (user.accountType !== accountType.INFLUENCER) {
       throw ApiError(403, "user should be an influencer or a brand");
     }
-    const productId = req.body.productId;
+    const productId = req.params.productId;
     const product = await fetchProductById(productId);
     if (!product) {
       throw ApiError(404, "invalid productId, not found in the database");
