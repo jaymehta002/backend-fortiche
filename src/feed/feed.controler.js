@@ -15,7 +15,7 @@ const validatePagination = (limit, page) => ({
 const findUserByUsername = async (username) => {
   const user = await User.findOne({ username });
   if (!user) {
-    throw new ApiError(404, "User not found");
+    throw ApiError(404, "User not found");
   }
   return user;
 };
@@ -105,6 +105,10 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
     const collections = await fetchCollectionsAndProducts(user._id);
 
     const payload = {
+      coverImage: user.coverImage,
+      avatar: user.avatar,
+      fullName: user.fullName,
+      
       links: user.additionalLinks || [],
       userProducts: products,
       totalUserProducts: products.length,
@@ -141,7 +145,7 @@ const getProductByUsername = asyncHandler(async (req, res, next) => {
     const user = await User.findOne({ username });
 
     if (!product || !user) {
-      throw new ApiError(404, "Product or User not found");
+      throw ApiError(404, "Product or User not found");
     }
 
     let affiliation = await Affiliation.findOne({
