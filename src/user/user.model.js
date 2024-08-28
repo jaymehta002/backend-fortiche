@@ -3,6 +3,8 @@ import {
   additionalLinkHost,
   accountType,
   category,
+  theme,
+  subscriptions,
 } from "../common/common_constants.js";
 import bcrypt from "bcrypt";
 
@@ -77,6 +79,16 @@ const userSchema = new Schema(
     },
     additionalLinks: {
       type: [additionalLinkSchema],
+    },
+    theme: {
+      type: String,
+      default: ["musk"],
+      enum: Object.values(theme),
+    },
+    plan: {
+      type: String,
+      default: "free",
+      enum: Object.keys(subscriptions),
     },
   },
   {
