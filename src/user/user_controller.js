@@ -134,6 +134,7 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
         isActive: isActive ? isActive : true,
       },
     ];
+    console.log(additionalLinks);
     if (additionalLinks) {
       for (const newLink of additionalLinks) {
         const existingLinkIndex = user.additionalLinks.findIndex(
@@ -142,11 +143,11 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
 
         if (newLink.thumbnail && !newLink.thumbnail.startsWith("http")) {
           // Upload new thumbnail to Cloudinary if it's a new file path
-          newLink.thumbnail = (await uploadOnCloudinary(newLink.thumbnail)).url;
+          newLink.thumbnail = await uploadOnCloudinary(newLink.thumbnail);
+          console.log(newLink.thumbnail);
         }
-
         if (existingLinkIndex !== -1) {
-          user.additionalLinks[existingLinkIndex].url = newLink;
+          user.additionalLinks[existingLinkIndex].url = newLink.url;
           user.additionalLinks[existingLinkIndex].thumbnail =
             newLink.thumbnail.url.toString();
           user.additionalLinks[existingLinkIndex].isActive = newLink.isActive;

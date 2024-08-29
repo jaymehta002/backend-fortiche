@@ -27,6 +27,36 @@ const additionalLinkSchema = new Schema({
   },
 });
 
+const subscriptionModel = new Schema({
+  plan: {
+    type: String,
+    required: true,
+    enum: Object.values(subscriptions),
+  },
+  startDate: {
+    type: Date,
+    required: true,
+  },
+  endDate: {
+    type: Date,
+  },
+  status: {
+    type: String,
+    enum: ["active", "inactive", "cancelled", "expired"],
+    default: "inactive",
+  },
+  payments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+    },
+  ],
+  autoRenew: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 const userSchema = new Schema(
   {
     username: {
@@ -50,7 +80,7 @@ const userSchema = new Schema(
       type: String,
       required: true,
       unique: true,
-      lowecase: true,
+      lowercase: true,
       trim: true,
     },
     fullName: {
@@ -82,13 +112,17 @@ const userSchema = new Schema(
     },
     theme: {
       type: String,
-      default: ["musk"],
+      default: "musk",
       enum: Object.values(theme),
     },
     plan: {
       type: String,
-      default: "free",
-      enum: Object.keys(subscriptions),
+      default: "basic",
+      enum: ["basic", "stater", "pro"],
+      // enum: Object.keys(subscriptions),
+    },
+    subscription: {
+      type: subscriptionModel,
     },
   },
   {
