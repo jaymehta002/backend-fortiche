@@ -372,6 +372,47 @@ const getAdditionalLinksController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const updateSingleSocialController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    const { platform, url } = req.body;
+
+    if (!platform || !url) {
+      throw new ApiError(400, "Platform and URL must be provided");
+    }
+
+    const validPlatforms = [
+      "twitter",
+      "facebook",
+      "instagram",
+      "linkedin",
+      "youtube",
+      "whatsapp",
+    ];
+
+    if (!validPlatforms.includes(platform)) {
+      throw new ApiError(400, "Invalid platform");
+    }
+
+    const updates = {};
+    updates[`socials.${platform}`] = url;
+
+    const updatedUser = await updateUserByUserId(user._id, updates);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          updatedUser,
+          `${platform} link updated successfully`,
+        ),
+      );
+  } catch (err) {
+    return next(err);
+  }
+});
+
 const handleLinkOrder = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
@@ -441,6 +482,7 @@ export {
   updateUserAvatarController,
   updateUserCoverImageController,
   updateAdditionalLinksController,
+  updateSingleSocialController,
   getAllBrandsController,
   getBrandDetailsAndProductsController,
   getInfluencerPageController,
