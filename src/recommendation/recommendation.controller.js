@@ -4,7 +4,7 @@ import { ApiResponse } from "../utils/APIResponse.js";
 import { ApiError } from "../utils/APIError.js";
 import mongoose from "mongoose";
 import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
-
+import { Product } from "../product/product.model.js";
 // Create a recommendation
 const createRecommendation = asyncHandler(async (req, res, next) => {
   console.log("tested");
@@ -76,18 +76,40 @@ const fetchAllRecommendations = asyncHandler(async (req, res, next) => {
   }
 });
 
-// Fetch recommendations by user
 const fetchUserRecommendations = asyncHandler(async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const recommendations = await Recommendation.find({ author: userId });
+
+    // Fetch recommendations by author
+    const recommendations = await Recommendation.find({ author: userId })
+      .populate("author", "name avatar") // Populate author details
+      .exec();
+
+    // Collect all product IDs from the recommendations
+    const productIds = recommendations.flatMap((rec) => rec.products);
+
+    // Fetch products based on the collected IDs
+    const products = await Product.find({ _id: { $in: productIds } });
+
+    // Create a map for quick lookup of product details
+    const productsMap = products.reduce((map, product) => {
+      map[product._id] = product;
+      return map;
+    }, {});
+
+    // Attach product details to recommendations
+    const recommendationsWithProducts = recommendations.map((rec) => ({
+      ...rec.toObject(),
+      products: rec.products.map((productId) => productsMap[productId]),
+    }));
+
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          recommendations,
-          "User recommendations fetched successfully",
+          recommendationsWithProducts,
+          "User recommendations with products fetched successfully",
         ),
       );
   } catch (error) {
@@ -95,26 +117,34 @@ const fetchUserRecommendations = asyncHandler(async (req, res, next) => {
   }
 });
 
-// Fetch a single recommendation by ID
 const fetchSingleRecommendation = asyncHandler(async (req, res, next) => {
   try {
     const recommendationId = req.params.id;
+
+    // Validate the recommendation ID
     if (!mongoose.Types.ObjectId.isValid(recommendationId)) {
       return next(new ApiError("Invalid recommendation ID", 400));
     }
+
+    // Find the recommendation and populate the products
     const recommendation = await Recommendation.findById(recommendationId);
+    const products = await Product.find({
+      _id: { $in: recommendation.products },
+    });
     if (!recommendation) {
       return next(new ApiError("Recommendation not found", 404));
     }
+
+    // Prepare response data
+    const data = {
+      recommendation,
+      products,
+    };
+
+    // Send the response
     return res
       .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          recommendation,
-          "Recommendation fetched successfully",
-        ),
-      );
+      .json(new ApiResponse(200, data, "Recommendation fetched successfully"));
   } catch (error) {
     next(error); // Handle error
   }
