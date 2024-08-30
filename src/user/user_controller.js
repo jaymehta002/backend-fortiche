@@ -123,54 +123,107 @@ const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
 
 const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
   const user = req.user;
+
   try {
-    // const { additionalLinks } = req.body;
-    const { host, url, isActive } = req.body;
-    const thumbnail = req.file?.path;
-    const additionalLinks = [
-      {
+    const { id, host, url, isActive } = req.body;
+    const thumbnail = req.file ? req.file.path : req.body.thumbnail;
+    let existingLinkIndex = -1;
+    if (id) {
+      existingLinkIndex = user.additionalLinks.findIndex(
+        (link) => link._id.toString() === id,
+      );
+    } else {
+      existingLinkIndex = user.additionalLinks.findIndex(
+        (link) => link.host === host,
+      );
+    }
+    let processedThumbnail = thumbnail;
+    if (thumbnail && !thumbnail.startsWith("http")) {
+      const uploadedThumbnail = await uploadOnCloudinary(thumbnail);
+      processedThumbnail = uploadedThumbnail.url
+        ? uploadedThumbnail.url.toString()
+        : uploadedThumbnail;
+    }
+
+    if (existingLinkIndex !== -1) {
+      user.additionalLinks[existingLinkIndex] = {
+        ...user.additionalLinks[existingLinkIndex],
         host,
         url,
-        thumbnail,
-        isActive: isActive ? isActive : true,
-      },
-    ];
-    console.log(additionalLinks);
-    if (additionalLinks) {
-      for (const newLink of additionalLinks) {
-        const existingLinkIndex = user.additionalLinks.findIndex(
-          (link) => link.host === newLink.host,
-        );
-
-        if (newLink.thumbnail && !newLink.thumbnail.startsWith("http")) {
-          // Upload new thumbnail to Cloudinary if it's a new file path
-          newLink.thumbnail = await uploadOnCloudinary(newLink.thumbnail);
-          console.log(newLink.thumbnail);
-        }
-        if (existingLinkIndex !== -1) {
-          user.additionalLinks[existingLinkIndex].url = newLink.url;
-          user.additionalLinks[existingLinkIndex].thumbnail =
-            newLink.thumbnail.url.toString();
-          user.additionalLinks[existingLinkIndex].isActive = newLink.isActive;
-        } else {
-          user.additionalLinks.push(newLink);
-        }
-      }
-      // Save the updated user
-      // console.log(user);
-      const updatedUser = await user.save();
-      return res
-        .status(200)
-        .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
+        thumbnail: processedThumbnail,
+        isActive:
+          isActive !== undefined
+            ? isActive
+            : user.additionalLinks[existingLinkIndex].isActive,
+      };
     } else {
-      return res
-        .status(400)
-        .json(new ApiResponse(400, null, "No links provided"));
+      user.additionalLinks.push({
+        host,
+        url,
+        thumbnail: processedThumbnail,
+        isActive: isActive !== undefined ? isActive : true,
+      });
     }
+    const updatedUser = await user.save();
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
   } catch (err) {
     return next(err);
   }
 });
+
+// const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
+//   const user = req.user;
+//   try {
+//     // const { additionalLinks } = req.body;
+//     const { host, url, isActive } = req.body;
+//     console.log(req.body);
+//     const thumbnail = req.file ? req.file.path : req.body.thumbnail;
+//     const additionalLinks = [
+//       {
+//         host,
+//         url,
+//         thumbnail,
+//         isActive: isActive ? isActive : true,
+//       },
+//     ];
+//     console.log(additionalLinks);
+//     if (additionalLinks) {
+//       for (const newLink of additionalLinks) {
+//         const existingLinkIndex = user.additionalLinks.findIndex(
+//           (link) => link.host === newLink.host,
+//         );
+
+//         if (newLink.thumbnail && !newLink.thumbnail.startsWith("http")) {
+//           // Upload new thumbnail to Cloudinary if it's a new file path
+//           newLink.thumbnail = await uploadOnCloudinary(newLink.thumbnail);
+//           console.log(newLink.thumbnail);
+//         }
+//         if (existingLinkIndex !== -1) {
+//           user.additionalLinks[existingLinkIndex].url = newLink.url;
+//           user.additionalLinks[existingLinkIndex].thumbnail =
+//             newLink.thumbnail.url?.toString();
+//           user.additionalLinks[existingLinkIndex].isActive = newLink.isActive;
+//         } else {
+//           user.additionalLinks.push(newLink);
+//         }
+//       }
+//       // Save the updated user
+//       // console.log(user);
+//       const updatedUser = await user.save();
+//       return res
+//         .status(200)
+//         .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
+//     } else {
+//       return res
+//         .status(400)
+//         .json(new ApiResponse(400, null, "No links provided"));
+//     }
+//   } catch (err) {
+//     return next(err);
+//   }
+// });
 
 const getAllBrandsController = asyncHandler(async (req, res, next) => {
   try {
@@ -360,14 +413,19 @@ const handleLinkOrder = asyncHandler(async (req, res, next) => {
 const deleteLink = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    const { linkId } = req.body;
+    const { id } = req.params;
     if (!user) {
       throw new ApiError(401, "Unauthorized");
     }
-
-    const updatedUser = await User.findByIdAndUpdate(user._id, {
-      $pull: { additionalLinks: { _id: linkId } },
-    });
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      {
+        $pull: { additionalLinks: { _id: id } },
+      },
+      {
+        new: true,
+      },
+    );
 
     return res
       .status(200)

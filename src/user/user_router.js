@@ -33,7 +33,7 @@ userRouter
     updateAdditionalLinksController,
   )
   .patch("/handle-link-order", handleLinkOrder)
-  .delete("/delete-link", deleteLink)
+  .delete("/delete-additional-link/:id", deleteLink)
   .get("/get-additional-links", getAdditionalLinksController)
   .get("/get-all-brands", getAllBrandsController)
   .get("/get-brand-details-and-products", getBrandDetailsAndProductsController);

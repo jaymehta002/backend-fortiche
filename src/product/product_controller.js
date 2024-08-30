@@ -268,6 +268,37 @@ const updateProduct = asyncHandler(async (req, res, next) => {
   }
 });
 
+const searchProduct = asyncHandler(async (req, res, next) => {
+  try {
+    const { name, category, tag } = req.query;
+    const query = {};
+
+    if (name) {
+      query.title = { $regex: new RegExp(name, "i") };
+    }
+
+    if (category) {
+      query.category = category;
+    }
+
+    if (tag) {
+      query.tags = { $in: [tag] };
+    }
+
+    const products = await Product.find(query);
+
+    if (!products.length) {
+      throw ApiError(404, "No products found matching the criteria");
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, products, "Products fetched successfully"));
+  } catch (error) {
+    next(error);
+  }
+});
+
 export {
   createProduct,
   getAllProducts,
@@ -276,4 +307,5 @@ export {
   getProductsByUser,
   deleteProduct,
   updateProduct,
+  searchProduct,
 };

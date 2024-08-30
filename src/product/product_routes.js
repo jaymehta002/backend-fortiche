@@ -7,6 +7,7 @@ import {
   getProductsByUser,
   deleteProduct,
   updateProduct,
+  searchProduct,
 } from "./product_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -25,6 +26,7 @@ productRouter
   .get("/get-all-products", getAllProducts)
   .get("/get-product-details/:id", getProductDetails)
   .get("/get-most-viewed-products", getMostViewedProductsController)
+  .get("/search", searchProduct)
   .post("/create-product", upload.array("imageUrls"), createProduct)
   .delete("/delete-product/:id", deleteProduct)
   .patch("/update-product/:id", updateProduct)
