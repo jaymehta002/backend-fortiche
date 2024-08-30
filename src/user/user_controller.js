@@ -36,7 +36,7 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
     //   throw ApiError(409, "username already exists");
     // }
 
-    const { userName, categories, fullName, bio } = req.body;
+    const { userName, categories, fullName, bio, theme } = req.body;
     console.log(userName);
     const existingUser = await fetchUsers({ username: userName });
     console.log(existingUser);
@@ -50,6 +50,7 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
     if (categories) updates.categories = categories;
     if (fullName) updates.fullName = fullName;
     if (bio) updates.bio = bio;
+    if (theme) updates.theme = theme;
     const updatedUser = await updateUserByUserId(user._id, updates);
 
     return res
