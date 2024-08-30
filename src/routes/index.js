@@ -7,7 +7,7 @@ import {
   publicAffiliationRouter,
 } from "../affiliation/affiliation_router.js";
 import brandRouter from "../brand/brand_router.js";
-import postRouter from "../post/post.router.js";
+import recommendationRouter from "../recommendation/recommendation.router.js";
 import feedRouter from "../feed/feed.router.js";
 import orderRouter from "../orders/order.route.js";
 import paymentRouter from "../payments/payment_router.js";
@@ -25,7 +25,7 @@ router
   .use("/public", publicRouter)
   .use("/affiliation", affiliationRouter)
   .use("/brand", brandRouter)
-  .use("/post", postRouter)
+  .use("/recommendation", recommendationRouter)
   .use("/feed", feedRouter)
   .use("/order", orderRouter)
   .use("/payment", paymentRouter);

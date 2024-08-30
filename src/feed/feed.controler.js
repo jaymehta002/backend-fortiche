@@ -4,7 +4,7 @@ import { ApiResponse } from "../utils/APIResponse.js";
 import { User } from "../user/user.model.js";
 import { Product } from "../product/product.model.js";
 import { Affiliation } from "../affiliation/affiliation_model.js";
-import Post from "../post/post.model.js";
+import Recommendation from "../recommendation/recommendation.model.js";
 import { Collection } from "../models/collection.model.js";
 
 const validatePagination = (limit, page) => ({
@@ -31,7 +31,7 @@ const fetchAffiliatedProductIds = async (userId) => {
 };
 
 const fetchUserPosts = async (userId, limit, page) => {
-  return Post.find({ author: userId })
+  return Recommendation.find({ author: userId })
     .limit(limit)
     .skip((page - 1) * limit);
 };
@@ -47,7 +47,7 @@ const calculatePaginationTotals = async (userId, productIds) => {
     await Promise.all([
       Product.countDocuments({ brandId: userId }),
       Product.countDocuments({ _id: { $in: productIds } }),
-      Post.countDocuments({ author: userId }),
+      Recommendation.countDocuments({ author: userId }),
     ]);
 
   return {
