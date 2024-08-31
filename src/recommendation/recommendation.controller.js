@@ -123,7 +123,7 @@ const fetchSingleRecommendation = asyncHandler(async (req, res, next) => {
 
     // Validate the recommendation ID
     if (!mongoose.Types.ObjectId.isValid(recommendationId)) {
-      return next(new ApiError("Invalid recommendation ID", 400));
+      throw ApiError("Invalid recommendation ID", 400);
     }
 
     // Find the recommendation and populate the products

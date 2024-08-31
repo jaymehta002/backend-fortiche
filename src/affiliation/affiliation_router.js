@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createAffiliationController,
   getAffiliationProductController,
+  getProductsAffiliatedByUser,
 } from "./affiliation_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
@@ -14,6 +15,8 @@ publicAffiliationRouter.get(
   getAffiliationProductController,
 );
 
-affiliationRouter.post("/create-affiliation", createAffiliationController);
+affiliationRouter
+  .post("/create-affiliation", createAffiliationController)
+  .get("/get-user-affiliated-products", getProductsAffiliatedByUser);
 
 export { publicAffiliationRouter, affiliationRouter };
