@@ -123,7 +123,7 @@ const userSchema = new Schema(
       youtube: {
         type: String,
       },
-      whatsapp: {
+      tiktok: {
         type: String,
       },
     },

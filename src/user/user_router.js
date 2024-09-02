@@ -11,7 +11,7 @@ import {
   getAdditionalLinksController,
   handleLinkOrder,
   deleteLink,
-  updateSingleSocialController,
+  updateSocialsController,
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -38,7 +38,7 @@ userRouter
   .get("/get-additional-links", getAdditionalLinksController)
   .get("/get-all-brands", getAllBrandsController)
   .get("/get-brand-details-and-products", getBrandDetailsAndProductsController)
-  .patch("/update-social", updateSingleSocialController);
+  .patch("/update-social", updateSocialsController);
 
 publicUserRouter.get("/get-influencer-page", getInfluencerPageController);
 

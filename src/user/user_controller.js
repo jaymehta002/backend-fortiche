@@ -372,13 +372,13 @@ const getAdditionalLinksController = asyncHandler(async (req, res, next) => {
   }
 });
 
-const updateSingleSocialController = asyncHandler(async (req, res, next) => {
+const updateSocialsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    const { platform, url } = req.body;
+    const { socials } = req.body;
 
-    if (!platform || !url) {
-      throw new ApiError(400, "Platform and URL must be provided");
+    if (!Array.isArray(socials) || socials.length === 0) {
+      throw ApiError(400, "No updates provided");
     }
 
     const validPlatforms = [
@@ -387,26 +387,32 @@ const updateSingleSocialController = asyncHandler(async (req, res, next) => {
       "instagram",
       "linkedin",
       "youtube",
-      "whatsapp",
+      "tiktok",
     ];
 
-    if (!validPlatforms.includes(platform)) {
-      throw new ApiError(400, "Invalid platform");
-    }
-
     const updates = {};
-    updates[`socials.${platform}`] = url;
+
+    socials.forEach(({ platform, url }) => {
+      if (!platform || !url) {
+        throw ApiError(
+          400,
+          "Platform and URL must be provided for all updates",
+        );
+      }
+
+      if (!validPlatforms.includes(platform)) {
+        throw ApiError(400, `Invalid platform: ${platform}`);
+      }
+
+      updates[`socials.${platform}`] = url;
+    });
 
     const updatedUser = await updateUserByUserId(user._id, updates);
 
     return res
       .status(200)
       .json(
-        new ApiResponse(
-          200,
-          updatedUser,
-          `${platform} link updated successfully`,
-        ),
+        new ApiResponse(200, updatedUser, `Social links updated successfully`),
       );
   } catch (err) {
     return next(err);
@@ -482,7 +488,7 @@ export {
   updateUserAvatarController,
   updateUserCoverImageController,
   updateAdditionalLinksController,
-  updateSingleSocialController,
+  updateSocialsController,
   getAllBrandsController,
   getBrandDetailsAndProductsController,
   getInfluencerPageController,

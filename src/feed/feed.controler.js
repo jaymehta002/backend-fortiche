@@ -111,6 +111,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       theme: user.theme,
       bio: user.bio,
       links: user.additionalLinks || [],
+      socials: user.socials || {},
       userProducts: products,
       totalUserProducts: products.length,
       brandProducts: affiliatedProducts,

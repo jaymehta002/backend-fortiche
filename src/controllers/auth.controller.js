@@ -78,7 +78,7 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = req.session.registrationOTP;
   await verifyOTP(hashedOTP, otp, otpExpiration);
 
-  delete req.session.registrationOTP;got
+  delete req.session.registrationOTP;
 
   const user = await User.create({
     fullName,
