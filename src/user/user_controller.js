@@ -12,7 +12,7 @@ import { accountType } from "../common/common_constants.js";
 import { increasePageViewCount } from "../analytics/analytics_service.js";
 import { Affiliation } from "../affiliation/affiliation_model.js";
 import { Product } from "../product/product.model.js";
-
+import { User } from "./user.model.js";
 const getUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
@@ -36,7 +36,7 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
     //   throw ApiError(409, "username already exists");
     // }
 
-    const { userName, categories, fullName, bio } = req.body;
+    const { userName, categories, fullName, bio, theme } = req.body;
     console.log(userName);
     const existingUser = await fetchUsers({ username: userName });
     console.log(existingUser);
@@ -50,6 +50,7 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
     if (categories) updates.categories = categories;
     if (fullName) updates.fullName = fullName;
     if (bio) updates.bio = bio;
+    if (theme) updates.theme = theme;
     const updatedUser = await updateUserByUserId(user._id, updates);
 
     return res
@@ -122,53 +123,107 @@ const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
 
 const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
   const user = req.user;
+
   try {
-    // const { additionalLinks } = req.body;
-    const { host, url, isActive } = req.body;
-    const thumbnail = req.file?.path;
-    const additionalLinks = [
-      {
+    const { id, host, url, isActive } = req.body;
+    const thumbnail = req.file ? req.file.path : req.body.thumbnail;
+    let existingLinkIndex = -1;
+    if (id) {
+      existingLinkIndex = user.additionalLinks.findIndex(
+        (link) => link._id.toString() === id,
+      );
+    } else {
+      existingLinkIndex = user.additionalLinks.findIndex(
+        (link) => link.host === host,
+      );
+    }
+    let processedThumbnail = thumbnail;
+    if (thumbnail && !thumbnail.startsWith("http")) {
+      const uploadedThumbnail = await uploadOnCloudinary(thumbnail);
+      processedThumbnail = uploadedThumbnail.url
+        ? uploadedThumbnail.url.toString()
+        : uploadedThumbnail;
+    }
+
+    if (existingLinkIndex !== -1) {
+      user.additionalLinks[existingLinkIndex] = {
+        ...user.additionalLinks[existingLinkIndex],
         host,
         url,
-        thumbnail,
-        isActive: isActive ? isActive : true,
-      },
-    ];
-    if (additionalLinks) {
-      for (const newLink of additionalLinks) {
-        const existingLinkIndex = user.additionalLinks.findIndex(
-          (link) => link.host === newLink.host,
-        );
-
-        if (newLink.thumbnail && !newLink.thumbnail.startsWith("http")) {
-          // Upload new thumbnail to Cloudinary if it's a new file path
-          newLink.thumbnail = (await uploadOnCloudinary(newLink.thumbnail)).url;
-        }
-
-        if (existingLinkIndex !== -1) {
-          user.additionalLinks[existingLinkIndex].url = newLink;
-          user.additionalLinks[existingLinkIndex].thumbnail =
-            newLink.thumbnail.url.toString();
-          user.additionalLinks[existingLinkIndex].isActive = newLink.isActive;
-        } else {
-          user.additionalLinks.push(newLink);
-        }
-      }
-      // Save the updated user
-      // console.log(user);
-      const updatedUser = await user.save();
-      return res
-        .status(200)
-        .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
+        thumbnail: processedThumbnail,
+        isActive:
+          isActive !== undefined
+            ? isActive
+            : user.additionalLinks[existingLinkIndex].isActive,
+      };
     } else {
-      return res
-        .status(400)
-        .json(new ApiResponse(400, null, "No links provided"));
+      user.additionalLinks.push({
+        host,
+        url,
+        thumbnail: processedThumbnail,
+        isActive: isActive !== undefined ? isActive : true,
+      });
     }
+    const updatedUser = await user.save();
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
   } catch (err) {
     return next(err);
   }
 });
+
+// const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
+//   const user = req.user;
+//   try {
+//     // const { additionalLinks } = req.body;
+//     const { host, url, isActive } = req.body;
+//     console.log(req.body);
+//     const thumbnail = req.file ? req.file.path : req.body.thumbnail;
+//     const additionalLinks = [
+//       {
+//         host,
+//         url,
+//         thumbnail,
+//         isActive: isActive ? isActive : true,
+//       },
+//     ];
+//     console.log(additionalLinks);
+//     if (additionalLinks) {
+//       for (const newLink of additionalLinks) {
+//         const existingLinkIndex = user.additionalLinks.findIndex(
+//           (link) => link.host === newLink.host,
+//         );
+
+//         if (newLink.thumbnail && !newLink.thumbnail.startsWith("http")) {
+//           // Upload new thumbnail to Cloudinary if it's a new file path
+//           newLink.thumbnail = await uploadOnCloudinary(newLink.thumbnail);
+//           console.log(newLink.thumbnail);
+//         }
+//         if (existingLinkIndex !== -1) {
+//           user.additionalLinks[existingLinkIndex].url = newLink.url;
+//           user.additionalLinks[existingLinkIndex].thumbnail =
+//             newLink.thumbnail.url?.toString();
+//           user.additionalLinks[existingLinkIndex].isActive = newLink.isActive;
+//         } else {
+//           user.additionalLinks.push(newLink);
+//         }
+//       }
+//       // Save the updated user
+//       // console.log(user);
+//       const updatedUser = await user.save();
+//       return res
+//         .status(200)
+//         .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
+//     } else {
+//       return res
+//         .status(400)
+//         .json(new ApiResponse(400, null, "No links provided"));
+//     }
+//   } catch (err) {
+//     return next(err);
+//   }
+// });
 
 const getAllBrandsController = asyncHandler(async (req, res, next) => {
   try {
@@ -248,64 +303,53 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
     if (influencer.accountType !== accountType.INFLUENCER) {
       throw ApiError(404, "influencer not found");
     }
-    const payload = {
-      links: influencer.additionalLinks,
-      products: products,
+    const affiliations = await Affiliation.aggregate([
+      {
+        $match: { influencerId: influencer._id },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "productDetails",
+        },
+      },
+      {
+        $unwind: "$productDetails",
+      },
+      {
+        $project: {
+          _id: 1,
+          productDetails: 1,
+        },
+      },
+    ]);
+    const influencerPageInfo = {
+      influencerInfo: influencer,
+      affiliations,
     };
+    // await increasePageViewCount(influencerId, 1);
 
+    const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
+    const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
+    if (!lastVisitTime) {
+      await increasePageViewCount(influencerId, 1);
+      res.cookie(lastVisitTimeCookieKey, Date.now(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "PRODUCTION",
+        maxAge: 1000 * 60 * 60,
+      });
+    }
     return res
       .status(200)
       .json(
-        new ApiResponse(200, payload, "influencer page fetched successfully"),
+        new ApiResponse(
+          200,
+          influencerPageInfo,
+          "influencer page fetched successfully",
+        ),
       );
-
-    // const affiliations = await Affiliation.aggregate([
-    //   {
-    //     $match: { influencerId: influencer._id },
-    //   },
-    //   {
-    //     $lookup: {
-    //       from: "products",
-    //       localField: "productId",
-    //       foreignField: "_id",
-    //       as: "productDetails",
-    //     },
-    //   },
-    //   {
-    //     $unwind: "$productDetails",
-    //   },
-    //   {
-    //     $project: {
-    //       _id: 1,
-    //       productDetails: 1,
-    //     },
-    //   },
-    // ]);
-    // console.log(affiliations);
-    // const influencerPageInfo = {
-    // influencerInfo: influencer,
-    // affiliations,
-    // };
-    // const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
-    // const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
-    // if (!lastVisitTime) {
-    //   await increasePageViewCount(influencerId, 1);
-    //   res.cookie(lastVisitTimeCookieKey, Date.now(), {
-    //     httpOnly: true,
-    //     secure: process.env.NODE_ENV === "production",
-    //     maxAge: 1000 * 60 * 60, // can make configurable in case of multiple usecases
-    //   });
-    // }
-
-    // return res
-    //   .status(200)
-    //   .json(
-    //     new ApiResponse(
-    //       200,
-    //       influencerPageInfo,
-    //       "influencer page fetched successfully",
-    //     ),
-    //   );
   } catch (err) {
     return next(err);
   }
@@ -328,6 +372,69 @@ const getAdditionalLinksController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const handleLinkOrder = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    const { linkIds } = req.body;
+
+    if (!user || user.accountType !== "influencer") {
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    // Create a map of existing links for quick lookup
+    const linkMap = new Map(
+      user.additionalLinks.map((link) => [link._id.toString(), link]),
+    );
+
+    // Rearrange links based on the provided order
+    const rearrangedLinks = linkIds.map((id) => {
+      const link = linkMap.get(id);
+      if (!link) {
+        throw new ApiError(400, `Link with id ${id} not found`);
+      }
+      return link;
+    });
+
+    // Update the user with rearranged links
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      { $set: { additionalLinks: rearrangedLinks } },
+      { new: true, runValidators: true },
+    );
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedUser, "Links rearranged successfully"));
+  } catch (error) {
+    next(error);
+  }
+});
+
+const deleteLink = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    const { id } = req.params;
+    if (!user) {
+      throw new ApiError(401, "Unauthorized");
+    }
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      {
+        $pull: { additionalLinks: { _id: id } },
+      },
+      {
+        new: true,
+      },
+    );
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedUser, "Link deleted successfully"));
+  } catch (error) {
+    next(error);
+  }
+});
+
 export {
   getUserDetailsController,
   updateUserDetailsController,
@@ -338,4 +445,6 @@ export {
   getBrandDetailsAndProductsController,
   getInfluencerPageController,
   getAdditionalLinksController,
+  handleLinkOrder,
+  deleteLink,
 };

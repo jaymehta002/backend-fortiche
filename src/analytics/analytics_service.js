@@ -2,12 +2,20 @@ import { Analytics } from "./analytics_model.js";
 import { ApiError } from "../utils/APIError.js";
 
 const updateAnalyticsByUserId = async (userId, updates) => {
-  const updatedAnalytics = await Analytics.findByIdAndUpdate(userId, updates, {
-    new: true,
-  });
+  console.log(userId, updates);
+  const updatedAnalytics = await Analytics.findOneAndUpdate(
+    { userId: userId },
+    updates,
+    {
+      new: true,
+      upsert: true,
+    },
+  );
+
+  console.log(updatedAnalytics);
 
   if (!updatedAnalytics) {
-    throw new ApiError(404, `invalid userId:  ${userId}`);
+    throw ApiError(404, `invalid userId:  ${userId}`);
   }
 
   return updatedAnalytics;
@@ -15,7 +23,7 @@ const updateAnalyticsByUserId = async (userId, updates) => {
 
 const increasePageViewCount = async (userId, increase) => {
   if (increase < 0) {
-    throw new ApiError(
+    throw ApiError(
       500,
       `invalid increase value: ${increase} for page view count`,
     );

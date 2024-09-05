@@ -33,4 +33,22 @@ const category = {
   OTHER: "other",
 };
 
-export { additionalLinkHost, accountType, category };
+const theme = {
+  UNIVERSE: "universe",
+  MUSKBLUE: "muskBlue",
+  SUNSET: "sunset",
+  MUSK: "musk",
+  MUSKGREEN: "muskGreen",
+  DUSK: "dusk",
+  LUXUARY: "luxuary",
+  RAINBOW: "rainbow",
+  BREEZE: "breeze",
+};
+
+const subscriptions = {
+  BASIC: "basic",
+  STARTER: "starter",
+  PRO: "pro",
+};
+
+export { additionalLinkHost, accountType, category, theme, subscriptions };

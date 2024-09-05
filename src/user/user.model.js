@@ -3,6 +3,8 @@ import {
   additionalLinkHost,
   accountType,
   category,
+  theme,
+  subscriptions,
 } from "../common/common_constants.js";
 import bcrypt from "bcrypt";
 
@@ -22,6 +24,36 @@ const additionalLinkSchema = new Schema({
   isActive: {
     type: Boolean,
     default: true,
+  },
+});
+
+const subscriptionModel = new Schema({
+  plan: {
+    type: String,
+    required: true,
+    enum: Object.values(subscriptions),
+  },
+  startDate: {
+    type: Date,
+    required: true,
+  },
+  endDate: {
+    type: Date,
+  },
+  status: {
+    type: String,
+    enum: ["active", "inactive", "cancelled", "expired"],
+    default: "inactive",
+  },
+  payments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+    },
+  ],
+  autoRenew: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -48,7 +80,7 @@ const userSchema = new Schema(
       type: String,
       required: true,
       unique: true,
-      lowecase: true,
+      lowercase: true,
       trim: true,
     },
     fullName: {
@@ -77,6 +109,20 @@ const userSchema = new Schema(
     },
     additionalLinks: {
       type: [additionalLinkSchema],
+    },
+    theme: {
+      type: String,
+      default: "musk",
+      enum: Object.values(theme),
+    },
+    plan: {
+      type: String,
+      default: "basic",
+      enum: ["basic", "stater", "pro"],
+      // enum: Object.keys(subscriptions),
+    },
+    subscription: {
+      type: subscriptionModel,
     },
   },
   {

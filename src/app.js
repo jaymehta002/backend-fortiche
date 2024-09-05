@@ -15,8 +15,8 @@ const app = express();
 app.set("trust proxy", 1);
 
 const mongoStore = new MongoStore({
-  mongoUrl: `${process.env.MONGODB_URI}/${DB_NAME}`, // Use the established Mongoose connection
-  collection: "sessions", // Specify the collection name for storing sessions
+  mongoUrl: `${process.env.MONGODB_URI}/${DB_NAME}`,
+  collection: "sessions",
 });
 
 const corsOptions = {
@@ -34,11 +34,11 @@ app.use(cors(corsOptions));
 
 app.use(
   session({
-    // store: mongoStore,  
+    // store: mongoStore,
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: process.env.NODE_ENV === "production" },
+    cookie: { secure: process.env.NODE_ENV === "PRODUCTION" },
   }),
 );
 

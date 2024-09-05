@@ -4,6 +4,7 @@ import {
   getAllProducts,
   deleteProduct,
   updateProduct,
+  getAllBrands,
 } from "./brand.controller.js";
 
 const brandRouter = Router();
@@ -11,6 +12,7 @@ const brandRouter = Router();
 brandRouter.use(auth);
 
 brandRouter
+  .get("/getAllBrands", getAllBrands)
   .get("/getAllProducts", getAllProducts)
   .delete("/deleteProduct/:id", deleteProduct)
   .patch("/updateProduct/:id", updateProduct);
