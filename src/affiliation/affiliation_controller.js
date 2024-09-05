@@ -53,7 +53,7 @@ const getProductsAffiliatedByUser = asyncHandler(async (req, res, next) => {
     const affiliations = await Affiliation.find({ influencerId: userId });
     // console.log(affiliations);
     const productIds = await affiliations.map((aff) => {
-      return aff.productId;
+      return aff?.productId;
     });
     const products = await Promise.all(
       productIds.map((productId) => fetchProductById(productId)),
