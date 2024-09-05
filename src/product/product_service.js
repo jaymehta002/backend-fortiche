@@ -13,7 +13,7 @@ const fetchProductById = async (productId) => {
 const fetchProducts = async (filter) => {
   const products = await Product.find(filter);
   return products;
-};clear
+};
 
 
 const fetchProductByFilter = async (skip, limit) => {

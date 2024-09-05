@@ -225,8 +225,8 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
   const token = generateTokens(user._id).accessToken;
 
-  // const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
-  const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
+  const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+  // const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
 
   await sendResetPasswordMail(email, resetPasswordLink);
 
