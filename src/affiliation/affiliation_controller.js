@@ -49,17 +49,32 @@ const createAffiliationController = asyncHandler(async (req, res, next) => {
 
 const getProductsAffiliatedByUser = asyncHandler(async (req, res, next) => {
   try {
+    // const userId = req.user._id;
+    // const affiliations = await Affiliation.find({ influencerId: userId });
+    // // console.log(affiliations);
+    // const productIds = await affiliations.map((aff) => {
+    //   return aff.productId;
+    // });
+    // const products = await Promise.all(
+    //   productIds.map((productId) => fetchProductById(productId)),
+    // );
+    // return res.json(
+    //   new ApiResponse(200, products, "products fetched successfully"),
+    // );
     const userId = req.user._id;
-    const affiliations = await Affiliation.find({ influencerId: userId });
-    // console.log(affiliations);
-    const productIds = await affiliations.map((aff) => {
-      return aff.productId;
-    });
-    const products = await Promise.all(
-      productIds.map((productId) => fetchProductById(productId)),
-    );
+    // Fetch affiliations and populate the product details
+    const affiliations = await Affiliation.find({
+      influencerId: userId,
+    })
+      .populate("productId")
+      .exec();
+
     return res.json(
-      new ApiResponse(200, products, "products fetched successfully"),
+      new ApiResponse(
+        200,
+        affiliations,
+        "Affiliations with products fetched successfully",
+      ),
     );
   } catch (err) {
     return next(err);

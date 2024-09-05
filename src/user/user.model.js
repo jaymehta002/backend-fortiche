@@ -107,6 +107,26 @@ const userSchema = new Schema(
       type: String,
       select: false,
     },
+    socials: {
+      twitter: {
+        type: String,
+      },
+      facebook: {
+        type: String,
+      },
+      instagram: {
+        type: String,
+      },
+      linkedin: {
+        type: String,
+      },
+      youtube: {
+        type: String,
+      },
+      tiktok: {
+        type: String,
+      },
+    },
     additionalLinks: {
       type: [additionalLinkSchema],
     },
