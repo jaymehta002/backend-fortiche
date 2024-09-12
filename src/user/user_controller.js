@@ -13,6 +13,7 @@ import { increasePageViewCount } from "../analytics/analytics_service.js";
 import { Affiliation } from "../affiliation/affiliation_model.js";
 import { Product } from "../product/product.model.js";
 import { User } from "./user.model.js";
+
 const getUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
@@ -27,14 +28,6 @@ const getUserDetailsController = asyncHandler(async (req, res, next) => {
 const updateUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-
-    // const { userName, categories, fullName, bio } = req.body;
-    // console.log(req.body, userName, categories, fullName, bio);
-    // const existingUser = await fetchUsers({ username: userName });
-    // console.log(existingUser);
-    // if (existingUser) {
-    //   throw ApiError(409, "username already exists");
-    // }
 
     const { userName, categories, fullName, bio, theme } = req.body;
     console.log(userName);
@@ -172,58 +165,6 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
     return next(err);
   }
 });
-
-// const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
-//   const user = req.user;
-//   try {
-//     // const { additionalLinks } = req.body;
-//     const { host, url, isActive } = req.body;
-//     console.log(req.body);
-//     const thumbnail = req.file ? req.file.path : req.body.thumbnail;
-//     const additionalLinks = [
-//       {
-//         host,
-//         url,
-//         thumbnail,
-//         isActive: isActive ? isActive : true,
-//       },
-//     ];
-//     console.log(additionalLinks);
-//     if (additionalLinks) {
-//       for (const newLink of additionalLinks) {
-//         const existingLinkIndex = user.additionalLinks.findIndex(
-//           (link) => link.host === newLink.host,
-//         );
-
-//         if (newLink.thumbnail && !newLink.thumbnail.startsWith("http")) {
-//           // Upload new thumbnail to Cloudinary if it's a new file path
-//           newLink.thumbnail = await uploadOnCloudinary(newLink.thumbnail);
-//           console.log(newLink.thumbnail);
-//         }
-//         if (existingLinkIndex !== -1) {
-//           user.additionalLinks[existingLinkIndex].url = newLink.url;
-//           user.additionalLinks[existingLinkIndex].thumbnail =
-//             newLink.thumbnail.url?.toString();
-//           user.additionalLinks[existingLinkIndex].isActive = newLink.isActive;
-//         } else {
-//           user.additionalLinks.push(newLink);
-//         }
-//       }
-//       // Save the updated user
-//       // console.log(user);
-//       const updatedUser = await user.save();
-//       return res
-//         .status(200)
-//         .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
-//     } else {
-//       return res
-//         .status(400)
-//         .json(new ApiResponse(400, null, "No links provided"));
-//     }
-//   } catch (err) {
-//     return next(err);
-//   }
-// });
 
 const getAllBrandsController = asyncHandler(async (req, res, next) => {
   try {
@@ -482,6 +423,47 @@ const deleteLink = asyncHandler(async (req, res, next) => {
   }
 });
 
+const updateFeedLinkController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) throw ApiError(404, "Unauthorized request");
+
+    const { identifier, title, url } = req.body;
+    if (!identifier) throw ApiError(400, "Identifier is required");
+
+    // Validate the URL
+    if (!url) throw ApiError(400, "URL is required");
+
+    // Update the feed based on the identifier
+    if (identifier === "youtube") {
+      // Ensure feed and youtubeLinks are initialized
+      if (!user.feed) {
+        user.feed = {};
+        user.feed.youtubeLinks = [];
+        user.feed.musicLinks = [];
+        user.feed.affiliateLinks = [];
+      }
+
+      user.feed.youtubeLinks.push({ title, link: url });
+    } else if (identifier === "music") {
+      user.feed.musicLinks.push({ title, link: url });
+    } else if (identifier === "affiliate") {
+      user.feed.affiliateLinks.push({ title, link: url });
+    } else {
+      throw ApiError(400, "Invalid identifier");
+    }
+
+    const updatedUser = await user.save();
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, updatedUser, "Feed link updated successfully"),
+      );
+  } catch (error) {
+    next(error);
+  }
+});
+
 export {
   getUserDetailsController,
   updateUserDetailsController,
@@ -495,4 +477,5 @@ export {
   getAdditionalLinksController,
   handleLinkOrder,
   deleteLink,
+  updateFeedLinkController,
 };

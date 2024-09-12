@@ -8,6 +8,7 @@ import {
 } from "../common/common_constants.js";
 import bcrypt from "bcrypt";
 
+// Additional link schema remains unchanged
 const additionalLinkSchema = new Schema({
   thumbnail: {
     type: String,
@@ -27,6 +28,7 @@ const additionalLinkSchema = new Schema({
   },
 });
 
+// Subscription model remains unchanged
 const subscriptionModel = new Schema({
   plan: {
     type: String,
@@ -55,6 +57,46 @@ const subscriptionModel = new Schema({
     type: Boolean,
     default: false,
   },
+});
+
+// Define the feed structure
+const feedSchema = new Schema({
+  youtubeLinks: [
+    {
+      title: {
+        type: String,
+        required: true,
+      },
+      link: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
+  affiliateLinks: [
+    {
+      title: {
+        type: String,
+        required: true,
+      },
+      link: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
+  musicLinks: [
+    {
+      title: {
+        type: String,
+        required: true,
+      },
+      link: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
 });
 
 const userSchema = new Schema(
@@ -139,10 +181,12 @@ const userSchema = new Schema(
       type: String,
       default: "basic",
       enum: ["basic", "stater", "pro"],
-      // enum: Object.keys(subscriptions),
     },
     subscription: {
       type: subscriptionModel,
+    },
+    feed: {
+      type: feedSchema,
     },
   },
   {
@@ -150,6 +194,7 @@ const userSchema = new Schema(
   },
 );
 
+// Pre-save hook for password hashing remains unchanged
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 

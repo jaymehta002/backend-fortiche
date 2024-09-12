@@ -6,6 +6,13 @@ const orderRouter = Router();
 
 orderRouter.use(auth);
 
-orderRouter.post("/create-order", createOrder);
+orderRouter.post("/create-order", createOrder).get("/get-order");
 
 export default orderRouter;
+
+// TODO
+// COUPONS CRUD done
+// GUEST USER Checkout
+// Feed & link
+// Shipping Zone
+// payment gateway

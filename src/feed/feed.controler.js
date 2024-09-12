@@ -113,6 +113,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       links: user.additionalLinks || [],
       socials: user.socials || {},
       userProducts: products,
+      feed: user.feed,
       totalUserProducts: products.length,
       brandProducts: affiliatedProducts,
       totalBrandProducts: affiliatedProducts.length,

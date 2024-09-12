@@ -11,6 +11,7 @@ import recommendationRouter from "../recommendation/recommendation.router.js";
 import feedRouter from "../feed/feed.router.js";
 import orderRouter from "../orders/order.route.js";
 import paymentRouter from "../payments/payment_router.js";
+import couponRouter from "../coupon/coupon.route.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -28,6 +29,7 @@ router
   .use("/recommendation", recommendationRouter)
   .use("/feed", feedRouter)
   .use("/order", orderRouter)
-  .use("/payment", paymentRouter);
+  .use("/payment", paymentRouter)
+  .use("/coupon", couponRouter);
 
 export default router;
