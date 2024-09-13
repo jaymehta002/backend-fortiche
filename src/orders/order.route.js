@@ -13,6 +13,6 @@ export default orderRouter;
 // TODO
 // COUPONS CRUD done
 // GUEST USER Checkout
-// Feed & link
+// Feed & link done partial
 // Shipping Zone
 // payment gateway
