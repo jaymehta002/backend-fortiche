@@ -17,5 +17,5 @@ export default orderRouter;
 // COUPONS CRUD done
 // GUEST USER Checkout
 // Feed & link done partial
-// Shipping Zone
+// Shipping Zone done
 // payment gateway

@@ -17,6 +17,10 @@ const shippingSchema = new Schema({
     type: Number,
     required: true,
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const Shipping = mongoose.model("Shipping", shippingSchema);
