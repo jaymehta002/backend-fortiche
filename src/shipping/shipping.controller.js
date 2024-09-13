@@ -35,7 +35,7 @@ const getUserShipping = asyncHandler(async (req, res, next) => {
 });
 
 // Routes
-shippingRouter.post("/shipping", createShipping);
-shippingRouter.get("/shipping", getUserShipping);
+shippingRouter.post("/create", createShipping);
+shippingRouter.get("/fetch", getUserShipping);
 
 export default shippingRouter;
