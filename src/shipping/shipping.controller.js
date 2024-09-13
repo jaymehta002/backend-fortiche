@@ -39,7 +39,11 @@ const updateShippingStatus = asyncHandler(async (req, res, next) => {
   try {
     const { id } = req.params; // Get shipping ID from request parameters
     const { isActive } = req.body; // Get new status from request body
-    const shipping = await Shipping.findByIdAndUpdate(id, { isActive }, { new: true });
+    const shipping = await Shipping.findByIdAndUpdate(
+      id,
+      { isActive },
+      { new: true },
+    );
     if (!shipping) {
       return res.status(404).json({ message: "Shipping not found" });
     }
@@ -52,6 +56,6 @@ const updateShippingStatus = asyncHandler(async (req, res, next) => {
 // Routes
 shippingRouter.post("/create", createShipping);
 shippingRouter.get("/fetch", getUserShipping);
-shippingRouter.patch("/update-status/:id", updateShippingStatus); // New route for updating status
+shippingRouter.patch("/update-status/:id", updateShippingStatus);
 
 export default shippingRouter;
