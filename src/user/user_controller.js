@@ -183,6 +183,31 @@ const getAllBrandsController = asyncHandler(async (req, res, next) => {
     return next(err);
   }
 });
+const getAllInfluencerController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (user.accountType !== accountType.BRAND) {
+      throw ApiError(403, "user should be an brnad");
+    }
+
+    const allInfluencer = await fetchUsers({
+      accountType: accountType.INFLUENCER,
+    });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          allInfluencer,
+          "all influencers fetched successfully",
+        ),
+      );
+  } catch (err) {
+    return next(err);
+  }
+});
 
 const getBrandDetailsAndProductsController = asyncHandler(
   async (req, res, next) => {
@@ -472,6 +497,7 @@ export {
   updateAdditionalLinksController,
   updateSocialsController,
   getAllBrandsController,
+  getAllInfluencerController,
   getBrandDetailsAndProductsController,
   getInfluencerPageController,
   getAdditionalLinksController,
