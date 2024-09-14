@@ -28,37 +28,6 @@ const additionalLinkSchema = new Schema({
   },
 });
 
-// Subscription model remains unchanged
-const subscriptionModel = new Schema({
-  plan: {
-    type: String,
-    required: true,
-    enum: Object.values(subscriptions),
-  },
-  startDate: {
-    type: Date,
-    required: true,
-  },
-  endDate: {
-    type: Date,
-  },
-  status: {
-    type: String,
-    enum: ["active", "inactive", "cancelled", "expired"],
-    default: "inactive",
-  },
-  payments: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Payment",
-    },
-  ],
-  autoRenew: {
-    type: Boolean,
-    default: false,
-  },
-});
-
 // Define the feed structure
 const feedSchema = new Schema({
   youtubeLinks: [
@@ -183,7 +152,8 @@ const userSchema = new Schema(
       enum: ["basic", "stater", "pro"],
     },
     subscription: {
-      type: subscriptionModel,
+      type: Schema.Types.ObjectId,
+      ref: "Subscription",
     },
     feed: {
       type: feedSchema,
