@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { createCourse, uploadThumbnailOrVideo } from "./course.controller";
+import { createCourse, uploadThumbnailOrVideo } from "./course.controller.js";
+import { auth } from "../middlewares/auth.middleware.js";
 
 const courseRouter = Router();
 

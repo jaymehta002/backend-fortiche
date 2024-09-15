@@ -1,11 +1,12 @@
-import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service";
-import { ApiError } from "../utils/APIError";
-import { ApiResponse } from "../utils/APIResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import Course from "./course.model";
+import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
+import { ApiError } from "../utils/APIError.js";
+import { ApiResponse } from "../utils/APIResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import Course from "./course.model.js";
 
 const createCourse = asyncHandler(async (req, res, next) => {
   const { title, customUrl, description, thumbnail, material } = req.body;
+  const user = req.user;
 
   if (!title || !customUrl || !description) {
     throw ApiError(400, "Title, custom URL, and description are required");
