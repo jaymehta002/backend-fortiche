@@ -13,6 +13,7 @@ import orderRouter from "../orders/order.route.js";
 import paymentRouter from "../payments/payment_router.js";
 import couponRouter from "../coupon/coupon.route.js";
 import shippingRouter from "../shipping/shipping.controller.js";
+import courseRouter from "../course/course.route.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -32,6 +33,7 @@ router
   .use("/order", orderRouter)
   .use("/payment", paymentRouter)
   .use("/coupon", couponRouter)
-  .use("/shipping", shippingRouter);
+  .use("/shipping", shippingRouter)
+  .use("/courses", courseRouter);
 
 export default router;
