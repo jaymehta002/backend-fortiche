@@ -41,7 +41,7 @@ const shippingSchema = new mongoose.Schema({
   },
   trackingNumber: { type: String },
   carrier: { type: String },
-  shippedAt: { type: Date },
+  shippedAt: { type: Date },  
 });
 
 const orderSchema = new mongoose.Schema(

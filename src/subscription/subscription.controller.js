@@ -1,7 +1,7 @@
-// subscription.controller.js
 import Stripe from "stripe";
 import Subscription from "./subscription.model.js";
 import { ApiError } from "../utils/APIError.js";
+import mongoose from "mongoose";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -17,8 +17,10 @@ const PLAN_TO_PRICE_MAPPING = {
 export const createCheckoutSession = async (req, res) => {
   try {
     const user = req.user;
+    // console.log(user._id.toString());
     if (!user) throw ApiError(404, "unauthorized request");
     const { plan } = req.body;
+    if (!plan) throw ApiError(400, "Plan is required");
     const stripePriceId = PLAN_TO_PRICE_MAPPING[plan];
 
     if (!stripePriceId) {
@@ -36,6 +38,7 @@ export const createCheckoutSession = async (req, res) => {
       billing_address_collection: "required",
       metadata: {
         customer_name: user.fullName,
+        // customer_id: user._id.toString(),
         // customer_address: JSON.stringify(customerAddress),
         // description: description,
         plan: plan,
@@ -88,6 +91,7 @@ const handleCheckoutSessionCompleted = async (session) => {
   const subscription = await stripe.subscriptions.retrieve(
     session.subscription,
   );
+  // console.log("subscription", subscription);
   await createOrUpdateSubscription(subscription, session);
 };
 
@@ -96,6 +100,7 @@ const handleSubscriptionUpdated = async (subscription) => {
 };
 
 const createOrUpdateSubscription = async (subscription, session = null) => {
+  // console.log("session-----------------------\n", session);
   const customerId = subscription.customer;
   const customer = await stripe.customers.retrieve(customerId);
   const subscriptionData = {
@@ -107,14 +112,11 @@ const createOrUpdateSubscription = async (subscription, session = null) => {
     endDate: new Date(subscription.current_period_end * 1000),
     customerName: customer.name,
     customerEmail: customer.email,
+    // userId: mongoose.Types.ObjectId(session.metadata.customer_id),
     // customerAddress: customer.address,
     autoRenew: !subscription.cancel_at_period_end,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
   };
-
-  if (session && session.metadata.description) {
-    subscriptionData.description = session.metadata.description;
-  }
 
   await Subscription.findOneAndUpdate(
     { stripeSubscriptionId: subscription.id },
