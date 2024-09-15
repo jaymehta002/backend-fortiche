@@ -1,120 +1,119 @@
-import { Affiliation } from "../affiliation/affiliation_model.js";
-import { User } from "../user/user.model.js";
+// order.controller.js
 import { ApiError } from "../utils/APIError.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Order from "./order.model.js";
 import Stripe from "stripe";
-import { Payment } from "../payments/payment_model.js";
 
-// Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const createOrder = asyncHandler(async (req, res, next) => {
-  try {
-    const user = req.user;
-    const { items, influencerId, paymentMethodId } = req.body;
+export const createOrder = asyncHandler(async (req, res) => {
+  const { items, influencerId, paymentMethodId, shippingInfo } = req.body;
 
-    if (!items || !paymentMethodId) {
-      throw ApiError(400, "Invalid data being passed");
-    }
-
-    const check = await Affiliation.find({
-      productId: items.map((item) => item.productId),
-      influencerId: influencerId,
-    });
-
-    if (!check || check.length !== items.length) {
-      throw ApiError(
-        401,
-        "No affiliation found between influencer and product",
-      );
-    }
-
-    // Calculate total amount
-    const totalAmount = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
-
-    // Create a PaymentIntent with Stripe
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(totalAmount * 100), // Amount in cents
-      currency: "usd",
-      payment_method: paymentMethodId,
-      confirm: true,
-    });
-
-    // Create the order
-    const order = await Order.create({
-      items,
-      userId: user._id,
-      influencerId,
-      status: "pending",
-      paymentStatus: paymentIntent.status === "succeeded" ? "paid" : "pending",
-    });
-
-    if (!order) {
-      throw ApiError(500, "Order creation failed");
-    }
-
-    // Save payment information
-    const payment = await Payment.create({
-      user: user._id,
-      order: order._id,
-      paymentIntentId: paymentIntent.id,
-      amount: totalAmount,
-      currency: paymentIntent.currency,
-      status: paymentIntent.status,
-      paymentMethod: paymentIntent.payment_method,
-      receiptUrl: paymentIntent.charges.data[0]?.receipt_url,
-    });
-
-    return res
-      .status(201)
-      .json(
-        new ApiResponse(
-          201,
-          { order, payment },
-          "Order created and payment processed successfully",
-        ),
-      );
-  } catch (error) {
-    if (error.type === "StripeCardError") {
-      throw ApiError(400, error.message);
-    }
-    next(error);
+  if (!items || !influencerId || !paymentMethodId || !shippingInfo) {
+    throw new ApiError(400, "Missing required fields");
   }
+
+  // Construct the return URL
+  const returnUrl = `${req.protocol}://${req.get("host")}/api/orders/payment-result`;
+
+  const { order, clientSecret } = await Order.createOrderWithStripe(
+    { items, userId: req.user._id, influencerId, shippingInfo },
+    paymentMethodId,
+    returnUrl,
+  );
+
+  res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        { order, clientSecret },
+        "Order created successfully",
+      ),
+    );
 });
 
-const getOrder = asyncHandler(async (req, res, next) => {
-  const user = req.user;
-  const orderId = req.params.id;
-
+export const getOrder = asyncHandler(async (req, res) => {
   const order = await Order.findOne({
-    _id: orderId,
-    userId: user._id,
+    _id: req.params.id,
+    userId: req.user._id,
   }).populate("items.productId");
 
   if (!order) {
-    throw ApiError(404, "Order not found");
+    throw new ApiError(404, "Order not found");
   }
 
-  return res
+  res
     .status(200)
     .json(new ApiResponse(200, order, "Order retrieved successfully"));
 });
 
-const getUserOrders = asyncHandler(async (req, res, next) => {
-  const user = req.user;
-
-  const orders = await Order.find({ userId: user._id })
+export const getUserOrders = asyncHandler(async (req, res) => {
+  const orders = await Order.find({ userId: req.user._id })
     .populate("items.productId")
     .sort({ createdAt: -1 });
 
-  return res
+  res
     .status(200)
     .json(new ApiResponse(200, orders, "User orders retrieved successfully"));
 });
 
-export { createOrder, getOrder, getUserOrders };
+export const deleteOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+  });
+
+  if (!order) {
+    throw new ApiError(404, "Order not found");
+  }
+
+  if (order.status !== "pending") {
+    throw new ApiError(400, "Cannot delete non-pending order");
+  }
+
+  // Update affiliation metrics (assuming Affiliation model exists)
+  await mongoose.model("Affiliation").updateMany(
+    {
+      productId: { $in: order.items.map((item) => item.productId) },
+      influencerId: order.influencerId,
+    },
+    {
+      $inc: {
+        totalSaleQty: -order.items.reduce(
+          (sum, item) => sum + item.quantity,
+          0,
+        ),
+        totalSaleRevenue: -order.totalAmount,
+      },
+    },
+  );
+
+  await Order.deleteOne({ _id: req.params.id });
+
+  res
+    .status(204)
+    .json(new ApiResponse(204, null, "Order deleted successfully"));
+});
+
+export const handlePaymentResult = asyncHandler(async (req, res) => {
+  const { payment_intent, payment_intent_client_secret } = req.query;
+
+  const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent);
+
+  if (paymentIntent.status === "succeeded") {
+    // Update the order status
+    await Order.findOneAndUpdate(
+      { "paymentDetails.paymentIntentId": payment_intent },
+      {
+        paymentStatus: "paid",
+        "paymentDetails.status": "succeeded",
+      },
+    );
+
+    res.redirect("/payment-success"); // Redirect to a success page
+  } else {
+    res.redirect("/payment-failure"); // Redirect to a failure page
+  }
+});

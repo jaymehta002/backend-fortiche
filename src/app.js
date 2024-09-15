@@ -42,7 +42,14 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: "14kb" }));
+app.use((req, res, next) => {
+  if (req.originalUrl === "/api/v1/subscription/webhook") {
+    express.raw({ type: "application/json" })(req, res, next);
+  } else {
+    express.json()(req, res, next);
+  }
+});
+// app.use(express.json({ limit: "14kb" }));
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: "14kb" }));

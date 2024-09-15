@@ -46,9 +46,16 @@ const theme = {
 };
 
 const subscriptions = {
-  BASIC: "basic",
-  STARTER: "starter",
-  PRO: "pro",
+  influencer: {
+    basic: "basic",
+    pro: "pro",
+    premium: "premium",
+  },
+  brand: {
+    starter: "starter",
+    business: "business",
+    enterprise: "enterprise",
+  },
 };
 
 export { additionalLinkHost, accountType, category, theme, subscriptions };
