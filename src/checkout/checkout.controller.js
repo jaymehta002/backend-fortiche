@@ -73,6 +73,15 @@ export const handleSuccessPage = async (req, res) => {
 
     // Retrieve the session from Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id);
+    const existingOrder = await Order.findOne({
+      paymentId: session.payment_intent,
+    });
+    if (existingOrder) {
+      return res.status(400).json({
+        success: false,
+        message: "This session has already been used for an order.",
+      });
+    }
 
     if (session.payment_status === "paid") {
       const { metadata } = session;
@@ -103,6 +112,8 @@ export const handleSuccessPage = async (req, res) => {
       });
 
       await newOrder.save();
+
+      // Destroy the session
 
       res.status(200).json({
         success: true,
