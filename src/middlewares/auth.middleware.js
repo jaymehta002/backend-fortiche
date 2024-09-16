@@ -81,3 +81,25 @@ export const auth = asyncHandler(async (req, _, next) => {
     next(error);
   }
 });
+
+export const authenticateSocket = async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+      return next(new Error("Authentication error: No token provided"));
+    }
+
+    const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
+    const user = await User.findById(decodedToken?._id);
+
+    if (!user) {
+      return next(new Error("Authentication error: Invalid token"));
+    }
+
+    socket.user = user;
+    next();
+  } catch (error) {
+    next(new Error("Authentication error: " + error.message));
+  }
+};

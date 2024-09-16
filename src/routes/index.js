@@ -14,6 +14,7 @@ import subscriptionRouter from "../subscription/subscription.router.js";
 import { publicUserRouter, userRouter } from "../user/user_router.js";
 import authRoutes from "./auth.routes.js";
 import checkoutRouter from "../checkout/checkout.router.js";
+import messageRouter from "../message/messege.route.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -34,6 +35,7 @@ router
   .use("/coupon", couponRouter)
   .use("/shipping", shippingRouter)
   .use("/subscription", subscriptionRouter)
-  .use("/checkout", checkoutRouter);
+  .use("/checkout", checkoutRouter)
+  .use("/message", messageRouter);
 
 export default router;
