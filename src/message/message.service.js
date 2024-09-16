@@ -66,12 +66,64 @@ const getAllChats = async (userId) => {
       {
         $sort: { "lastMessage.createdAt": -1 },
       },
+      // Populate the user details for both sender and receiver
+      {
+        $lookup: {
+          from: "users", // Collection containing user details
+          localField: "_id", // The ID of the other user (either sender or receiver)
+          foreignField: "_id", // Matching field in the users collection
+          as: "userDetails", // Output field for the populated user details
+        },
+      },
+      {
+        $unwind: "$userDetails", // Unwind the populated user details array
+      },
+      // Optional: if you also want to fetch the user details for the last message sender
+      {
+        $lookup: {
+          from: "users",
+          localField: "lastMessage.senderId",
+          foreignField: "_id",
+          as: "lastMessage.senderDetails",
+        },
+      },
+      {
+        $unwind: "$lastMessage.senderDetails",
+      },
     ]);
+
     return chats;
   } catch (error) {
     throw new Error("Error fetching all chats: " + error.message);
   }
 };
+
+// const getAllChats = async (userId) => {
+//   try {
+//     const chats = await Message.aggregate([
+//       {
+//         $match: {
+//           $or: [{ senderId: userId }, { receiverId: userId }],
+
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: {
+//             $cond: [{ $eq: ["$senderId", userId] }, "$receiverId", "$senderId"],
+//           },
+//           lastMessage: { $last: "$$ROOT" },
+//         },
+//       },
+//       {
+//         $sort: { "lastMessage.createdAt": -1 },
+//       },
+//     ]);
+//     return chats;
+//   } catch (error) {
+//     throw new Error("Error fetching all chats: " + error.message);
+//   }
+// };
 
 const getLatestMessages = async (userId) => {
   try {

@@ -15,6 +15,8 @@ import { publicUserRouter, userRouter } from "../user/user_router.js";
 import authRoutes from "./auth.routes.js";
 import checkoutRouter from "../checkout/checkout.router.js";
 import messageRouter from "../message/messege.route.js";
+import accountRouter from "../accounts/account.router.js";
+import analyticsRouter from "../analytics/analytics.router.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -36,6 +38,8 @@ router
   .use("/shipping", shippingRouter)
   .use("/subscription", subscriptionRouter)
   .use("/checkout", checkoutRouter)
-  .use("/message", messageRouter);
+  .use("/message", messageRouter)
+  .use("/connect", accountRouter)
+  .use("/analytics", analyticsRouter);
 
 export default router;
