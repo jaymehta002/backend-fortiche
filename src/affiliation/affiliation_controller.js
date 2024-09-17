@@ -1,4 +1,7 @@
-import { increaseAffiliationClickCount } from "./affiliation_service.js";
+import {
+  increaseAffiliationClickCount,
+  increasePageViewCount,
+} from "./affiliation_service.js";
 import { fetchProductById } from "../product/product_service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { accountType } from "../common/common_constants.js";
@@ -14,6 +17,8 @@ const getAffiliationProductController = asyncHandler(async (req, res, next) => {
     const product = await fetchProductById(productId);
 
     await increaseAffiliationClickCount(affiliationId, 1);
+    // Increase page view count for the affiliation
+    await increasePageViewCount(affiliationId, 1);
 
     return res
       .status(200)

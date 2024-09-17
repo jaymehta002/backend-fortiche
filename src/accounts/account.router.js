@@ -1,15 +1,10 @@
 import express from "express";
-import { connectPaypal, paypalCallback } from "./account.controller.js"; // Adjust the path as needed
+import { connectPaypal, paypalCallback } from "./account.controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
-const accountRouter = express.Router();
+const router = express.Router();
 
-// Route to initiate PayPal connection
-// User needs to be authenticated before connecting PayPal
-accountRouter.get("/paypal", auth, connectPaypal);
+router.get("/paypal", auth, connectPaypal);
+router.get("/callback", auth, paypalCallback);
 
-// Route to handle PayPal callback after authorization
-// This is where PayPal redirects after successful login
-accountRouter.get("/paypal/callback", auth, paypalCallback);
-
-export default accountRouter;
+export default router;

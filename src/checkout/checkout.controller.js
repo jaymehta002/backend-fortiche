@@ -5,6 +5,7 @@ import Order from "../orders/order.model.js"; // Assuming you have an Order mode
 import { Product } from "../product/product.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendProductPurchaseMail } from "../preference/preference.service.js";
 
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -182,7 +183,7 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
               name: "Fortiche",
               description: products.length + "items",
             },
-            unit_amount: totalPrice * 100 * quantity, // Amount in cents
+            unit_amount: totalPrice * 100 * quantity,
           },
           quantity: quantity,
         },
@@ -192,7 +193,8 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       metadata: {
         products: productsString,
-        name, // Pass guest details in metadata
+        userId: affiliation[0].userId,
+        name,
         email,
         phone,
         address: JSON.stringify(address),
@@ -222,7 +224,7 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
     }
 
     // Extract metadata (including guest details)
-    let { products, name, email, phone, address } = session.metadata;
+    let { products, name, email, phone, address, userId } = session.metadata;
     products = JSON.parse(products);
     // Check if the guest already exists (if your system allows multiple orders for a guest)
     let guest = await Guest.findOne({ email });
@@ -260,6 +262,7 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       shippingAddress: guest.address,
     });
 
+    sendProductPurchaseMail(userId, productIds);
     // Respond with success message and order details
     res.status(200).json({
       success: true,

@@ -56,9 +56,24 @@ const affiliationUpdatesForSuccessfulOrder = async (
   return updatedAffiliation;
 };
 
+const increasePageViewCount = async (affiliationId, increase) => {
+  if (increase < 0) {
+    throw new ApiError(
+      500,
+      `invalid increase value: ${increase} for page view count`,
+    );
+  }
+
+  const updatedAffiliation = await updateAffiliationById(affiliationId, {
+    $inc: { pageView: increase },
+  });
+  return updatedAffiliation;
+};
+
 export {
   fetchAffiliationById,
   updateAffiliationById,
   increaseAffiliationClickCount,
   affiliationUpdatesForSuccessfulOrder,
+  increasePageViewCount, // Added new export
 };

@@ -17,6 +17,7 @@ import checkoutRouter from "../checkout/checkout.router.js";
 import messageRouter from "../message/messege.route.js";
 import accountRouter from "../accounts/account.router.js";
 import analyticsRouter from "../analytics/analytics.router.js";
+import preferenceRouter from "../preference/preference.route.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -40,6 +41,7 @@ router
   .use("/checkout", checkoutRouter)
   .use("/message", messageRouter)
   .use("/connect", accountRouter)
-  .use("/analytics", analyticsRouter);
+  .use("/analytics", analyticsRouter)
+  .use("/preference", preferenceRouter);
 
 export default router;
