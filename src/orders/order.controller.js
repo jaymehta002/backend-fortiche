@@ -1,4 +1,5 @@
 // order.controller.js
+import { Product } from "../product/product.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -50,7 +51,10 @@ export const getOrder = asyncHandler(async (req, res) => {
 });
 
 export const getUserOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ userId: req.user._id })
+  const products = await Product.find({ brandId: req.user._id });
+  const orders = await Order.find({
+    productIdId: products.map((product) => product._id),
+  })
     .populate("items.productId")
     .sort({ createdAt: -1 });
 

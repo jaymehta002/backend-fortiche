@@ -172,6 +172,7 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
       })),
     );
     // const product = await Product.findById(affiliation.productId);
+    console.log(affiliation[0].influencerId);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -193,7 +194,7 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       metadata: {
         products: productsString,
-        userId: affiliation[0].userId,
+        influencerId: affiliation[0].influencerId.toString(),
         name,
         email,
         phone,
@@ -224,7 +225,8 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
     }
 
     // Extract metadata (including guest details)
-    let { products, name, email, phone, address, userId } = session.metadata;
+    let { products, name, email, phone, address, influencerId } =
+      session.metadata;
     products = JSON.parse(products);
     // Check if the guest already exists (if your system allows multiple orders for a guest)
     let guest = await Guest.findOne({ email });
@@ -262,8 +264,8 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       shippingAddress: guest.address,
     });
 
-    sendProductPurchaseMail(userId, productIds);
-    // Respond with success message and order details
+    sendProductPurchaseMail(influencerId, productIds);
+    await stripe.checkout.sessions.expire(session_id);
     res.status(200).json({
       success: true,
       message: "Payment successful and order created",
