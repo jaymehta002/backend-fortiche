@@ -12,8 +12,7 @@ import { ApiResponse } from "../utils/APIResponse.js";
 const getAffiliationProductController = asyncHandler(async (req, res, next) => {
   try {
     const affiliationId = req.body.affiliationId;
-    const productId = req.body.productId;
-
+    const productId = await Affiliation.findById(affiliationId);
     const product = await fetchProductById(productId);
 
     await increaseAffiliationClickCount(affiliationId, 1);
