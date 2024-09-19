@@ -8,6 +8,7 @@ import {
 } from "../common/common_constants.js";
 import bcrypt from "bcrypt";
 
+// Additional link schema remains unchanged
 const additionalLinkSchema = new Schema({
   thumbnail: {
     type: String,
@@ -27,34 +28,44 @@ const additionalLinkSchema = new Schema({
   },
 });
 
-const subscriptionModel = new Schema({
-  plan: {
-    type: String,
-    required: true,
-    enum: Object.values(subscriptions),
-  },
-  startDate: {
-    type: Date,
-    required: true,
-  },
-  endDate: {
-    type: Date,
-  },
-  status: {
-    type: String,
-    enum: ["active", "inactive", "cancelled", "expired"],
-    default: "inactive",
-  },
-  payments: [
+// Define the feed structure
+const feedSchema = new Schema({
+  youtubeLinks: [
     {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Payment",
+      title: {
+        type: String,
+        required: true,
+      },
+      link: {
+        type: String,
+        required: true,
+      },
     },
   ],
-  autoRenew: {
-    type: Boolean,
-    default: false,
-  },
+  affiliateLinks: [
+    {
+      title: {
+        type: String,
+        required: true,
+      },
+      link: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
+  musicLinks: [
+    {
+      title: {
+        type: String,
+        required: true,
+      },
+      link: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
 });
 
 const userSchema = new Schema(
@@ -139,10 +150,13 @@ const userSchema = new Schema(
       type: String,
       default: "basic",
       enum: ["basic", "stater", "pro"],
-      // enum: Object.keys(subscriptions),
     },
     subscription: {
-      type: subscriptionModel,
+      type: Schema.Types.ObjectId,
+      ref: "Subscription",
+    },
+    feed: {
+      type: feedSchema,
     },
   },
   {
@@ -150,6 +164,7 @@ const userSchema = new Schema(
   },
 );
 
+// Pre-save hook for password hashing remains unchanged
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 

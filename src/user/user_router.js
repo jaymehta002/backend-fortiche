@@ -12,11 +12,21 @@ import {
   handleLinkOrder,
   deleteLink,
   updateSocialsController,
+  updateFeedLinkController,
+  getAllInfluencerController,
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import {
+  cancelSubscription,
+  createSubscription,
+  toggleAutoRenewal,
+  upgradeSubscription,
+} from "./subscription.controller.js";
+
 const userRouter = Router();
 const publicUserRouter = Router();
+
 userRouter.use(auth);
 
 userRouter
@@ -37,8 +47,15 @@ userRouter
   .delete("/delete-additional-link/:id", deleteLink)
   .get("/get-additional-links", getAdditionalLinksController)
   .get("/get-all-brands", getAllBrandsController)
+  .get("/get-all-influencers", getAllInfluencerController)
   .get("/get-brand-details-and-products", getBrandDetailsAndProductsController)
-  .patch("/update-social", updateSocialsController);
+  .patch("/update-social", updateSocialsController)
+  .post("/update-feed-link", updateFeedLinkController)
+  // Subscription-related routes
+  .post("/create-subscription", createSubscription)
+  .post("/cancel-subscription", cancelSubscription)
+  .post("/upgrade-subscription", upgradeSubscription)
+  .post("/toggle-auto-renewal", toggleAutoRenewal);
 
 publicUserRouter.get("/get-influencer-page", getInfluencerPageController);
 

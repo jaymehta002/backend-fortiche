@@ -1,30 +1,51 @@
 import mongoose from "mongoose";
 
-const itemSchema = new mongoose.Schema({
-  productId: mongoose.Schema.Types.ObjectId,
-  quantity: { type: Number, required: true },
-});
-
-const orderSchema = new mongoose.Schema(
+const OrderSchema = new mongoose.Schema(
   {
-    items: [itemSchema],
-    userId: {
+    productId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
       required: true,
     },
-    influencerId: {
-      type: mongoose.Schema.Types.ObjectId,
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
+    paymentId: {
+      type: String,
       required: true,
     },
     status: {
       type: String,
+      enum: ["paid", "pending", "failed"],
+      default: "pending",
+    },
+    shippingStatus: {
+      type: String,
       enum: ["pending", "shipped", "delivered", "canceled"],
       default: "pending",
     },
-    paymentStatus: {
-      type: String,
-      enum: ["pending", "paid", "cancelled"],
-      default: "pending",
+    shippingAddress: {
+      line1: { type: String, required: true },
+      line2: { type: String },
+      city: { type: String, required: true },
+      state: { type: String, required: true },
+      postalCode: { type: String, required: true },
+      country: { type: String, required: true },
+    },
+    influencerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Influencer",
+      required: function () {
+        return !this.guestId; // If guestId is not present, influencerId is required
+      },
+    },
+    guestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Guest",
+      required: function () {
+        return !this.influencerId; // If influencerId is not present, guestId is required
+      },
     },
   },
   {
@@ -32,6 +53,5 @@ const orderSchema = new mongoose.Schema(
   },
 );
 
-const Order = mongoose.model("Order", orderSchema);
-
+const Order = mongoose.model("Order", OrderSchema);
 export default Order;

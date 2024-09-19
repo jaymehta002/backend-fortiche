@@ -11,24 +11,30 @@ import { Collection } from "../models/collection.model.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
+    console.log(req.user.accountType);
+    if (req.user.accountType !== "brand") {
+      throw ApiError(400, "Action restricted for Influencer accounts");
+    }
     const {
       title,
       description,
       category,
       stock,
-      price,
-      discountPercent,
+      pricing,
+      wholesalePricing,
       productType,
       rating,
       isRecommended,
+      physicalDetails,
+      downloadableDetails,
+      virtualDetails,
     } = req.body;
 
-    const brandId = req.user.id;
-    const brand = req.user.fullName;
+    if (!["physical", "virtual", "downloadable"].includes(productType)) {
+      throw ApiError(400, "Invalid productType");
+    }
 
     let imageUrls = [];
-    let message = "Product created successfully";
-
     if (req.files && req.files.length > 0) {
       const imageUrlsLocal = req.files.map((file) => file.path);
       imageUrls = await Promise.all(
@@ -37,26 +43,52 @@ const createProduct = asyncHandler(async (req, res, next) => {
           return result.url;
         }),
       );
-    } else {
-      message += ". No images were uploaded";
     }
 
-    const product = await Product.create({
+    const productData = {
       title,
-      brand,
       description,
       category,
       stock,
-      price,
-      discountPercent,
+      pricing,
+      wholesalePricing,
       productType,
       imageUrls,
       rating,
       isRecommended,
-      brandId,
-    });
+      brandId: req.user.id,
+      brand: req.user.name,
+    };
 
-    return res.status(201).json(new ApiResponse(201, product, message));
+    // Conditionally add sub-schema details based on productType
+    if (productType === "physical") {
+      if (!physicalDetails) {
+        throw ApiError(
+          400,
+          "Physical details are required for physical products",
+        );
+      }
+      productData.physicalDetails = physicalDetails;
+    } else if (productType === "downloadable") {
+      if (!downloadableDetails || !downloadableDetails.fileUpload) {
+        throw ApiError(
+          400,
+          "File upload URL is required for downloadable products",
+        );
+      }
+      productData.downloadableDetails = downloadableDetails;
+    } else if (productType === "virtual") {
+      if (!virtualDetails || !virtualDetails.link) {
+        throw ApiError(400, "Link is required for virtual products");
+      }
+      productData.virtualDetails = virtualDetails;
+    }
+
+    const product = await Product.create(productData);
+
+    return res
+      .status(201)
+      .json(new ApiResponse(201, product, "Product created successfully"));
   } catch (err) {
     next(err);
   }
@@ -228,35 +260,71 @@ const updateProduct = asyncHandler(async (req, res, next) => {
       description,
       category,
       stock,
-      price,
-      discountPercent,
+      pricing,
+      wholesalePricing,
       productType,
       rating,
       isRecommended,
+      physicalDetails,
+      downloadableDetails,
+      virtualDetails,
     } = req.body;
-    const product = await Product.findById(id);
-    if (!product) {
-      throw ApiError(404, "Product not found");
-    }
-    if (!product.brandId.equals(user._id)) {
-      throw ApiError(403, "Forbidden");
+
+    if (req.user.accountType !== "brand") {
+      throw ApiError(400, "Action restricted for influencers");
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      {
-        title,
-        description,
-        category,
-        stock,
-        price,
-        discountPercent,
-        productType,
-        rating,
-        isRecommended,
-      },
-      { new: true },
-    );
+    const product = await Product.findById(id);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    // Check if the user is authorized to update this product
+    if (!product.brandId.equals(user._id)) {
+      throw new ApiError(403, "Forbidden");
+    }
+
+    // Construct the update object
+    const updateFields = {
+      title,
+      description,
+      category,
+      stock,
+      pricing,
+      wholesalePricing,
+      productType,
+      rating,
+      isRecommended,
+    };
+
+    // Conditionally update sub-schema details based on productType
+    if (productType === "physical") {
+      if (!physicalDetails) {
+        throw new ApiError(
+          400,
+          "Physical details are required for physical products",
+        );
+      }
+      updateFields.physicalDetails = physicalDetails;
+    } else if (productType === "downloadable") {
+      if (!downloadableDetails || !downloadableDetails.fileUpload) {
+        throw new ApiError(
+          400,
+          "File upload URL is required for downloadable products",
+        );
+      }
+      updateFields.downloadableDetails = downloadableDetails;
+    } else if (productType === "virtual") {
+      if (!virtualDetails || !virtualDetails.link) {
+        throw new ApiError(400, "Link is required for virtual products");
+      }
+      updateFields.virtualDetails = virtualDetails;
+    }
+
+    // Perform the update
+    const updatedProduct = await Product.findByIdAndUpdate(id, updateFields, {
+      new: true,
+    });
 
     return res
       .status(200)

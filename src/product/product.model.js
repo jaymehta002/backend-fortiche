@@ -1,12 +1,42 @@
 import mongoose from "mongoose";
 import { category } from "../common/common_constants.js";
 
+// Sub-schema for Physical Products
+const physicalProductSchema = new mongoose.Schema(
+  {
+    weight: { type: Number, required: true },
+    height: { type: Number, required: true },
+    width: { type: Number, required: true },
+    length: { type: Number, required: true },
+    packageFormat: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+// Sub-schema for Downloadable Products
+const downloadableProductSchema = new mongoose.Schema(
+  {
+    fileUpload: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+// Sub-schema for Virtual Products
+const virtualProductSchema = new mongoose.Schema(
+  {
+    link: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+// Main Product Schema
 const productSchema = new mongoose.Schema(
   {
     title: {
       type: String,
       required: true,
-      trim: true, // Removes leading/trailing whitespace
+      trim: true,
+      index: true, // Optimizing for search
     },
     brand: {
       type: String,
@@ -20,33 +50,28 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: category,
       trim: true,
+      index: true, // Optimizing for search
     },
-    categoryName: {
+    productType: {
       type: String,
+      enum: {
+        values: ["physical", "virtual", "downloadable"],
+        message: "{VALUE} is not a valid product type",
+      },
+      required: true,
+    },
+    pricing: {
+      type: String,
+      required: true,
+    },
+    wholesalePricing: {
+      type: String,
+      required: true,
     },
     stock: {
       type: Number,
       required: true,
       min: 0,
-    },
-    stockStatus: {
-      type: Boolean,
-      default: true,
-    },
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    discountPercent: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
-    },
-    productType: {
-      type: String,
-      trim: true,
     },
     imageUrls: {
       type: [String],
@@ -54,6 +79,15 @@ const productSchema = new mongoose.Schema(
     brandId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+      index: true,
+      validate: {
+        validator: async function (value) {
+          const user = await mongoose.model("User").findById(value);
+          return !!user;
+        },
+        message: "BrandId must refer to a valid User.",
+      },
     },
     rating: {
       type: Number,
@@ -64,10 +98,40 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Conditional Sub-schemas based on productType
+    physicalDetails: {
+      type: physicalProductSchema,
+      required: function () {
+        return this.productType === "physical";
+      },
+    },
+    downloadableDetails: {
+      type: downloadableProductSchema,
+      required: function () {
+        return this.productType === "downloadable";
+      },
+    },
+    virtualDetails: {
+      type: virtualProductSchema,
+      required: function () {
+        return this.productType === "virtual";
+      },
+    },
+
+    // Soft deletion support
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
   },
 );
 
+// Adding indexes for better performance
+productSchema.index({ title: 1, category: 1, brandId: 1 });
+
+// Model export
 export const Product = mongoose.model("Product", productSchema);
