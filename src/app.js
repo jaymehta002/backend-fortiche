@@ -51,7 +51,11 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: process.env.NODE_ENV === "PRODUCTION" },
+    cookie: {
+      secure: true,
+      httpOnly: true,
+      sameSite: "none",
+    },
   }),
 );
 
@@ -85,5 +89,5 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/v1", router);
 app.use(globalErrorHandler);
- 
+
 export { app, io };
