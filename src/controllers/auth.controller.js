@@ -56,7 +56,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
   req.session.registrationOTP = { email, hashedOTP, otpExpiration };
-
+  console.log(req.session, "sending");
   res.status(200).json({
     success: true,
     message: "OTP sent to email. Please verify.",
