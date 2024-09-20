@@ -14,6 +14,7 @@ import {
 import { globalErrorHandler } from "./middlewares/globalErrorHandler.js";
 import router from "./routes/index.js";
 import { setupSocketEvents } from "./socket.js";
+import MongoStore from "connect-mongo";
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +49,10 @@ app.use(cors(corsOptions));
 
 app.use(
   session({
+    store: new MongoStore({
+      mongoUrl: process.env.MONGODB_URI,
+      ttl: 3600,
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
