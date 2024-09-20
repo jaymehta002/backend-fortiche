@@ -23,7 +23,6 @@ export const verifyOTP = async (hashedOTP, receivedOTP, otpExpiration) => {
   if (Date.now() > otpExpiration) {
     throw ApiError(400, "OTP has expired");
   }
-  console.log(hashedOTP, receivedOTP, otpExpiration);
   const otpToVerify = `${receivedOTP}.${otpExpiration}`;
   const isValid = await bcrypt.compare(otpToVerify, hashedOTP);
 
