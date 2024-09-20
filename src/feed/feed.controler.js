@@ -96,8 +96,9 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
     //   validatedPage,
     // );
 
-    const affiliations = await Affiliation.find({ influencerId: user._id });.populate('productId')
-
+    const affiliations = await Affiliation.find({
+      influencerId: user._id,
+    }).populate("productId");
 
     const { totalProducts, totalAffiliatedProducts, totalPosts } =
       await calculatePaginationTotals(user._id, affiliatedProductIds);
@@ -119,7 +120,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       feed: user.feed,
       totalUserProducts: products.length,
       brandProducts: affiliations,
-      totalBrandProducts: affiliatedProducts.length,
+      // totalBrandProducts: affiliatedProducts.length,
       posts: userPosts,
       totalPosts: userPosts.length,
       currentPage: validatedPage,
