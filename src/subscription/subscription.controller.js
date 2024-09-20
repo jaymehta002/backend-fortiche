@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PLAN_TO_PRICE_MAPPING = {
-  basic: "price_1PyusdSFuZF2UukWKaRrFToS",
+  basic: "price_1Q11WKHRK1oXhYsFHFcObkPJ",
   pro: "price_2ProPlanId",
   premium: "price_3PremiumPlanId",
   starter: "price_4StarterPlanId",
