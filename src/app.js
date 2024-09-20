@@ -33,7 +33,7 @@ const io = new Server(server, {
 });
 
 app.set("trust proxy", 1);
-
+app.enable("trust proxy");
 const corsOptions = {
   credentials: true,
   origin: [
@@ -51,9 +51,11 @@ app.use(
   session({
     store: new MongoStore({
       mongoUrl: process.env.MONGODB_URI,
+      collectionName: "sessions",
       ttl: 3600,
     }),
     secret: process.env.SESSION_SECRET,
+    proxy: true,
     resave: false,
     saveUninitialized: true,
     cookie: {
