@@ -18,12 +18,11 @@ import messageRouter from "../message/messege.route.js";
 import accountRouter from "../accounts/account.router.js";
 import analyticsRouter from "../analytics/analytics.router.js";
 import preferenceRouter from "../preference/preference.route.js";
+import courseRouter from "../course/course.route.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
-publicRouter
-  .use("/affiliation", publicAffiliationRouter)
-  .use("/user", publicUserRouter);
+publicRouter.use("/user", publicUserRouter);
 
 router
   .use("/users", userRouter)
@@ -31,6 +30,7 @@ router
   .use("/auth", authRoutes)
   .use("/public", publicRouter)
   .use("/affiliation", affiliationRouter)
+  .use("/affiliation", publicAffiliationRouter)
   .use("/brand", brandRouter)
   .use("/recommendation", recommendationRouter)
   .use("/feed", feedRouter)
@@ -42,6 +42,7 @@ router
   .use("/message", messageRouter)
   .use("/connect", accountRouter)
   .use("/analytics", analyticsRouter)
-  .use("/preference", preferenceRouter);
+  .use("/preference", preferenceRouter)
+  .use("/course", courseRouter);
 
 export default router;
