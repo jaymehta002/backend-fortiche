@@ -29,11 +29,11 @@ const createCourse = asyncHandler(async (req, res, next) => {
 
 const uploadThumbnailOrVideo = asyncHandler(async (req, res, next) => {
   try {
-    const { file } = req.body;
+    const file = req.file;
     if (!file) throw ApiError(400, "File is required");
-    const result = uploadOnCloudinary(file);
+    const result = await uploadOnCloudinary(file); // Added await here
     return res.json(
-      new ApiResponse(200, result.url, "Link Uploaded successfulle"),
+      new ApiResponse(200, result.url, "Link Uploaded successfully"), // Fixed typo in message
     );
   } catch (error) {
     next(error);

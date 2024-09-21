@@ -80,7 +80,7 @@ export const handleStripeWebhook = async (req, res) => {
         console.log(`Unhandled event type ${event.type}`);
     }
 
-    res.json({ received: true });
+    res.json({ received: true }).send();  
   } catch (error) {
     console.error(`Error processing webhook: ${error.message}`);
     res.status(500).send(`Webhook Error: ${error.message}`);
