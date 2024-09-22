@@ -20,6 +20,10 @@ const CourseSchema = new Schema(
     thumbnail: {
       type: String,
     },
+    pricing: {
+      type: Number,
+      required: true,
+    },
     material: [
       {
         title: {

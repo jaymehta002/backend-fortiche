@@ -5,13 +5,15 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import Course from "./course.model.js";
 
 const createCourse = asyncHandler(async (req, res, next) => {
-  const { title, customUrl, description, thumbnail, material } = req.body;
+  const { title, customUrl, description, thumbnail, material, pricing } =
+    req.body;
   const user = req.user;
-
   if (!title || !customUrl || !description) {
     throw ApiError(400, "Title, custom URL, and description are required");
   }
-
+  if (user.plan !== "beleiver") {
+    throw ApiError(403, "You are not authorized to create a course");
+  }
   const newCourse = new Course({
     userId: user._id,
     title,
@@ -19,6 +21,7 @@ const createCourse = asyncHandler(async (req, res, next) => {
     description,
     thumbnail,
     material,
+    pricing,
   });
 
   await newCourse.save();
@@ -29,7 +32,12 @@ const createCourse = asyncHandler(async (req, res, next) => {
 
 const uploadThumbnailOrVideo = asyncHandler(async (req, res, next) => {
   try {
-    const { file } = req.body;
+    const user = req.user;
+    if (user.plan !== "beleiver") {
+      throw ApiError(403, "You are not authorized to upload a file");
+    }
+    const file = req.file?.path;
+    console.log(file);
     if (!file) throw ApiError(400, "File is required");
     const result = uploadOnCloudinary(file);
     return res.json(

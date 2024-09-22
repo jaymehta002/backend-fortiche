@@ -33,7 +33,6 @@ const io = new Server(server, {
 });
 
 app.set("trust proxy", 1);
-app.enable("trust proxy");
 const corsOptions = {
   credentials: true,
   origin: [

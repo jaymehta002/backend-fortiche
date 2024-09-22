@@ -9,11 +9,11 @@ import { auth } from "../middlewares/auth.middleware.js";
 const publicAffiliationRouter = Router();
 const affiliationRouter = Router();
 
-publicAffiliationRouter.get(
+affiliationRouter.get(
   "/get-affiliation-product/:affiliationId",
   getAffiliationProductController,
 );
-// affiliationRouter.use(auth);
+affiliationRouter.use(auth);
 
 affiliationRouter
   .post("/create-affiliation", createAffiliationController)

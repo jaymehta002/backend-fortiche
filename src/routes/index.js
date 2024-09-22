@@ -1,24 +1,21 @@
 import express from "express";
-import {
-  affiliationRouter,
-  publicAffiliationRouter,
-} from "../affiliation/affiliation_router.js";
+import accountRouter from "../accounts/account.router.js";
+import { affiliationRouter } from "../affiliation/affiliation_router.js";
+import analyticsRouter from "../analytics/analytics.router.js";
 import brandRouter from "../brand/brand_router.js";
+import checkoutRouter from "../checkout/checkout.router.js";
 import couponRouter from "../coupon/coupon.route.js";
+import courseRouter from "../course/course.route.js";
 import feedRouter from "../feed/feed.router.js";
+import messageRouter from "../message/messege.route.js";
 import orderRouter from "../orders/order.route.js";
+import preferenceRouter from "../preference/preference.route.js";
 import productRouter from "../product/product_routes.js";
 import recommendationRouter from "../recommendation/recommendation.router.js";
 import shippingRouter from "../shipping/shipping.controller.js";
 import subscriptionRouter from "../subscription/subscription.router.js";
 import { publicUserRouter, userRouter } from "../user/user_router.js";
 import authRoutes from "./auth.routes.js";
-import checkoutRouter from "../checkout/checkout.router.js";
-import messageRouter from "../message/messege.route.js";
-import accountRouter from "../accounts/account.router.js";
-import analyticsRouter from "../analytics/analytics.router.js";
-import preferenceRouter from "../preference/preference.route.js";
-import courseRouter from "../course/course.route.js";
 const router = express.Router();
 const publicRouter = express.Router();
 
@@ -30,7 +27,6 @@ router
   .use("/auth", authRoutes)
   .use("/public", publicRouter)
   .use("/affiliation", affiliationRouter)
-  .use("/affiliation", publicAffiliationRouter)
   .use("/brand", brandRouter)
   .use("/recommendation", recommendationRouter)
   .use("/feed", feedRouter)

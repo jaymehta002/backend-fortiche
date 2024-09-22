@@ -254,23 +254,41 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       if (isNaN(price)) throw new Error("Invalid pricing value");
       return sum + price;
     }, 0);
-    const newOrder = await Order.create({
-      guestId: guest._id,
-      productId: productIds,
-      totalAmount: totalPrice,
-      paymentId: session.payment_intent,
-      status: "paid",
-      shippingStatus: "pending",
-      shippingAddress: guest.address,
-    });
+    const newOrders = await Promise.all(
+      productIds.map(async (p) => {
+        const product = await Product.findById(p._id);
+        if (!product) throw new Error("Product not found");
+        console.log(product);
+        const newOrder = new Order({
+          guestId: guest._id,
+          productId: product._id,
+          totalAmount: product.pricing,
+          paymentId: session.payment_intent,
+          status: "paid",
+          shippingStatus: "pending",
+          shippingAddress: guest.address,
+        });
+        await newOrder.save();
+        return newOrder;
+      }),
+    );
+    console.log(newOrders);
+    // const newOrder = await Order.create({
+    //   guestId: guest._id,
+    //   productId: productIds,
+    //   totalAmount: totalPrice,
+    //   paymentId: session.payment_intent,
+    //   status: "paid",
+    //   shippingStatus: "pending",
+    //   shippingAddress: guest.address,
+    // });
 
     sendProductPurchaseMail(influencerId, productIds);
     await stripe.checkout.sessions.expire(session_id);
     res.status(200).json({
       success: true,
       message: "Payment successful and order created",
-      orderId: newOrder._id,
-      order: newOrder,
+      order: newOrders,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
