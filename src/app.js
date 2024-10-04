@@ -36,6 +36,7 @@ app.set("trust proxy", 1);
 const corsOptions = {
   credentials: true,
   origin: [
+    "*",
     process.env.CLIENT_URL,
     "https://fortiche-frontend.vercel.app",
     "localhost",

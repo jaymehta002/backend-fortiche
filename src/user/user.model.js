@@ -158,6 +158,10 @@ const userSchema = new Schema(
     feed: {
       type: feedSchema,
     },
+    stripeAccountId: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

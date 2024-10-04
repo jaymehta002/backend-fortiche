@@ -14,6 +14,7 @@ import {
   updateSocialsController,
   updateFeedLinkController,
   getAllInfluencerController,
+  connectStripeController,
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -55,7 +56,8 @@ userRouter
   .post("/create-subscription", createSubscription)
   .post("/cancel-subscription", cancelSubscription)
   .post("/upgrade-subscription", upgradeSubscription)
-  .post("/toggle-auto-renewal", toggleAutoRenewal);
+  .post("/toggle-auto-renewal", toggleAutoRenewal)
+  .post("/connect-stripe", connectStripeController);
 
 publicUserRouter.get("/get-influencer-page", getInfluencerPageController);
 

@@ -6,6 +6,7 @@ import { Product } from "../product/product.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
+import { stripeClient } from "../lib/stripe.js";
 
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -114,7 +115,18 @@ export const handleSuccessPage = async (req, res) => {
 
       await newOrder.save();
 
-      // Destroy the session
+      await stripe.checkout.sessions.expire(session_id);
+
+      const brand = await User.findById(product.brandId);
+      if (!brand) throw ApiError(404, "Brand not found");
+
+      // Send amount to brand.stripeID
+      const transfer = await stripe.transfers.create({
+        amount: product.pricing,
+        currency: "usd",
+        destination: brand.stripeAccountId,
+      });
+      console.log(transfer);
 
       res.status(200).json({
         success: true,
@@ -158,7 +170,6 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
       aff.totalSaleQty += 1;
       const diff =
         Number(aff.productId.pricing) - Number(aff.productId.wholesalePricing);
-      console.log(diff, typeof diff);
       aff.totalSaleRevenue += diff;
       totalPrice += Number(aff.productId.pricing);
 
@@ -254,6 +265,18 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       if (isNaN(price)) throw new Error("Invalid pricing value");
       return sum + price;
     }, 0);
+
+    // transfer 10% to influencer and 90% to platform
+
+    const influencerAmount = totalPrice * 0.1;
+    await stripe.transfers.create({
+      amount: influencerAmount,
+      currency: "eur",
+      destination: influencerId,
+    });
+
+    const platformAmount = totalPrice - influencerAmount;
+
     const newOrders = await Promise.all(
       productIds.map(async (p) => {
         const product = await Product.findById(p._id);
@@ -273,15 +296,6 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       }),
     );
     console.log(newOrders);
-    // const newOrder = await Order.create({
-    //   guestId: guest._id,
-    //   productId: productIds,
-    //   totalAmount: totalPrice,
-    //   paymentId: session.payment_intent,
-    //   status: "paid",
-    //   shippingStatus: "pending",
-    //   shippingAddress: guest.address,
-    // });
 
     sendProductPurchaseMail(influencerId, productIds);
     await stripe.checkout.sessions.expire(session_id);
