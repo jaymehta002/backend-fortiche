@@ -13,6 +13,9 @@ import { increasePageViewCount } from "../analytics/analytics_service.js";
 import { Affiliation } from "../affiliation/affiliation_model.js";
 import { Product } from "../product/product.model.js";
 import { User } from "./user.model.js";
+import stripe from "stripe";
+
+const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
 
 const getUserDetailsController = asyncHandler(async (req, res, next) => {
   try {
@@ -489,6 +492,61 @@ const updateFeedLinkController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const connectStripeController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) throw ApiError(404, "Unauthorized request");
+    if (user.stripeAccountId) {
+      // User already has a Stripe account, return the account link
+      const accountLink = await stripeClient.accountLinks.create({
+        account: user.stripeAccountId,
+        refresh_url: `${process.env.CLIENT_URL}/connect-stripe`,
+        return_url: `${process.env.CLIENT_URL}/connect-stripe`,
+        type: "account_onboarding",
+      });
+
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            accountLink,
+            "Stripe account connected successfully",
+          ),
+        );
+    }
+    console.log("start");
+    const account = await stripeClient.accounts.create({
+      type: "express",
+      email: user.email,
+      metadata: {
+        userId: user._id.toString(),
+      },
+    });
+    user.stripeAccountId = account.id;
+    await user.save();
+    console.log("account created");
+    const accountLink = await stripeClient.accountLinks.create({
+      account: account.id,
+      refresh_url: `https://${process.env.CLIENT_URL}/connect-stripe`,
+      return_url: `https://${process.env.CLIENT_URL}/connect-stripe`,
+      type: "account_onboarding",
+    });
+    console.log("account link created");
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          accountLink,
+          "Stripe account connected successfully",
+        ),
+      );
+  } catch (error) {
+    next(error);
+  }
+});
+
 export {
   getUserDetailsController,
   updateUserDetailsController,
@@ -504,4 +562,5 @@ export {
   handleLinkOrder,
   deleteLink,
   updateFeedLinkController,
+  connectStripeController,
 };

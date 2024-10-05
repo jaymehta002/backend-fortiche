@@ -52,12 +52,13 @@ export const getOrder = asyncHandler(async (req, res) => {
 
 export const getUserOrders = asyncHandler(async (req, res) => {
   const products = await Product.find({ brandId: req.user._id });
+  // Use findOrders instead of direct query
   const orders = await Order.find({
-    productIdId: products.map((product) => product._id),
+    productId: { $in: products.map((product) => product._id) },
   })
-    .populate("items.productId")
+    .populate("productId")
     .sort({ createdAt: -1 });
-
+  console.log(orders);
   res
     .status(200)
     .json(new ApiResponse(200, orders, "User orders retrieved successfully"));

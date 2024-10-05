@@ -15,6 +15,15 @@ const createProduct = asyncHandler(async (req, res, next) => {
     if (req.user.accountType !== "brand") {
       throw ApiError(400, "Action restricted for Influencer accounts");
     }
+    const userProductCount = await Product.countDocuments({
+      brandId: req.user.id,
+    });
+    if (req.user.plan === "basic" && userProductCount >= 8) {
+      throw ApiError(
+        403,
+        "You are not authorized to create more than 8 products",
+      );
+    }
     const {
       title,
       description,

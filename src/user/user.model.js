@@ -149,7 +149,7 @@ const userSchema = new Schema(
     plan: {
       type: String,
       default: "basic",
-      enum: ["basic", "stater", "pro"],
+      // enum: ["basic", "stater", "pro"],
     },
     subscription: {
       type: Schema.Types.ObjectId,
@@ -157,6 +157,10 @@ const userSchema = new Schema(
     },
     feed: {
       type: feedSchema,
+    },
+    stripeAccountId: {
+      type: String,
+      default: null,
     },
   },
   {

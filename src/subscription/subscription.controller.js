@@ -2,16 +2,16 @@ import Stripe from "stripe";
 import Subscription from "./subscription.model.js";
 import { ApiError } from "../utils/APIError.js";
 import mongoose from "mongoose";
+import { User } from "../user/user.model.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PLAN_TO_PRICE_MAPPING = {
-  basic: "price_1Q11WKHRK1oXhYsFHFcObkPJ",
-  pro: "price_2ProPlanId",
-  premium: "price_3PremiumPlanId",
-  starter: "price_4StarterPlanId",
-  business: "price_5BusinessPlanId",
-  enterprise: "price_6EnterprisePlanId",
+  starter: "price_1Q1rtkHRK1oXhYsFgF9BtLHk",
+  believer: "price_1Q1rvDHRK1oXhYsFBrP8FYTf",
+  basic: "price_1Q1s1sHRK1oXhYsFwtuv5Q86",
+  professional: "price_1Q1s4RHRK1oXhYsFW9Zec455",
+  enterprise: "price_1Q1s5PHRK1oXhYsFZuCdEcVO",
 };
 
 export const createCheckoutSession = async (req, res) => {
@@ -38,6 +38,7 @@ export const createCheckoutSession = async (req, res) => {
       billing_address_collection: "required",
       metadata: {
         customer_name: user.fullName,
+        userId: user._id.toString(),
         // customer_id: user._id.toString(),
         // customer_address: JSON.stringify(customerAddress),
         // description: description,
@@ -53,6 +54,9 @@ export const createCheckoutSession = async (req, res) => {
 };
 
 export const handleStripeWebhook = async (req, res) => {
+  // console.log("Received webhook request");
+  // console.log("Headers:", req.headers);
+  // console.log("Body:", req.body);
   const sig = req.headers["stripe-signature"];
   let event;
 
@@ -62,6 +66,7 @@ export const handleStripeWebhook = async (req, res) => {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET,
     );
+    // console.log(event);
   } catch (err) {
     console.error("Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -76,11 +81,13 @@ export const handleStripeWebhook = async (req, res) => {
       case "customer.subscription.deleted":
         await handleSubscriptionUpdated(event.data.object);
         break;
+      case "checkout.session.expired":
+        console.log("checkout.session.expired");
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
 
-    res.json({ received: true });
+    res.json({ received: true }).send();
   } catch (error) {
     console.error(`Error processing webhook: ${error.message}`);
     res.status(500).send(`Webhook Error: ${error.message}`);
@@ -103,6 +110,7 @@ const createOrUpdateSubscription = async (subscription, session = null) => {
   // console.log("session-----------------------\n", session);
   const customerId = subscription.customer;
   const customer = await stripe.customers.retrieve(customerId);
+  const userId = session.metadata.userId;
   const subscriptionData = {
     plan: session ? session.metadata.plan : subscription.items.data[0].price.id,
     stripeCustomerId: customerId,
@@ -117,6 +125,11 @@ const createOrUpdateSubscription = async (subscription, session = null) => {
     autoRenew: !subscription.cancel_at_period_end,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
   };
+
+  const user = await User.findById(userId);
+  user.plan = session.metadata.plan;
+  await user.save();
+  // console.log("user" , user);
 
   await Subscription.findOneAndUpdate(
     { stripeSubscriptionId: subscription.id },

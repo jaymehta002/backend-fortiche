@@ -8,12 +8,12 @@ import { auth } from "../middlewares/auth.middleware.js";
 
 const publicAffiliationRouter = Router();
 const affiliationRouter = Router();
-affiliationRouter.use(auth);
 
-publicAffiliationRouter.get(
-  "/get-affiliation-product",
+affiliationRouter.get(
+  "/get-affiliation-product/:affiliationId",
   getAffiliationProductController,
 );
+affiliationRouter.use(auth);
 
 affiliationRouter
   .post("/create-affiliation", createAffiliationController)
