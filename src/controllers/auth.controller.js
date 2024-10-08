@@ -55,11 +55,10 @@ const registerUser = asyncHandler(async (req, res, next) => {
 
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
-  // Store OTP data in cookies instead of session
   res.cookie(
     "registrationOTP",
     JSON.stringify({ email, hashedOTP, otpExpiration }),
-    { httpOnly: true },
+    { httpOnly: true, secure: true, sameSite: "none" },
   );
   console.log(req.cookies.registrationOTP, "sending");
   res.status(200).json({
