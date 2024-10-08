@@ -115,7 +115,7 @@ export const handleSuccessPage = async (req, res) => {
 
       await newOrder.save();
 
-      await stripe.checkout.sessions.expire(session_id);
+      // await stripe.checkout.sessions.expire(session_id);
 
       const brand = await User.findById(product.brandId);
       if (!brand) throw ApiError(404, "Brand not found");
