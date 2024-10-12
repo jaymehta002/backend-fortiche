@@ -4,18 +4,28 @@ import {
   createCoupon,
   deleteCoupon,
   getAllCoupons,
+  getCouponById, // Add controller for fetching a coupon by ID
   updateCoupon,
+  deactivateCoupon, // Add controller for soft-deleting a coupon
   applyCoupon,
 } from "./coupon.controller.js";
 
 const router = Router();
 
-router.get("/apply", applyCoupon);
+// Public route to apply a coupon (usually for customers)
+router.post("/apply", applyCoupon);
+
+// Protected routes (admin or brand user)
 router.use(auth);
 
 router
   .post("/add", createCoupon)
+
   .get("/get", getAllCoupons)
+
+  .get("/:id", getCouponById)
+  .patch("/update/:id", updateCoupon)
   .delete("/delete/:id", deleteCoupon)
-  .patch("/update/:id", updateCoupon);
+  .patch("/deactivate/:id", deactivateCoupon);
+
 export default router;
