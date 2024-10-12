@@ -120,10 +120,9 @@ export const handleSuccessPage = async (req, res) => {
       const brand = await User.findById(product.brandId);
       if (!brand) throw ApiError(404, "Brand not found");
 
-      // Send amount to brand.stripeID
       const transfer = await stripe.transfers.create({
-        amount: product.pricing,
-        currency: "usd",
+        amount: product.pricing * 100,
+        currency: "eur",
         destination: brand.stripeAccountId,
       });
       console.log(transfer);

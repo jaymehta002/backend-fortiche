@@ -106,4 +106,13 @@ const updateCoupon = asyncHandler(async (req, res, next) => {
   }
 });
 
-export { createCoupon, getAllCoupons, deleteCoupon, updateCoupon }; // Export the new updateCoupon function
+const applyCoupon = asyncHandler(async (req, res, next) => {
+  const { couponCode } = req.query;
+  const coupon = await Coupon.findOne({ code: couponCode });
+  if (!coupon) {
+    return next(ApiError(404, "Coupon not found"));
+  }
+  res.json(new ApiResponse(200, coupon, "Coupon applied successfully"));
+});
+
+export { createCoupon, getAllCoupons, deleteCoupon, updateCoupon, applyCoupon }; // Export the new updateCoupon function

@@ -5,10 +5,12 @@ import {
   deleteCoupon,
   getAllCoupons,
   updateCoupon,
+  applyCoupon,
 } from "./coupon.controller.js";
 
 const router = Router();
 
+router.get("/apply", applyCoupon);
 router.use(auth);
 
 router
