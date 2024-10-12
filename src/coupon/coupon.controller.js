@@ -107,8 +107,8 @@ const updateCoupon = asyncHandler(async (req, res, next) => {
 });
 
 const applyCoupon = asyncHandler(async (req, res, next) => {
-  const { couponCode } = req.query;
-  const coupon = await Coupon.findOne({ code: couponCode });
+  const { couponCode, id } = req.query;
+  const coupon = await Coupon.findOne({ code: couponCode, brandId });
   if (!coupon) {
     return next(ApiError(404, "Coupon not found"));
   }
