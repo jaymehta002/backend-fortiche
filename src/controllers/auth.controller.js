@@ -34,17 +34,7 @@ export const googleCallback = (req, res, next) => {
           .status(200)
           .cookie("accessToken", accessToken, cookieOptions)
           .cookie("refreshToken", refreshToken, refreshCookieOptions)
-          .json({
-            success: true,
-            user: {
-              _id: user._id,
-              fullName: user.fullName,
-              email: user.email,
-              username: user.username,
-              avatar: user.avatar,
-            },
-            message: "Google login successful",
-          });
+          .send(`<script>window.close()";</script>`);
       } catch (error) {
         console.error("Token generation error:", error);
         return next(ApiError(500, "Error generating authentication tokens"));
@@ -52,6 +42,25 @@ export const googleCallback = (req, res, next) => {
     },
   )(req, res, next);
 };
+
+const onboarding = asyncHandler(async (req, res, next) => {
+  const { username, accountType, categories } = req.body;
+  if (!username || !accountType || !categories) {
+    return next(ApiError(400, "All fields are required"));
+  }
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+  user.username = username;
+  user.accountType = accountType;
+  user.categories = categories;
+  await user.save();
+  res.status(200).json({
+    success: true,
+    message: "Onboarding successful",
+  });
+});
 
 const registerUser = asyncHandler(async (req, res, next) => {
   // console.log("reach");
@@ -312,4 +321,5 @@ export {
   forgotPassword,
   resetPassword,
   validateToken,
+  onboarding,
 };

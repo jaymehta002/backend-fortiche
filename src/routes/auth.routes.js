@@ -8,6 +8,7 @@ import {
   googleCallback,
   forgotPassword,
   resetPassword,
+  onboarding,
   validateToken,
 } from "../controllers/auth.controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
@@ -26,6 +27,7 @@ authRouter
     passport.authenticate("google", { scope: ["profile", "email"] }),
   )
   .get("/google/callback", googleCallback)
+  .post("/onboarding", auth, onboarding)
   .post("/forgot-password", forgotPassword)
   .post("/reset-password", resetPassword)
   .get("/validate-token", validateToken);
