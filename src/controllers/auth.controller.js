@@ -13,30 +13,44 @@ export const googleLogin = passport.authenticate("google", {
 });
 
 export const googleCallback = (req, res, next) => {
-  passport.authenticate("google", { session: false }, (err, user, info) => {
-    console.log(user);
-    if (err) {
-      console.error("Google authentication error:", err);
-      return next(ApiError(500, "Error during Google authentication"));
-    }
-    if (!user) {
-      return next(ApiError(401, "Google authentication failed"));
-    }
-    try {
-      const { accessToken, refreshToken } = generateTokens(user._id);
-      res
-        .status(200)
-        .cookie("accessToken", accessToken, cookieOptions)
-        .cookie("refreshToken", refreshToken, refreshCookieOptions)
-        .send(
-          "<script>window.close(); window.opener.location.reload();</script>",
-        );
-      // .redirect(process.env.CLIENT_URL);
-    } catch (error) {
-      console.error("Token generation error:", error);
-      return next(ApiError(500, "Error generating authentication tokens"));
-    }
-  })(req, res, next);
+  passport.authenticate(
+    "google",
+    { session: false },
+    async (err, user, info) => {
+      console.log(user);
+      if (err) {
+        console.error("Google authentication error:", err);
+        return next(ApiError(500, "Error during Google authentication"));
+      }
+      if (!user) {
+        return next(ApiError(401, "Google authentication failed"));
+      }
+      try {
+        const { accessToken, refreshToken } = generateTokens(user._id);
+        await User.findByIdAndUpdate(user._id, {
+          refreshToken,
+        });
+        res
+          .status(200)
+          .cookie("accessToken", accessToken, cookieOptions)
+          .cookie("refreshToken", refreshToken, refreshCookieOptions)
+          .json({
+            success: true,
+            user: {
+              _id: user._id,
+              fullName: user.fullName,
+              email: user.email,
+              username: user.username,
+              avatar: user.avatar,
+            },
+            message: "Google login successful",
+          });
+      } catch (error) {
+        console.error("Token generation error:", error);
+        return next(ApiError(500, "Error generating authentication tokens"));
+      }
+    },
+  )(req, res, next);
 };
 
 const registerUser = asyncHandler(async (req, res, next) => {

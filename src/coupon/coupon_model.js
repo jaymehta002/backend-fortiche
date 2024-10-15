@@ -22,7 +22,7 @@ const couponSchema = new Schema({
     required: true,
   },
   applyTo: {
-    type: [String], // Array to allow multiple types of application
+    type: [String],
     enum: [
       "SUBTOTAL",
       "DELIVERY",
@@ -35,7 +35,7 @@ const couponSchema = new Schema({
   discount: {
     type: {
       type: String,
-      enum: ["PERCENTAGE", "AMOUNT"], // Type of discount (Percentage or Fixed Amount)
+      enum: ["PERCENTAGE", "AMOUNT"],
       required: true,
     },
     amount: {
