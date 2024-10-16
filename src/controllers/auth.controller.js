@@ -33,8 +33,13 @@ export const googleCallback = (req, res, next) => {
         res
           .status(200)
           .cookie("accessToken", accessToken, cookieOptions)
-          .cookie("refreshToken", refreshToken, refreshCookieOptions)
-          .send(`<script>window.close()";</script>`);
+          .cookie("refreshToken", refreshToken, refreshCookieOptions);
+
+        if (!user.accountType) {
+          res.redirect(`${process.env.CLIENT_URL}/onboarding`);
+        } else {
+          res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+        }
       } catch (error) {
         console.error("Token generation error:", error);
         return next(ApiError(500, "Error generating authentication tokens"));
@@ -44,6 +49,9 @@ export const googleCallback = (req, res, next) => {
 };
 
 const onboarding = asyncHandler(async (req, res, next) => {
+  if (req.user.accountType) {
+    return res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+  }
   const { username, accountType, categories } = req.body;
   if (!username || !accountType || !categories) {
     return next(ApiError(400, "All fields are required"));

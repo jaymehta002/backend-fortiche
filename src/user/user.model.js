@@ -81,7 +81,7 @@ const userSchema = new Schema(
     accountType: {
       type: String,
       enum: Object.values(accountType),
-      required: true,
+      // required: true,
     },
     categories: {
       type: [String],

@@ -29,7 +29,7 @@ passport.use(
             email: profile.emails[0].value,
             username: profile.emails[0].value.split("@")[0], // Use email prefix as username
             password: Math.random().toString(36).slice(-8), // Generate a random password
-            accountType: "default",
+            // accountType: "default",
             categories: [],
             avatar: profile.photos[0].value,
           });
