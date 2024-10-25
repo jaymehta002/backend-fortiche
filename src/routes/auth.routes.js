@@ -24,7 +24,10 @@ authRouter
   .post("/refresh-token", refreshAccessToken)
   .get(
     "/google",
-    passport.authenticate("google", { scope: ["profile", "email"] }),
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      prompt: "consent",
+    }),
   )
   .get("/google/callback", googleCallback)
   .post("/onboarding", auth, onboarding)

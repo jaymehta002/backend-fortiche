@@ -12,12 +12,11 @@ export const googleLogin = passport.authenticate("google", {
   scope: ["profile", "email"],
 });
 
-export const googleCallback = (req, res, next) => {
+export const googleCallback = asyncHandler(async (req, res, next) => {
   passport.authenticate(
     "google",
     { session: false },
     async (err, user, info) => {
-      console.log(user);
       if (err) {
         console.error("Google authentication error:", err);
         return next(ApiError(500, "Error during Google authentication"));
@@ -27,18 +26,19 @@ export const googleCallback = (req, res, next) => {
       }
       try {
         const { accessToken, refreshToken } = generateTokens(user._id);
-        await User.findByIdAndUpdate(user._id, {
-          refreshToken,
-        });
+        await User.findByIdAndUpdate(user._id, { refreshToken });
+
         res
-          .status(200)
           .cookie("accessToken", accessToken, cookieOptions)
           .cookie("refreshToken", refreshToken, refreshCookieOptions);
 
+        // Check if the user needs to complete onboarding
         if (!user.accountType) {
-          res.redirect(`${process.env.CLIENT_URL}/onboarding`);
+          return res.redirect(`${process.env.CLIENT_URL}/onboarding`);
+        } else if (user.accountType === "influencer") {
+          return res.redirect(`${process.env.CLIENT_URL}/dashboard`);
         } else {
-          res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+          return res.redirect(`${process.env.CLIENT_URL}/brands/dashboard`);
         }
       } catch (error) {
         console.error("Token generation error:", error);
@@ -46,7 +46,7 @@ export const googleCallback = (req, res, next) => {
       }
     },
   )(req, res, next);
-};
+});
 
 const onboarding = asyncHandler(async (req, res, next) => {
   if (req.user.accountType) {
@@ -68,6 +68,7 @@ const onboarding = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Onboarding successful",
   });
+  // .redirect(`${process.env.CLIENT_URL}/dashboard`);
 });
 
 const registerUser = asyncHandler(async (req, res, next) => {

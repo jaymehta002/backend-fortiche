@@ -13,13 +13,9 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL:
-        process.env.NODE_ENV === "PRODUCTION"
-          ? `${process.env.LIVE_URL}/auth/google/callback`
-          : `${process.env.LOCAL_URL}/auth/google/callback`,
+      callbackURL: `${process.env.LIVE_URL}/auth/google/callback`,
       scope: ["profile", "email"],
     },
-
     async (accessToken, refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ email: profile.emails[0].value });
@@ -27,10 +23,8 @@ passport.use(
           user = new User({
             fullName: profile.displayName,
             email: profile.emails[0].value,
-            username: profile.emails[0].value.split("@")[0], // Use email prefix as username
+            username: `user${Math.random().toString(36).substr(2, 9)}`, // Generate a random username
             password: Math.random().toString(36).slice(-8), // Generate a random password
-            // accountType: "default",
-            categories: [],
             avatar: profile.photos[0].value,
           });
           await user.save();
