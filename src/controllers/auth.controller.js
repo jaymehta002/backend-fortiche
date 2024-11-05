@@ -142,12 +142,8 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
 
   res
     .status(201)
-    .cookie("accessToken", accessToken, {
-      cookieOptions,
-    })
-    .cookie("refreshToken", refreshToken, {
-      refreshCookieOptions,
-    })
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, refreshCookieOptions)
     .json({
       success: true,
       data: createdUser,
