@@ -87,17 +87,27 @@ const registerUser = asyncHandler(async (req, res, next) => {
 
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
+  const otpCookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 10 * 60 * 1000,
+    path: "/",
+  };
+
   res.cookie(
     "registrationOTP",
     JSON.stringify({ email, hashedOTP, otpExpiration }),
-    {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      // expires: otpExpiration,
-    },
+    otpCookieOptions,
   );
-  console.log(req.cookies.registrationOTP, "sending");
+
+  console.log("Setting OTP cookie:", {
+    email,
+    hashedOTP,
+    otpExpiration,
+    cookies: req.cookies,
+  });
+
   res.status(200).json({
     success: true,
     message: "OTP sent to email. Please verify.",
@@ -108,14 +118,29 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
-  // Retrieve OTP data from cookies instead of session
+  console.log("Cookies received:", req.cookies);
+  console.log("Registration OTP cookie:", req.cookies.registrationOTP);
+
   const registrationOTP = req.cookies.registrationOTP
     ? JSON.parse(req.cookies.registrationOTP)
     : null;
 
-  console.log(registrationOTP); // check 2
-  if (!registrationOTP || registrationOTP.email !== email) {
-    return next(ApiError(400, "Invalid cookie or email mismatch"));
+  if (!registrationOTP) {
+    return next(
+      ApiError(
+        400,
+        "OTP verification expired or invalid. Please request a new OTP",
+      ),
+    );
+  }
+
+  if (registrationOTP.email !== email) {
+    return next(
+      ApiError(
+        400,
+        "Email mismatch. Please use the same email used for requesting OTP",
+      ),
+    );
   }
 
   const { hashedOTP, otpExpiration } = registrationOTP;
