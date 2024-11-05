@@ -106,12 +106,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
     otpCookieOptions,
   );
 
-  console.log("Cookie being set:", {
-    email,
-    otpExpiration,
-    cookies: req.cookies,
-    cookieOptions: otpCookieOptions,
-  });
+  console.log("Cookies after creation", req.cookies);
 
   res.status(200).json({
     success: true,
