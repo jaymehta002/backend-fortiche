@@ -93,7 +93,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
     {
       httpOnly: true,
       secure: true,
-      sameSite: "none",
+      sameSite: "lax",
       // expires: otpExpiration,
     },
   );
@@ -202,7 +202,7 @@ const logoutUser = asyncHandler(async (req, res, next) => {
   const options = {
     httpOnly: true,
     secure: true,
-    sameSite: "none",
+    sameSite: "lax",
   };
 
   res
