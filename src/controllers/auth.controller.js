@@ -89,7 +89,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   res.cookie(
     "registrationOTP",
     JSON.stringify({ email, hashedOTP, otpExpiration }),
-    { httpOnly: true, secure: true, sameSite: "none" },
+    { httpOnly: true, secure: true, sameSite: "lax" },
   );
   console.log(req.cookies.registrationOTP, "sending");
   res.status(200).json({
@@ -141,8 +141,16 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
 
   res
     .status(201)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, refreshCookieOptions)
+    .cookie("accessToken", accessToken, {
+      ...cookieOptions,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    })
+    .cookie("refreshToken", refreshToken, {
+      ...refreshCookieOptions,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    })
     .json({
       success: true,
       data: createdUser,
