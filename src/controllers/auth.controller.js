@@ -142,14 +142,10 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   res
     .status(201)
     .cookie("accessToken", accessToken, {
-      ...cookieOptions,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      cookieOptions,
     })
     .cookie("refreshToken", refreshToken, {
-      ...refreshCookieOptions,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      refreshCookieOptions,
     })
     .json({
       success: true,
