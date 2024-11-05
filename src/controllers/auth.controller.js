@@ -72,7 +72,6 @@ const onboarding = asyncHandler(async (req, res, next) => {
 });
 
 const registerUser = asyncHandler(async (req, res, next) => {
-  // console.log("reach");
   const { fullName, email, username, password } = req.body;
 
   if ([fullName, email, username, password].some((field) => !field?.trim())) {
@@ -80,7 +79,6 @@ const registerUser = asyncHandler(async (req, res, next) => {
   }
 
   const existedUser = await User.findOne({ $or: [{ username }, { email }] });
-  console.log(existedUser);
   if (existedUser) {
     return next(ApiError(409, "User with email or username already exists"));
   }
@@ -91,21 +89,28 @@ const registerUser = asyncHandler(async (req, res, next) => {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
-    maxAge: 10 * 60 * 1000,
+    maxAge: 15 * 60 * 1000,
     path: "/",
+    domain: process.env.CLIENT_URL,
   };
+
+  res.clearCookie("registrationOTP", otpCookieOptions);
 
   res.cookie(
     "registrationOTP",
-    JSON.stringify({ email, hashedOTP, otpExpiration }),
+    JSON.stringify({
+      email,
+      hashedOTP,
+      otpExpiration: Date.now() + 15 * 60 * 1000,
+    }),
     otpCookieOptions,
   );
 
-  console.log("Setting OTP cookie:", {
+  console.log("Cookie being set:", {
     email,
-    hashedOTP,
     otpExpiration,
     cookies: req.cookies,
+    cookieOptions: otpCookieOptions,
   });
 
   res.status(200).json({
@@ -118,23 +123,34 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
   const { email, otp, fullName, username, password, accountType, categories } =
     req.body;
 
-  console.log("Cookies received:", req.cookies);
-  console.log("Registration OTP cookie:", req.cookies.registrationOTP);
+  console.log("Incoming verification request:", {
+    email,
+    allCookies: req.cookies,
+    otpCookie: req.cookies.registrationOTP,
+  });
 
-  const registrationOTP = req.cookies.registrationOTP
-    ? JSON.parse(req.cookies.registrationOTP)
-    : null;
+  const registrationOTP = req.cookies.registrationOTP;
 
   if (!registrationOTP) {
+    console.error("Missing OTP cookie during verification");
     return next(
-      ApiError(
-        400,
-        "OTP verification expired or invalid. Please request a new OTP",
-      ),
+      ApiError(400, "OTP session expired or invalid. Please request a new OTP"),
     );
   }
 
-  if (registrationOTP.email !== email) {
+  let otpData;
+  try {
+    otpData = JSON.parse(registrationOTP);
+  } catch (error) {
+    console.error("Failed to parse OTP cookie:", error);
+    return next(ApiError(400, "Invalid OTP data format"));
+  }
+
+  if (otpData.email !== email) {
+    console.error("Email mismatch:", {
+      storedEmail: otpData.email,
+      receivedEmail: email,
+    });
     return next(
       ApiError(
         400,
@@ -143,11 +159,20 @@ const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
     );
   }
 
-  const { hashedOTP, otpExpiration } = registrationOTP;
-  await verifyOTP(hashedOTP, otp, otpExpiration);
+  try {
+    await verifyOTP(otpData.hashedOTP, otp, otpData.otpExpiration);
+  } catch (error) {
+    console.error("OTP verification failed:", error);
+    return next(ApiError(400, error.message || "Invalid OTP"));
+  }
 
-  // Clear the OTP cookie
-  res.clearCookie("registrationOTP");
+  res.clearCookie("registrationOTP", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    domain: process.env.CLIENT_URL,
+  });
 
   const user = await User.create({
     fullName,
