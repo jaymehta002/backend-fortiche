@@ -90,7 +90,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   res.cookie(
     "registrationOTP",
     JSON.stringify({ email, hashedOTP, otpExpiration }),
-    { httpOnly: true, secure: true, sameSite: "lax" },
+    { httpOnly: true, secure: true, sameSite: "none" },
   );
   console.log(req.cookies.registrationOTP, "sending");
   res.status(200).json({
