@@ -94,7 +94,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
       httpOnly: true,
       secure: true,
       sameSite: "none",
-      expires: otpExpiration,
+      // expires: otpExpiration,
     },
   );
   console.log(req.cookies.registrationOTP, "sending");
