@@ -34,7 +34,7 @@ authRouter
   .post("/onboarding", auth, onboarding)
   .post("/forgot-password", forgotPassword)
   .post("/reset-password", resetPassword)
-  .post("/change-account-password", changeAccountPassword)
+  .post("/change-account-password", auth, changeAccountPassword)
   .get("/validate-token", validateToken);
 
 export default authRouter;
