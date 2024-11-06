@@ -321,6 +321,27 @@ const validateToken = asyncHandler(async (req, res, next) => {
   }
 });
 
+const changeAccountPassword = asyncHandler(async (req, res, next) => {
+  const { oldPassword, newPassword } = req.body;
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return next(ApiError(404, "User not found"));
+  }
+  const isPasswordCorrect = await compare(oldPassword, user.password);
+
+  if (!isPasswordCorrect) {
+    return next(ApiError(403, "Invalid old password"));
+  }
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Password updated successfully",
+  });
+});
+
 export {
   registerUser,
   verifyOTPAndRegister,
@@ -331,4 +352,5 @@ export {
   resetPassword,
   validateToken,
   onboarding,
+  changeAccountPassword,
 };
