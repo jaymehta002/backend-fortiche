@@ -15,6 +15,7 @@ import recommendationRouter from "../recommendation/recommendation.router.js";
 import shippingRouter from "../shipping/shipping.route.js";
 import subscriptionRouter from "../subscription/subscription.router.js";
 import { publicUserRouter, userRouter } from "../user/user_router.js";
+import sponsorRouter from "../sponsor/sponsor.route.js";
 import authRoutes from "./auth.routes.js";
 const router = express.Router();
 const publicRouter = express.Router();
@@ -39,6 +40,7 @@ router
   .use("/connect", accountRouter)
   .use("/analytics", analyticsRouter)
   .use("/preference", preferenceRouter)
-  .use("/course", courseRouter);
+  .use("/course", courseRouter)
+  .use("/sponsorship", sponsorRouter);
 
 export default router;
