@@ -53,9 +53,4 @@ const updateShippingStatus = asyncHandler(async (req, res, next) => {
   }
 });
 
-// Routes
-shippingRouter.post("/create", createShipping);
-shippingRouter.get("/fetch", getUserShipping);
-shippingRouter.patch("/update-status/:id", updateShippingStatus);
-
-export default shippingRouter;
+export { createShipping, getUserShipping, updateShippingStatus };

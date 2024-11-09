@@ -12,7 +12,7 @@ import orderRouter from "../orders/order.route.js";
 import preferenceRouter from "../preference/preference.route.js";
 import productRouter from "../product/product_routes.js";
 import recommendationRouter from "../recommendation/recommendation.router.js";
-import shippingRouter from "../shipping/shipping.controller.js";
+import shippingRouter from "../shipping/shipping.route.js";
 import subscriptionRouter from "../subscription/subscription.router.js";
 import { publicUserRouter, userRouter } from "../user/user_router.js";
 import authRoutes from "./auth.routes.js";
