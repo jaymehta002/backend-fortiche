@@ -167,8 +167,12 @@ const handleSuccessPage = async (req, res) => {
 
 const sponsorRouter = Router();
 sponsorRouter.get("/terms/:influencerId", async (req, res) => {
+  const influencerId = req.params.influencerId;
+  if (!influencerId) {
+    return res.status(400).json({ message: "Influencer ID is required" });
+  }
   const terms = await SponsorshipTerms.findOne({
-    influencerId: req.params.influencerId,
+    influencerId,
     isActive: true,
   });
 

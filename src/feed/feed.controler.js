@@ -128,6 +128,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       totalItems,
       limit: validatedLimit,
       collections,
+      influencerId: user._id,
     };
 
     return res
