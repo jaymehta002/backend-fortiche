@@ -4,18 +4,18 @@ import Sponsorship from "./sponsorship.model.js";
 import SponsorshipTerms from "./sponsorshipTerms.model.js";
 import Stripe from "stripe";
 import { Product } from "../product/product.model.js";
+import { User } from "../user/user.model.js";
 
 // Initialize Stripe properly
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Sponsorship Terms
 const createSponsorshipTerms = async (req, res) => {
-  const { amount, duration, termsAndConditions } = req.body;
+  const { duration, termsAndConditions } = req.body;
   const influencerId = req.user._id;
 
   const terms = await SponsorshipTerms.create({
     influencerId,
-    amount,
     duration,
     termsAndConditions,
   });
@@ -27,7 +27,7 @@ const sponsorRouter = Router();
 
 // Sponsorship Creation
 const createSponsorship = async (req, res) => {
-  const { influencerId, productId } = req.body;
+  const { influencerId, productId, amount } = req.body;
   const brandId = req.user._id;
 
   const terms = await SponsorshipTerms.findOne({
@@ -43,7 +43,7 @@ const createSponsorship = async (req, res) => {
     influencerId,
     brandId,
     productId,
-    amount: terms.amount,
+    amount,
     duration: terms.duration,
     status: "pending",
   });
@@ -245,6 +245,25 @@ sponsorRouter.get(
     }
   },
 );
+sponsorRouter.get("/get-user-sponsorships", auth, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  const userId = req.user._id;
+
+  try {
+    const sponsorships = await Sponsorship.find({
+      $or: [{ brandId: userId }, { influencerId: userId }],
+    })
+      .populate("brandId")
+      .populate("influencerId");
+    console.log(sponsorships);
+    res.status(200).json({ sponsorships });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+    console.log(error);
+  }
+});
 
 sponsorRouter.get("/payment/success", handleSuccessPage);
 

@@ -73,6 +73,9 @@ const productSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    commissionPercentage: {
+      type: Number,
+    },
     imageUrls: {
       type: [String],
     },

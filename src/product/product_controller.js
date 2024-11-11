@@ -34,6 +34,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
       productType,
       rating,
       isRecommended,
+      commissionPercentage,
       physicalDetails,
       downloadableDetails,
       virtualDetails,
@@ -67,6 +68,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
       rating,
       isRecommended,
       tags,
+      commissionPercentage,
       brandId: req.user.id,
       brand: req.user.name,
     };
@@ -276,6 +278,7 @@ const updateProduct = asyncHandler(async (req, res, next) => {
       productType,
       rating,
       isRecommended,
+      commissionPercentage,
       physicalDetails,
       downloadableDetails,
       virtualDetails,
@@ -308,6 +311,7 @@ const updateProduct = asyncHandler(async (req, res, next) => {
       rating,
       isRecommended,
       tags,
+      commissionPercentage,
     };
 
     // Conditionally update sub-schema details based on productType

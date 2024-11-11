@@ -8,7 +8,7 @@ const sponsorshipSchema = new Schema({
   },
   brandId: {
     type: Schema.Types.ObjectId,
-    ref: "Brand",
+    ref: "User",
     required: true,
   },
   status: {
