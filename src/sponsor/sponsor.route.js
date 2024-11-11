@@ -3,10 +3,12 @@ import { auth } from "../middlewares/auth.middleware.js";
 import Sponsorship from "./sponsorship.model.js";
 import SponsorshipTerms from "./sponsorshipTerms.model.js";
 import Stripe from "stripe";
+import { Product } from "../product/product.model.js";
 
 // Initialize Stripe properly
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Sponsorship Terms
 const createSponsorshipTerms = async (req, res) => {
   const { amount, duration, termsAndConditions } = req.body;
   const influencerId = req.user._id;
@@ -21,6 +23,9 @@ const createSponsorshipTerms = async (req, res) => {
   res.status(201).json({ terms });
 };
 
+const sponsorRouter = Router();
+
+// Sponsorship Creation
 const createSponsorship = async (req, res) => {
   const { influencerId, productId } = req.body;
   const brandId = req.user._id;
@@ -46,6 +51,7 @@ const createSponsorship = async (req, res) => {
   res.status(201).json({ sponsorship });
 };
 
+// Update Sponsorship Status
 const updateSponsorshipStatus = async (req, res) => {
   const { sponsorshipId, status } = req.body;
   const userId = req.user._id;
@@ -77,6 +83,7 @@ const updateSponsorshipStatus = async (req, res) => {
   res.status(200).json({ sponsorship });
 };
 
+// Handle Payment
 const handlePayment = async (req, res) => {
   const { sponsorshipId } = req.body;
   const userId = req.user._id;
@@ -113,7 +120,7 @@ const handlePayment = async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.CLIENT_URL}/sponsorship/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.CLIENT_URL}/brands/sponsorship/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/sponsorship/cancel`,
       metadata: {
         sponsorshipId: sponsorship._id.toString(),
@@ -131,10 +138,9 @@ const handlePayment = async (req, res) => {
   }
 };
 
+// Handle Success Page
 const handleSuccessPage = async (req, res) => {
   const { session_id } = req.query;
-
-  console.log(session_id);
 
   try {
     // Verify the session with Stripe
@@ -165,7 +171,7 @@ const handleSuccessPage = async (req, res) => {
   }
 };
 
-const sponsorRouter = Router();
+// Routes
 sponsorRouter.get("/terms/:influencerId", async (req, res) => {
   const influencerId = req.params.influencerId;
   if (!influencerId) {
@@ -184,6 +190,24 @@ sponsorRouter.get("/terms/:influencerId", async (req, res) => {
 
   res.status(200).json({ terms });
 });
+
+sponsorRouter.get("/sponsorproducts/:influencerId", async (req, res) => {
+  const influencerId = req.params.influencerId;
+  if (!influencerId) {
+    return res.status(400).json({ message: "Influencer ID is required" });
+  }
+  try {
+    const sponsorships = await Sponsorship.find({
+      influencerId,
+      status: "approved",
+    }).populate("productId");
+
+    res.status(200).json({ sponsorships });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 sponsorRouter.use(auth);
 sponsorRouter.post("/create-terms", createSponsorshipTerms);
 sponsorRouter.post("/create-sponsorship", createSponsorship);
@@ -202,6 +226,26 @@ sponsorRouter.get("/sponsorship/:sponsorshipId", auth, async (req, res) => {
 
   res.status(200).json({ sponsorship });
 });
+
+sponsorRouter.get(
+  "/influencer/:influencerId/brand/:brandId",
+  auth,
+  async (req, res) => {
+    const { influencerId, brandId } = req.params;
+
+    try {
+      const sponsorships = await Sponsorship.find({
+        influencerId,
+        brandId,
+      }).populate("productId");
+
+      res.status(200).json({ sponsorships });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
+
 sponsorRouter.get("/payment/success", handleSuccessPage);
 
 export default sponsorRouter;

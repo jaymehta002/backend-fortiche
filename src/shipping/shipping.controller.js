@@ -10,10 +10,22 @@ shippingRouter.use(auth);
 const createShipping = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    const { countries, shippingMethod, shippingCharges } = req.body;
+    const {
+      countries,
+      zone,
+      deliveryTime,
+      minimumOrder,
+      freeShippingThreshold,
+      shippingMethod,
+      shippingCharges,
+    } = req.body;
     const shipping = new Shipping({
       brandId: user._id,
       countries,
+      zone,
+      deliveryTime,
+      minimumOrder,
+      freeShippingThreshold,
       shippingMethod,
       shippingCharges,
     });

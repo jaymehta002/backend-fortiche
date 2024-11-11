@@ -17,6 +17,22 @@ const shippingSchema = new Schema({
     type: Number,
     required: true,
   },
+  zone: {
+    type: String,
+    required: true,
+  },
+  deliveryTime: {
+    type: String,
+    required: true,
+  },
+  minimumOrder: {
+    type: Number,
+    required: true,
+  },
+  freeShippingThreshold: {
+    type: Number,
+    required: true,
+  },
   isActive: {
     type: Boolean,
     default: true,
