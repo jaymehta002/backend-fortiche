@@ -90,7 +90,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   res.cookie(
     "registrationOTP",
     JSON.stringify({ email, hashedOTP, otpExpiration }),
-    { ...cookieOptions },
+    { httpOnly: true, secure: true, sameSite: "none" },
   );
   console.log(req.cookies.registrationOTP, "sending");
   res.status(200).json({
@@ -194,10 +194,16 @@ const loginUser = asyncHandler(async (req, res, next) => {
 const logoutUser = asyncHandler(async (req, res, next) => {
   await User.findByIdAndUpdate(req.user._id, { $unset: { refreshToken: 1 } });
 
+  const options = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  };
+
   res
     .status(200)
-    .clearCookie("accessToken", cookieOptions)
-    .clearCookie("refreshToken", cookieOptions)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
     .json({
       success: true,
       message: "User logged out",
