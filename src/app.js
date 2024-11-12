@@ -62,7 +62,7 @@ app.use(
     cookie: {
       secure: true,
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "none",
       domain: "backend.fortiche.com",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
