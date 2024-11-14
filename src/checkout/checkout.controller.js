@@ -7,6 +7,7 @@ import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { stripeClient } from "../lib/stripe.js";
+import { User } from "../user/user.model.js";
 
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -305,5 +306,44 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Add this new endpoint
+export const getRecentTransactions = asyncHandler(async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user?.stripeAccountId) {
+      throw new ApiError(400, "No Stripe account found for this user");
+    }
+
+    // Fetch balance transactions from Stripe
+    const transactions = await stripe.balanceTransactions.list({
+      limit: 10, // Adjust limit as needed
+      expand: ['data.source'],
+    }, {
+      stripeAccount: user.stripeAccountId,
+    });
+
+    // Format the transactions for response
+    const formattedTransactions = transactions.data.map(transaction => ({
+      id: transaction.id,
+      amount: transaction.amount / 100, // Convert from cents to actual currency
+      currency: transaction.currency,
+      status: transaction.status,
+      type: transaction.type,
+      created: new Date(transaction.created * 1000), // Convert Unix timestamp to Date
+      available_on: new Date(transaction.available_on * 1000),
+      description: transaction.description,
+      fee: transaction.fee / 100,
+      net: transaction.net / 100,
+    }));
+
+    res.status(200).json({
+      success: true,
+      transactions: formattedTransactions,
+    });
+  } catch (error) {
+    throw new ApiError(500, error?.message || "Error fetching transactions");
   }
 });
