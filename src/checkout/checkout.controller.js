@@ -17,21 +17,26 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
 
-    // Ensure the user is an influencer
+    // Ensure the user is an influencer and has a Stripe account
     if (!user || user.accountType !== "influencer") {
       throw ApiError(403, "Action restricted");
+    }
+    if (!user.stripeAccountId) {
+      throw ApiError(400, "No Stripe account found. Please connect your Stripe account first.");
     }
 
     const { productId } = req.body;
 
-    // Find the product
+    // Find the product and brand
     const product = await Product.findById(productId);
-
     if (!product) {
       throw ApiError(404, "Product not found");
     }
 
     const brand = await User.findById(product.brandId);
+    if (!brand || !brand.stripeAccountId) {
+      throw ApiError(404, "Brand not found or brand's Stripe account not connected");
+    }
 
     // Create a payment session with Stripe Checkout
     const session = await stripe.checkout.sessions.create({
@@ -45,7 +50,7 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
               name: product.title,
               description: product.description,
             },
-            unit_amount: product.pricing * 100, // Amount in cents
+            unit_amount: product.pricing * 100,
           },
           quantity: 1,
         },
@@ -57,16 +62,21 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
         productId: productId,
         userId: user._id.toString(),
         address: user.address,
+        stripeAccountId: user.stripeAccountId,
+        brandStripeAccountId: brand.stripeAccountId
       },
       payment_intent_data: {
-        metadata: {
-          brandId: brand.stripeAccountId,
+        // application_fee_amount: Math.floor(product.pricing * 10), // 10% platform fee
+        transfer_data: {
+          destination: brand.stripeAccountId,
         },
       },
       billing_address_collection: "required",
       shipping_address_collection: {
         allowed_countries: ["IN"],
       },
+    }, {
+      stripeAccount: user.stripeAccountId,
     });
 
     res.status(200).json({
@@ -83,10 +93,14 @@ export const handleSuccessPage = async (req, res) => {
     const { session_id } = req.body;
 
     // Retrieve the session from Stripe
-    const session = await stripe.checkout.sessions.retrieve(session_id);
+    const session = await stripe.checkout.sessions.retrieve(session_id, {
+      stripeAccount: session.metadata.stripeAccountId
+    });
+
     const existingOrder = await Order.findOne({
       paymentId: session.payment_intent,
     });
+
     if (existingOrder) {
       return res.status(400).json({
         success: false,
@@ -97,13 +111,6 @@ export const handleSuccessPage = async (req, res) => {
     if (session.payment_status === "paid") {
       const { metadata } = session;
       const { productId, userId, address } = metadata;
-      const defaultAddress = {
-        line1: "test",
-        city: "New York",
-        state: "NY",
-        postalCode: "10001",
-        country: "US",
-      };
 
       // Find the product
       const product = await Product.findById(productId);
@@ -119,22 +126,12 @@ export const handleSuccessPage = async (req, res) => {
         paymentId: session.payment_intent,
         status: "paid",
         shippingStatus: "pending",
-        shippingAddress: address ? address : defaultAddress,
+        shippingAddress: address || defaultAddress,
+        stripeAccountId: metadata.stripeAccountId,
+        brandStripeAccountId: metadata.brandStripeAccountId
       });
 
       await newOrder.save();
-
-      // await stripe.checkout.sessions.expire(session_id);
-
-      const brand = await User.findById(product.brandId);
-      if (!brand) throw ApiError(404, "Brand not found");
-
-      const transfer = await stripe.transfers.create({
-        amount: product.pricing * 100,
-        currency: "eur",
-        destination: brand.stripeAccountId,
-      });
-      console.log(transfer);
 
       res.status(200).json({
         success: true,

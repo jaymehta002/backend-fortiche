@@ -47,6 +47,14 @@ const OrderSchema = new mongoose.Schema(
         return !this.influencerId; // If influencerId is not present, guestId is required
       },
     },
+    stripeAccountId: {
+      type: String,
+      required: true
+    },
+    brandStripeAccountId: {
+      type: String,
+      required: true
+    }
   },
   {
     timestamps: true,
