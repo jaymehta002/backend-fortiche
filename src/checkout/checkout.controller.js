@@ -7,6 +7,7 @@ import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { stripeClient } from "../lib/stripe.js";
+import { User } from "../user/user.model.js";
 
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -25,9 +26,12 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
 
     // Find the product
     const product = await Product.findById(productId);
+
     if (!product) {
       throw ApiError(404, "Product not found");
     }
+
+    const brand = await User.findById(product.brandId);
 
     // Create a payment session with Stripe Checkout
     const session = await stripe.checkout.sessions.create({
@@ -53,6 +57,11 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
         productId: productId,
         userId: user._id.toString(),
         address: user.address,
+      },
+      payment_intent_data: {
+        metadata: {
+          brandId: brand.stripeAccountId,
+        },
       },
       billing_address_collection: "required",
       shipping_address_collection: {
