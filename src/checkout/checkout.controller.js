@@ -8,6 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { stripeClient } from "../lib/stripe.js";
 import { User } from "../user/user.model.js";
+import { createTransaction } from "../transaction/transaction.service.js";
 
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -137,6 +138,16 @@ export const handleSuccessPage = async (req, res) => {
         console.error('Transfer failed:', transferError);
         // Don't fail the order creation if transfer fails
       }
+
+      // Create transaction record
+      await createTransaction({
+        fromUserId: userId,
+        toUserId: product.brandId,
+        amount: product.pricing,
+        type: "purchase",
+        orderId: newOrder._id,
+        description: `Purchase of ${product.title}`
+      });
 
       res.status(200).json({
         success: true,
@@ -332,7 +343,7 @@ export const getRecentTransactions = asyncHandler(async (req, res) => {
       limit: 10, // Adjust limit as needed
       expand: ['data.source'],
     }, {
-      stripeAccount: user.stripeAccountId,
+      email: user.email,
     });
 
     // Format the transactions for response
@@ -354,6 +365,6 @@ export const getRecentTransactions = asyncHandler(async (req, res) => {
       transactions: formattedTransactions,
     });
   } catch (error) {
-    throw new ApiError(500, error?.message || "Error fetching transactions");
+    throw ApiError(500, error?.message || "Error fetching transactions");
   }
 });
