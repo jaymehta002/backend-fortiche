@@ -5,6 +5,8 @@ import SponsorshipTerms from "./sponsorshipTerms.model.js";
 import Stripe from "stripe";
 import { Product } from "../product/product.model.js";
 import { User } from "../user/user.model.js";
+import { stripeClient } from "../lib/stripe.js";
+import Order from "../orders/order.model.js";
 
 // Initialize Stripe properly
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -171,6 +173,109 @@ const handleSuccessPage = async (req, res) => {
   }
 };
 
+// Add new handler for sponsored product checkout
+const handleSponsoredProductCheckout = async (req, res) => {
+  const { productId, shippingAddress, quantity, brandId } = req.body;
+  const brandStripeAccountId =
+    await User.findById(brandId).select("stripeAccountId");
+  try {
+    // Find the product and its active sponsorship
+    const product = await Product.findById(productId);
+    const sponsorship = await Sponsorship.findOne({
+      productId,
+      status: "approved",
+      startDate: { $lte: new Date() },
+      endDate: { $gte: new Date() },
+    });
+
+    if (!product || !sponsorship) {
+      return res
+        .status(404)
+        .json({ message: "Product or active sponsorship not found" });
+    }
+
+    // Create Stripe checkout session
+    const session = await stripeClient.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: product.name,
+              description: product.description,
+            },
+            unit_amount: product.price * 100,
+          },
+          quantity: quantity,
+        },
+      ],
+      mode: "payment",
+      success_url: `${process.env.CLIENT_URL}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.CLIENT_URL}/order/cancel`,
+      metadata: {
+        productId: product._id.toString(),
+        influencerId: userId ? userId.toString() : null,
+        shippingAddress: JSON.stringify(shippingAddress),
+        sponsorshipId: sponsorship._id.toString(),
+      },
+      payment_intent_data: {
+        transfer_data: {
+          destination: brandStripeAccountId,
+        },
+      },
+    });
+
+    res.status(200).json({ sessionId: session.id, url: session.url });
+  } catch (error) {
+    console.error("Checkout error:", error);
+    res.status(500).json({ message: "Checkout processing failed" });
+  }
+};
+
+// Add new handler for order success
+const handleOrderSuccess = async (req, res) => {
+  const { session_id } = req.query;
+
+  try {
+    const session = await stripeClient.checkout.sessions.retrieve(session_id);
+
+    if (session.payment_status === "paid") {
+      const { productId, influencerId, shippingAddress, sponsorshipId } =
+        session.metadata;
+      const parsedAddress = JSON.parse(shippingAddress);
+
+      // Get sponsorship to access brand and influencer Stripe accounts
+      const sponsorship = await Sponsorship.findById(sponsorshipId);
+
+      // Create order
+      const order = await Order.create({
+        productId,
+        totalAmount: session.amount_total / 100,
+        paymentId: session.payment_intent,
+        status: "paid",
+        shippingStatus: "pending",
+        shippingAddress: parsedAddress,
+        influencerId: influencerId || null,
+        guestId: !influencerId ? session.customer : null,
+        stripeAccountId: sponsorship.influencerStripeAccountId,
+        brandStripeAccountId: sponsorship.brandStripeAccountId,
+      });
+
+      return res.status(200).json({ success: true, order });
+    }
+
+    return res
+      .status(400)
+      .json({ success: false, message: "Payment not completed" });
+  } catch (error) {
+    console.error("Order creation error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Order creation failed" });
+  }
+};
+
 // Routes
 sponsorRouter.get("/terms/:influencerId", async (req, res) => {
   const influencerId = req.params.influencerId;
@@ -207,6 +312,8 @@ sponsorRouter.get("/sponsorproducts/:influencerId", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+sponsorRouter.post("/checkout", handleSponsoredProductCheckout);
 
 sponsorRouter.use(auth);
 sponsorRouter.post("/create-terms", createSponsorshipTerms);
