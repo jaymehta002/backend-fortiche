@@ -76,4 +76,70 @@ export const getTransactionsByUser = async (userId, query = {}) => {
     totalPages: Math.ceil(total / limit),
     total
   };
+};
+
+export const getTransactionById = async (transactionId) => {
+  return await Transaction.findById(transactionId)
+    .populate('fromUserId', 'fullName email')
+    .populate('toUserId', 'fullName email')
+    .populate('orderId');
+};
+
+export const getTransactionStats = async (userId, { startDate, endDate }) => {
+  const dateFilter = {};
+  if (startDate) dateFilter.$gte = new Date(startDate);
+  if (endDate) dateFilter.$lte = new Date(endDate);
+
+  const matchStage = {
+    $or: [{ fromUserId: userId }, { toUserId: userId }]
+  };
+  if (Object.keys(dateFilter).length > 0) {
+    matchStage.createdAt = dateFilter;
+  }
+
+  const stats = await Transaction.aggregate([
+    { $match: matchStage },
+    {
+      $facet: {
+        totalTransactions: [{ $count: "count" }],
+        totalAmount: [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: "$amount" }
+            }
+          }
+        ],
+        byType: [
+          {
+            $group: {
+              _id: "$type",
+              count: { $sum: 1 },
+              amount: { $sum: "$amount" }
+            }
+          }
+        ],
+        byStatus: [
+          {
+            $group: {
+              _id: "$status",
+              count: { $sum: 1 }
+            }
+          }
+        ],
+        recentTransactions: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 5 }
+        ]
+      }
+    }
+  ]);
+
+  return {
+    totalTransactions: stats[0].totalTransactions[0]?.count || 0,
+    totalAmount: stats[0].totalAmount[0]?.total || 0,
+    byType: stats[0].byType,
+    byStatus: stats[0].byStatus,
+    recentTransactions: stats[0].recentTransactions
+  };
 }; 
