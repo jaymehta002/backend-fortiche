@@ -8,7 +8,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { stripeClient } from "../lib/stripe.js";
 import { User } from "../user/user.model.js";
-import { createTransaction } from "../transaction/transaction.service.js";
 
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -23,7 +22,10 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       throw ApiError(403, "Action restricted");
     }
     if (!user.stripeAccountId) {
-      throw ApiError(400, "No Stripe account found. Please connect your Stripe account first.");
+      throw ApiError(
+        400,
+        "No Stripe account found. Please connect your Stripe account first.",
+      );
     }
 
     const { productId } = req.body;
@@ -36,7 +38,10 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
 
     const brand = await User.findById(product.brandId);
     if (!brand || !brand.stripeAccountId) {
-      throw ApiError(404, "Brand not found or brand's Stripe account not connected");
+      throw ApiError(
+        404,
+        "Brand not found or brand's Stripe account not connected",
+      );
     }
 
     // Create a payment session with Stripe Checkout
@@ -58,13 +63,19 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       ],
       customer_email: user.email,
       success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/cancel`,
+      cancel_url: `${process.env.CLIENT_URL}/dashboard`,
       metadata: {
         productId: productId,
         userId: user._id.toString(),
         address: user.address,
         stripeAccountId: user.stripeAccountId,
-        brandStripeAccountId: brand.stripeAccountId
+        brandStripeAccountId: brand.stripeAccountId,
+      },
+      payment_intent_data: {
+        transfer_data: {
+          destination: brand.stripeAccountId,
+        },
+        application_fee_amount: Math.floor(product.pricing * 10), // 10% platform fee
       },
     });
 
@@ -97,7 +108,7 @@ export const handleSuccessPage = async (req, res) => {
 
     if (session.payment_status === "paid") {
       const { metadata } = session;
-      const { productId, userId, address, brandStripeAccountId } = metadata;
+      const { productId, userId, address } = metadata;
 
       // Find the product
       const product = await Product.findById(productId);
@@ -115,39 +126,10 @@ export const handleSuccessPage = async (req, res) => {
         shippingStatus: "pending",
         shippingAddress: address || defaultAddress,
         stripeAccountId: metadata.stripeAccountId,
-        brandStripeAccountId: metadata.brandStripeAccountId
+        brandStripeAccountId: metadata.brandStripeAccountId,
       });
 
       await newOrder.save();
-
-      // Create transfer to brand (in test mode)
-      try {
-        const transfer = await stripe.transfers.create({
-          amount: Math.floor(product.pricing * 90), // 90% to brand
-          currency: 'eur',
-          destination: brandStripeAccountId,
-          transfer_group: `ORDER_${newOrder._id}`,
-          metadata: {
-            orderId: newOrder._id.toString(),
-            productId: productId
-          }
-        });
-
-        console.log('Transfer created:', transfer.id);
-      } catch (transferError) {
-        console.error('Transfer failed:', transferError);
-        // Don't fail the order creation if transfer fails
-      }
-
-      // Create transaction record
-      await createTransaction({
-        fromUserId: userId,
-        toUserId: product.brandId,
-        amount: product.pricing,
-        type: "purchase",
-        orderId: newOrder._id,
-        description: `Purchase of ${product.title}`
-      });
 
       res.status(200).json({
         success: true,
@@ -339,15 +321,18 @@ export const getRecentTransactions = asyncHandler(async (req, res) => {
     }
 
     // Fetch balance transactions from Stripe
-    const transactions = await stripe.balanceTransactions.list({
-      limit: 10, // Adjust limit as needed
-      expand: ['data.source'],
-    }, {
-      email: user.email,
-    });
+    const transactions = await stripe.balanceTransactions.list(
+      {
+        limit: 10, // Adjust limit as needed
+        expand: ["data.source"],
+      },
+      {
+        stripeAccount: user.stripeAccountId,
+      },
+    );
 
     // Format the transactions for response
-    const formattedTransactions = transactions.data.map(transaction => ({
+    const formattedTransactions = transactions.data.map((transaction) => ({
       id: transaction.id,
       amount: transaction.amount / 100, // Convert from cents to actual currency
       currency: transaction.currency,
