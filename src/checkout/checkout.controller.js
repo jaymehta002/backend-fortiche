@@ -65,18 +65,6 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
         stripeAccountId: user.stripeAccountId,
         brandStripeAccountId: brand.stripeAccountId
       },
-      payment_intent_data: {
-        // application_fee_amount: Math.floor(product.pricing * 10), // 10% platform fee
-        transfer_data: {
-          destination: brand.stripeAccountId,
-        },
-      },
-      billing_address_collection: "required",
-      shipping_address_collection: {
-        allowed_countries: ["IN"],
-      },
-    }, {
-      stripeAccount: user.stripeAccountId,
     });
 
     res.status(200).json({
@@ -93,9 +81,7 @@ export const handleSuccessPage = async (req, res) => {
     const { session_id } = req.body;
 
     // Retrieve the session from Stripe
-    const session = await stripe.checkout.sessions.retrieve(session_id, {
-      stripeAccount: session.metadata.stripeAccountId
-    });
+    const session = await stripe.checkout.sessions.retrieve(session_id);
 
     const existingOrder = await Order.findOne({
       paymentId: session.payment_intent,
@@ -110,7 +96,7 @@ export const handleSuccessPage = async (req, res) => {
 
     if (session.payment_status === "paid") {
       const { metadata } = session;
-      const { productId, userId, address } = metadata;
+      const { productId, userId, address, brandStripeAccountId } = metadata;
 
       // Find the product
       const product = await Product.findById(productId);
@@ -132,6 +118,25 @@ export const handleSuccessPage = async (req, res) => {
       });
 
       await newOrder.save();
+
+      // Create transfer to brand (in test mode)
+      try {
+        const transfer = await stripe.transfers.create({
+          amount: Math.floor(product.pricing * 90), // 90% to brand
+          currency: 'eur',
+          destination: brandStripeAccountId,
+          transfer_group: `ORDER_${newOrder._id}`,
+          metadata: {
+            orderId: newOrder._id.toString(),
+            productId: productId
+          }
+        });
+
+        console.log('Transfer created:', transfer.id);
+      } catch (transferError) {
+        console.error('Transfer failed:', transferError);
+        // Don't fail the order creation if transfer fails
+      }
 
       res.status(200).json({
         success: true,
