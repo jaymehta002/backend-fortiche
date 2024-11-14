@@ -44,7 +44,6 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       );
     }
 
-    // Create a payment session with Stripe Checkout
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
