@@ -29,12 +29,6 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       throw ApiError(404, "Product not found");
     }
 
-    // Get brand's Stripe account ID
-    const brand = await User.findById(product.brandId);
-    if (!brand || !brand.stripeAccountId) {
-      throw ApiError(404, "Brand account not found");
-    }
-
     // Create a payment session with Stripe Checkout
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -59,12 +53,6 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
         productId: productId,
         userId: user._id.toString(),
         address: user.address,
-        brandStripeAccountId: brand.stripeAccountId
-      },
-      payment_intent_data: {
-        transfer_data: {
-          destination: brand.stripeAccountId,
-        },
       },
       billing_address_collection: "required",
       shipping_address_collection: {
@@ -129,15 +117,15 @@ export const handleSuccessPage = async (req, res) => {
 
       // await stripe.checkout.sessions.expire(session_id);
 
-      // const brand = await User.findById(product.brandId);
-      // if (!brand) throw ApiError(404, "Brand not found");
+      const brand = await User.findById(product.brandId);
+      if (!brand) throw ApiError(404, "Brand not found");
 
-      // const transfer = await stripe.transfers.create({
-      //   amount: product.pricing * 100,
-      //   currency: "eur",
-      //   destination: brand.stripeAccountId,
-      // });
-      // console.log(transfer);
+      const transfer = await stripe.transfers.create({
+        amount: product.pricing * 100,
+        currency: "eur",
+        destination: brand.stripeAccountId,
+      });
+      console.log(transfer);
 
       res.status(200).json({
         success: true,
