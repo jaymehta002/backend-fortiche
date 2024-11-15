@@ -357,10 +357,18 @@ export const getRecentTransactions = asyncHandler(async (req, res) => {
 
 export const getTaxes = asyncHandler(async (req, res, next) => {
   const { brandIds, country } = req.body;
+
+  // Find shipping zones for the given brands and country
   const shipping = await Shipping.find({
     brandId: { $in: brandIds },
     countries: { $in: country },
   });
+
+  // Find brands without shipping zones
+  const brandsWithShipping = shipping.map((ship) => ship.brandId.toString());
+  const notDeliverableBrands = brandIds.filter(
+    (brandId) => !brandsWithShipping.includes(brandId.toString()),
+  );
 
   const shippingDetails = shipping.map((ship) => ({
     brandId: ship.brandId,
@@ -369,7 +377,6 @@ export const getTaxes = asyncHandler(async (req, res, next) => {
     freeShippingThreshold: ship.freeShippingThreshold,
     shippingMethod: ship.shippingMethod,
     deliveryTime: ship.deliveryTime,
-    vat: countryVat(country),
   }));
 
   const taxes = shipping.reduce((acc, shipping) => {
@@ -381,6 +388,7 @@ export const getTaxes = asyncHandler(async (req, res, next) => {
     taxes,
     shippingDetails,
     vat: countryVat(country),
+    notDeliverable: notDeliverableBrands,
   });
 });
 
