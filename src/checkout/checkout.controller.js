@@ -8,7 +8,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { stripeClient } from "../lib/stripe.js";
 import { User } from "../user/user.model.js";
-
+import Shipping from "../shipping/shipping.model.js";
+import countryVat from "country-vat";
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -184,6 +185,7 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
         _id: p._id,
       })),
     );
+    console.log(totalPrice);
     // const product = await Product.findById(affiliation.productId);
     console.log(affiliation[0].influencerId);
     const session = await stripe.checkout.sessions.create({
@@ -283,7 +285,7 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       productIds.map(async (p) => {
         const product = await Product.findById(p._id);
         if (!product) throw new Error("Product not found");
-        console.log(product);
+
         const newOrder = new Order({
           guestId: guest._id,
           productId: product._id,
@@ -351,4 +353,37 @@ export const getRecentTransactions = asyncHandler(async (req, res) => {
   } catch (error) {
     throw ApiError(500, error?.message || "Error fetching transactions");
   }
+});
+
+export const getTaxes = asyncHandler(async (req, res, next) => {
+  const { brandIds, country } = req.body;
+  const shipping = await Shipping.find({
+    brandId: { $in: brandIds },
+    countries: { $in: country },
+  });
+
+  const shippingDetails = shipping.map((ship) => ({
+    brandId: ship.brandId,
+    shippingCharges: ship.shippingCharges,
+    minimumOrder: ship.minimumOrder,
+    freeShippingThreshold: ship.freeShippingThreshold,
+    shippingMethod: ship.shippingMethod,
+    deliveryTime: ship.deliveryTime,
+    vat: countryVat(country),
+  }));
+
+  const taxes = shipping.reduce((acc, shipping) => {
+    return acc + shipping.shippingCharges;
+  }, 0);
+
+  res.status(200).json({
+    success: true,
+    taxes,
+    shippingDetails,
+    vat: countryVat(country),
+  });
+});
+
+const handleCheckout = asyncHandler(async (req, res, next) => {
+  const { influencerId, products, address } = req.body;
 });
