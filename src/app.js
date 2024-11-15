@@ -33,36 +33,19 @@ const io = new Server(server, {
 });
 
 app.set("trust proxy", 1);
-// const corsOptions = {
-//   credentials: true,
-//   origin: [
-//     "*",
-//     process.env.CLIENT_URL,
-//     "https://fortiche-frontend.vercel.app",
-//     "localhost",
-//     "127.0.0.1",
-//     "http://localhost:5173/",
-//     "http://localhost:5173",
-//   ],
-// };
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
+  origin: [
+    "*",
+    process.env.CLIENT_URL,
+    "https://fortiche-frontend.vercel.app",
+    "localhost",
+    "127.0.0.1",
+    "http://localhost:5173/",
+    "http://localhost:5173",
   ],
-  exposedHeaders: ["Set-Cookie"],
 };
+
 app.use(cors(corsOptions));
 
 const COOKIE_DOMAIN =
@@ -82,9 +65,6 @@ const sessionConfig = {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     sameSite: "none",
-    domain: COOKIE_DOMAIN,
-    path: "/",
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
   },
 };
 
