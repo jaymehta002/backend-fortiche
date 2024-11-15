@@ -1,7 +1,7 @@
 import Commision from "./commision.model.js";
-import asyncHandler from "../utils/asyncHandler.js";
-import Product from "../product/product.model.js";
-import ApiError from "../utils/ApiError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { Product } from "../product/product.model.js";
+import { ApiError } from "../utils/APIError.js";
 
 export const createCommision = asyncHandler(async (req, res) => {
   const user = req.user;

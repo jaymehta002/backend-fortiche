@@ -6,12 +6,12 @@ import {
   updateCommision,
   deleteCommision,
 } from "./commision.controller.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { auth } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
 // Apply auth middleware to all routes
-router.use(verifyJWT);
+router.use(auth);
 
 router.post("/create", createCommision);
 router.get("/product/:productId", getCommisionsByProduct);

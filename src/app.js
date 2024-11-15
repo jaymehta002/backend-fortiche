@@ -33,39 +33,62 @@ const io = new Server(server, {
 });
 
 app.set("trust proxy", 1);
+// const corsOptions = {
+//   credentials: true,
+//   origin: [
+//     "*",
+//     process.env.CLIENT_URL,
+//     "https://fortiche-frontend.vercel.app",
+//     "localhost",
+//     "127.0.0.1",
+//     "http://localhost:5173/",
+//     "http://localhost:5173",
+//   ],
+// };
 const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
-  origin: [
-    "*",
-    process.env.CLIENT_URL,
-    "https://fortiche-frontend.vercel.app",
-    "localhost",
-    "127.0.0.1",
-    "http://localhost:5173/",
-    "http://localhost:5173",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
   ],
+  exposedHeaders: ["Set-Cookie"],
 };
-
 app.use(cors(corsOptions));
 
-app.use(
-  session({
-    store: new MongoStore({
-      mongoUrl: process.env.MONGODB_URI,
-      collectionName: "sessions",
-      ttl: 3600,
-    }),
-    secret: process.env.SESSION_SECRET,
-    proxy: true,
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: true,
-      httpOnly: true,
-      sameSite: "none",
-    },
+const COOKIE_DOMAIN =
+  process.env.NODE_ENV === "production" ? ".vercel.app" : "localhost";
+
+const sessionConfig = {
+  store: new MongoStore({
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: "sessions",
+    ttl: 3600,
   }),
-);
+  secret: process.env.SESSION_SECRET,
+  proxy: true,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "none",
+    domain: COOKIE_DOMAIN,
+    path: "/",
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
+  },
+};
+
+app.use(session(sessionConfig));
 
 app.use((req, res, next) => {
   if (
@@ -79,7 +102,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true, limit: "14kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static("public"));
 app.use(initializePassport());
 app.use(sessionPassport());

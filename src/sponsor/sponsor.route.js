@@ -2,14 +2,13 @@ import { Router, raw } from "express";
 import { auth } from "../middlewares/auth.middleware.js";
 import Sponsorship from "./sponsorship.model.js";
 import SponsorshipTerms from "./sponsorshipTerms.model.js";
-import Stripe from "stripe";
 import { Product } from "../product/product.model.js";
 import { User } from "../user/user.model.js";
 import { stripeClient } from "../lib/stripe.js";
 import Order from "../orders/order.model.js";
 
 // Initialize Stripe properly
-const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+// const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Sponsorship Terms
 const createSponsorshipTerms = async (req, res) => {
