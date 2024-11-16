@@ -49,7 +49,7 @@ export const googleCallback = asyncHandler(async (req, res, next) => {
           refreshToken: tokens.refreshToken,
         }).toString();
 
-        return res.redirect(`${redirectUrl}?${tokenParams}`);
+        return res.redirect(`${process.env.CLIENT_URL}/google?${tokenParams}`);
         // return res.json({
         //   success: true,
         //   message: "Logged in successfully",
