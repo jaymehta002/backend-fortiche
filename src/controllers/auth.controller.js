@@ -50,11 +50,13 @@ export const googleCallback = asyncHandler(async (req, res, next) => {
         }).toString();
 
         // return res.redirect(`${redirectUrl}?${tokenParams}`);
-        return res.json({
-          success: true,
-          message: "Logged in successfully",
-          tokens,
-        });
+        return res
+          .json({
+            success: true,
+            message: "Logged in successfully",
+            tokens,
+          })
+          .redirect(`${redirectUrl}`);
       } catch (error) {
         return next(ApiError(500, "Error during authentication"));
       }
