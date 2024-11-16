@@ -11,7 +11,7 @@ import {
 } from "../utils/config.js";
 import passport from "passport";
 import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
-import { OTP } from "../otp/otp.model.js";
+import { OTP } from "../models/otp.model.js";
 
 export const googleLogin = passport.authenticate("google", {
   scope: ["profile", "email"],
