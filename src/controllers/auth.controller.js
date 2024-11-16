@@ -11,6 +11,7 @@ import {
 } from "../utils/config.js";
 import passport from "passport";
 import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
+import { OTP } from "../otp/otp.model.js";
 
 export const googleLogin = passport.authenticate("google", {
   scope: ["profile", "email"],
@@ -80,7 +81,6 @@ const onboarding = asyncHandler(async (req, res, next) => {
 });
 
 const registerUser = asyncHandler(async (req, res, next) => {
-  // console.log("reach");
   const { fullName, email, username, password } = req.body;
 
   if ([fullName, email, username, password].some((field) => !field?.trim())) {
@@ -88,75 +88,73 @@ const registerUser = asyncHandler(async (req, res, next) => {
   }
 
   const existedUser = await User.findOne({ $or: [{ username }, { email }] });
-  console.log(existedUser);
   if (existedUser) {
     return next(ApiError(409, "User with email or username already exists"));
   }
 
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
-  res.cookie(
-    "registrationOTP",
-    JSON.stringify({ email, hashedOTP, otpExpiration }),
-    { httpOnly: true, secure: true, sameSite: "none" },
-  );
-  console.log(req.cookies.registrationOTP, "sending");
+  await OTP.create({
+    email,
+    otp: hashedOTP,
+    expiresAt: new Date(otpExpiration),
+    registrationData: {
+      fullName,
+      username,
+      password,
+    },
+  });
+
   res.status(200).json({
     success: true,
     message: "OTP sent to email. Please verify.",
+    email: email,
   });
 });
 
 const verifyOTPAndRegister = asyncHandler(async (req, res, next) => {
-  const { email, otp, fullName, username, password, accountType, categories } =
-    req.body;
+  const { email, otp, accountType, categories } = req.body;
 
-  // Retrieve OTP data from cookies instead of session
-  const registrationOTP = req.cookies.registrationOTP
-    ? JSON.parse(req.cookies.registrationOTP)
-    : null;
-
-  console.log(registrationOTP); // check 2
-  if (!registrationOTP || registrationOTP.email !== email) {
-    return next(ApiError(400, "Invalid cookie or email mismatch"));
+  if (!email || !otp) {
+    return next(ApiError(400, "Email and OTP are required"));
   }
 
-  const { hashedOTP, otpExpiration } = registrationOTP;
-  await verifyOTP(hashedOTP, otp, otpExpiration);
+  const otpRecord = await OTP.findOne({ email }).sort({ createdAt: -1 });
 
-  // Clear the OTP cookie
-  res.clearCookie("registrationOTP");
-
-  const user = await User.create({
-    fullName,
-    email,
-    password,
-    username: username.toLowerCase(),
-    accountType,
-    categories,
-  });
-
-  const createdUser = await User.findById(user._id);
-  if (!createdUser) {
-    return next(
-      ApiError(500, "Something went wrong while registering the user"),
-    );
+  if (!otpRecord) {
+    return next(ApiError(400, "No OTP request found. Please try again."));
   }
 
-  const { accessToken, refreshToken } = generateTokens(user._id);
+  try {
+    await verifyOTP(otpRecord.otp, otp, otpRecord.expiresAt.getTime());
 
-  user.refreshToken = refreshToken;
-  await user.save({ validateModifiedOnly: true });
+    const { fullName, username, password } = otpRecord.registrationData;
 
-  res
-    .status(201)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, refreshCookieOptions)
-    .json({
-      success: true,
-      data: createdUser,
-      message: "User registered successfully",
+    const user = await User.create({
+      fullName,
+      email,
+      password,
+      username: username.toLowerCase(),
+      accountType,
+      categories,
     });
+
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    user.refreshToken = refreshToken;
+    await user.save({ validateModifiedOnly: true });
+
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    const response = createTokenResponse({ accessToken, refreshToken }, user);
+
+    res
+      .status(201)
+      .cookie("accessToken", accessToken, cookieOptions)
+      .cookie("refreshToken", refreshToken, refreshCookieOptions)
+      .json(response);
+  } catch (error) {
+    return next(error);
+  }
 });
 
 const loginUser = asyncHandler(async (req, res, next) => {
