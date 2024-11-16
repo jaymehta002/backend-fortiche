@@ -47,8 +47,6 @@ export const googleCallback = asyncHandler(async (req, res, next) => {
         const tokenParams = new URLSearchParams({
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
-          redirectUrl: redirectUrl,
-          user: JSON.stringify(user),
         }).toString();
 
         return res.redirect(`${process.env.CLIENT_URL}/google?${tokenParams}`);
