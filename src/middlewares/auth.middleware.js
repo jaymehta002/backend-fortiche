@@ -55,19 +55,23 @@ export const sessionPassport = () => {
 };
 
 export const auth = asyncHandler(async (req, _, next) => {
-  const token =
-    req.cookies?.accessToken ||
-    req.header("Authorization")?.replace("Bearer ", "");
-  if (!token) {
-    return next(ApiError(403, "Unauthorized request"));
-  }
   try {
-    const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
+    // Modified token extraction logic
+    const token =
+      req.headers.authorization?.replace("Bearer ", "") || // Prioritize Authorization header
+      req.cookies?.accessToken ||
+      req.query.token ||
+      req.body.token;
 
+    if (!token) {
+      throw ApiError(401, "Authentication required");
+    }
+
+    const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
     const user = await User.findById(decodedToken?._id);
 
     if (!user) {
-      return next(ApiError(401, "Invalid Access Token"));
+      throw ApiError(401, "Invalid Access Token");
     }
 
     req.user = user;
@@ -79,7 +83,10 @@ export const auth = asyncHandler(async (req, _, next) => {
 
 export const authenticateSocket = async (socket, next) => {
   try {
-    const token = socket.handshake.auth.token;
+    // Modified token extraction for socket
+    const token =
+      socket.handshake.auth.token ||
+      socket.handshake.headers.authorization?.replace("Bearer ", "");
 
     if (!token) {
       return next(new Error("Authentication error: No token provided"));

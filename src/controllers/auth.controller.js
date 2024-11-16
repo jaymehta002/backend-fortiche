@@ -4,7 +4,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
 import { generateTokens, verifyToken } from "../services/token.service.js";
 import { compare } from "bcrypt";
-import { cookieOptions, refreshCookieOptions } from "../utils/config.js";
+import {
+  cookieOptions,
+  refreshCookieOptions,
+  createTokenResponse,
+} from "../utils/config.js";
 import passport from "passport";
 import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
 
@@ -17,32 +21,36 @@ export const googleCallback = asyncHandler(async (req, res, next) => {
     "google",
     { session: false },
     async (err, user, info) => {
-      if (err) {
-        console.error("Google authentication error:", err);
-        return next(ApiError(500, "Error during Google authentication"));
-      }
-      if (!user) {
+      if (err || !user) {
         return next(ApiError(401, "Google authentication failed"));
       }
+
       try {
-        const { accessToken, refreshToken } = generateTokens(user._id);
-        await User.findByIdAndUpdate(user._id, { refreshToken });
+        const tokens = generateTokens(user._id);
+        await User.findByIdAndUpdate(user._id, {
+          refreshToken: tokens.refreshToken,
+        });
 
         res
-          .cookie("accessToken", accessToken, cookieOptions)
-          .cookie("refreshToken", refreshToken, refreshCookieOptions);
+          .cookie("accessToken", tokens.accessToken, cookieOptions)
+          .cookie("refreshToken", tokens.refreshToken, refreshCookieOptions);
 
-        // Check if the user needs to complete onboarding
-        if (!user.accountType) {
-          return res.redirect(`${process.env.CLIENT_URL}/onboarding`);
-        } else if (user.accountType === "influencer") {
-          return res.redirect(`${process.env.CLIENT_URL}/dashboard`);
-        } else {
-          return res.redirect(`${process.env.CLIENT_URL}/brands/dashboard`);
-        }
+        // Determine redirect URL
+        const redirectUrl = !user.accountType
+          ? `${process.env.CLIENT_URL}/onboarding`
+          : user.accountType === "influencer"
+            ? `${process.env.CLIENT_URL}/dashboard`
+            : `${process.env.CLIENT_URL}/brands/dashboard`;
+
+        // Include tokens in redirect URL for client-side storage
+        const tokenParams = new URLSearchParams({
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        }).toString();
+
+        return res.redirect(`${redirectUrl}?${tokenParams}`);
       } catch (error) {
-        console.error("Token generation error:", error);
-        return next(ApiError(500, "Error generating authentication tokens"));
+        return next(ApiError(500, "Error during authentication"));
       }
     },
   )(req, res, next);
@@ -165,45 +173,34 @@ const loginUser = asyncHandler(async (req, res, next) => {
     ],
   }).select("+password +refreshToken");
 
-  const isPasswordCorrect = await compare(password, user.password);
-
-  if (!user || !isPasswordCorrect) {
+  if (!user || !(await compare(password, user?.password || ""))) {
     return next(ApiError(403, "Invalid user credentials"));
   }
 
-  const { accessToken, refreshToken } = generateTokens(user._id);
-
-  user.refreshToken = refreshToken;
+  const tokens = generateTokens(user._id);
+  user.refreshToken = tokens.refreshToken;
   await user.save({ validateModifiedOnly: true });
 
-  const userResponse = user.toObject();
-  delete userResponse.password;
-  delete userResponse.refreshToken;
+  const response = createTokenResponse(tokens, user);
 
   res
     .status(200)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, refreshCookieOptions)
-    .json({
-      success: true,
-      data: userResponse,
-      message: "User logged in successfully",
-    });
+    .cookie("accessToken", tokens.accessToken, cookieOptions)
+    .cookie("refreshToken", tokens.refreshToken, refreshCookieOptions)
+    .json(response);
 });
 
 const logoutUser = asyncHandler(async (req, res, next) => {
-  await User.findByIdAndUpdate(req.user._id, { $unset: { refreshToken: 1 } });
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-  };
+  await User.findByIdAndUpdate(
+    req.user._id,
+    { $unset: { refreshToken: 1 } },
+    { new: true },
+  );
 
   res
     .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", refreshCookieOptions)
     .json({
       success: true,
       message: "User logged out",
@@ -211,42 +208,44 @@ const logoutUser = asyncHandler(async (req, res, next) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res, next) => {
-  const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+  try {
+    const incomingRefreshToken =
+      req.cookies?.refreshToken ||
+      req.body.refreshToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
 
-  if (!incomingRefreshToken) {
-    return next(ApiError(401, "Refresh token is required"));
+    if (!incomingRefreshToken) {
+      throw ApiError(401, "Refresh token is required");
+    }
+
+    const decodedToken = verifyToken(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+    );
+
+    const user = await User.findById(decodedToken._id).select("+refreshToken");
+
+    if (!user || incomingRefreshToken !== user.refreshToken) {
+      throw ApiError(401, "Invalid refresh token");
+    }
+
+    const tokens = generateTokens(user._id);
+    user.refreshToken = tokens.refreshToken;
+    await user.save({ validateModifiedOnly: true });
+
+    const response = createTokenResponse(tokens, user);
+
+    res
+      .status(200)
+      .cookie("accessToken", tokens.accessToken, cookieOptions)
+      .cookie("refreshToken", tokens.refreshToken, refreshCookieOptions)
+      .json(response);
+  } catch (error) {
+    res
+      .clearCookie("accessToken", cookieOptions)
+      .clearCookie("refreshToken", refreshCookieOptions);
+    next(error);
   }
-
-  const decodedToken = verifyToken(
-    incomingRefreshToken,
-    process.env.REFRESH_TOKEN_SECRET,
-  );
-
-  const user = await User.findById(decodedToken._id).select("+refreshToken");
-
-  if (!user) {
-    return next(ApiError(401, "Invalid refresh token"));
-  }
-
-  if (incomingRefreshToken !== user.refreshToken) {
-    return next(ApiError(401, "Refresh token is expired or used"));
-  }
-  const { accessToken, refreshToken: newRefreshToken } = generateTokens(
-    user._id,
-  );
-
-  user.refreshToken = newRefreshToken;
-  await user.save({ validateModifiedOnly: true });
-
-  res
-    .status(200)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
-    .json({
-      success: true,
-      message: "Access token refreshed",
-    });
 });
 
 const forgotPassword = asyncHandler(async (req, res, next) => {

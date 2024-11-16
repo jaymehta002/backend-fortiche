@@ -36,20 +36,16 @@ app.set("trust proxy", 1);
 const corsOptions = {
   credentials: true,
   origin: [
-    "*",
     process.env.CLIENT_URL,
     "https://fortiche-frontend.vercel.app",
-    "localhost",
-    "127.0.0.1",
-    "http://localhost:5173/",
     "http://localhost:5173",
   ],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Authorization"],
 };
 
 app.use(cors(corsOptions));
-
-const COOKIE_DOMAIN =
-  process.env.NODE_ENV === "production" ? ".vercel.app" : "localhost";
 
 const sessionConfig = {
   store: new MongoStore({
@@ -65,6 +61,12 @@ const sessionConfig = {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     sameSite: "none",
+    domain:
+      process.env.NODE_ENV === "production"
+        ? process.env.COOKIE_DOMAIN
+        : undefined,
+    maxAge: 24 * 60 * 60 * 1000,
+    path: "/",
   },
 };
 
