@@ -25,7 +25,6 @@ export const googleCallback = asyncHandler(async (req, res, next) => {
       if (err || !user) {
         return next(ApiError(401, "Google authentication failed"));
       }
-
       try {
         const tokens = generateTokens(user._id);
         await User.findByIdAndUpdate(user._id, {
@@ -36,25 +35,13 @@ export const googleCallback = asyncHandler(async (req, res, next) => {
           .cookie("accessToken", tokens.accessToken, cookieOptions)
           .cookie("refreshToken", tokens.refreshToken, refreshCookieOptions);
 
-        // Determine redirect URL
-        const redirectUrl = !user.accountType
-          ? `${process.env.CLIENT_URL}/onboarding`
-          : user.accountType === "influencer"
-            ? `${process.env.CLIENT_URL}/dashboard`
-            : `${process.env.CLIENT_URL}/brands/dashboard`;
-
-        // Include tokens in redirect URL for client-side storage
         const tokenParams = new URLSearchParams({
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
+          accountType: user.accountType,
         }).toString();
 
         return res.redirect(`${process.env.CLIENT_URL}/google?${tokenParams}`);
-        // return res.json({
-        //   success: true,
-        //   message: "Logged in successfully",
-        //   tokens,
-        // }).redirect(`${redirectUrl}`);
       } catch (error) {
         return next(ApiError(500, "Error during authentication"));
       }
@@ -79,6 +66,7 @@ const onboarding = asyncHandler(async (req, res, next) => {
   user.categories = categories;
   await user.save();
   res.status(200).json({
+    user,
     success: true,
     message: "Onboarding successful",
   });

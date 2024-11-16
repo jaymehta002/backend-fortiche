@@ -413,7 +413,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     "recipients.userId": influencerId,
   });
 
-  let userCommisi
+  // let userCommisi
 
   const totalPrice = products.reduce((sum, p) => {
     const product = productData.find(
