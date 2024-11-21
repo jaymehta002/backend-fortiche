@@ -33,7 +33,8 @@ const fetchAffiliatedProductIds = async (userId) => {
 const fetchUserPosts = async (userId, limit, page) => {
   return Recommendation.find({ author: userId })
     .limit(limit)
-    .skip((page - 1) * limit);
+    .skip((page - 1) * limit)
+    .populate("products");
 };
 
 const fetchAffiliatedProducts = async (productIds, limit, page) => {

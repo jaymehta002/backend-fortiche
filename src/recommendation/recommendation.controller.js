@@ -11,6 +11,7 @@ const createRecommendation = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
     const { title, content, tags, products } = req.body;
+    console.log(tags);
     let thumbnailUrl = "";
 
     if (req.file) {
@@ -29,7 +30,7 @@ const createRecommendation = asyncHandler(async (req, res, next) => {
       title,
       content,
       author: user._id,
-      tags,
+      tags: tags,
       products: productIds,
       thumbnail: thumbnailUrl,
     });
