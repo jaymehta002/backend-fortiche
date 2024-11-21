@@ -214,7 +214,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 
     const decodedToken = verifyToken(
       incomingRefreshToken,
-      process.env.ACCESS_TOKEN_SECRET,
+      process.env.REFRESH_TOKEN_SECRET,
     );
 
     console.log("Decoded Token:", decodedToken);
