@@ -175,7 +175,7 @@ const handleSuccessPage = async (req, res) => {
 // Add new handler for sponsored product checkout
 const handleSponsoredProductCheckout = async (req, res) => {
   const { productId, shippingAddress, quantity, brandId } = req.body;
-  const { sponsorshipId, address,  } = req.body;
+  const { sponsorshipId, address } = req.body;
   const brandStripeAccountId =
     await User.findById(brandId).select("stripeAccountId");
   try {
@@ -304,6 +304,8 @@ sponsorRouter.get("/sponsorproducts/:influencerId", async (req, res) => {
     const sponsorships = await Sponsorship.find({
       influencerId,
       status: "approved",
+      endDate: { $gte: new Date() },
+      startDate: { $lte: new Date() },
     }).populate("productId");
 
     res.status(200).json({ sponsorships });

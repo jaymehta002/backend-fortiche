@@ -404,7 +404,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
   });
   const sponsor = await sponsorshipModel.find({
     influencerId: influencerId,
-    sponsorshipId: { $in: products.map((p) => p.sponsorshipId) },
+    productId: { $in: products.map((p) => p.productId) },
   });
   console.log(sponsor);
   if (!affiliation) throw ApiError(404, "Affiliation not found");
