@@ -11,6 +11,7 @@ import { User } from "../user/user.model.js";
 import Shipping from "../shipping/shipping.model.js";
 import countryVat from "country-vat";
 import Commision from "../commision/commision.model.js";
+import sponsorshipModel from "../sponsor/sponsorship.model.js";
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -395,12 +396,17 @@ export const getTaxes = asyncHandler(async (req, res, next) => {
 
 export const handleCheckout = asyncHandler(async (req, res, next) => {
   const { influencerId, products, address, email, name, phone } = req.body;
+  console.log(products.map((p) => p.productId));
   const affiliation = await Affiliation.find({
     influencerId,
     productId: { $in: products.map((p) => p.productId) },
-    isDeleted: false,
+    // isDeleted: false,
   });
-  console.log(affiliation);
+  const sponsor = await sponsorshipModel.find({
+    influencerId: influencerId,
+    sponsorshipId: { $in: products.map((p) => p.sponsorshipId) },
+  });
+  console.log(sponsor);
   if (!affiliation) throw ApiError(404, "Affiliation not found");
   const productData = await Product.find({
     _id: { $in: products.map((p) => p.productId) },

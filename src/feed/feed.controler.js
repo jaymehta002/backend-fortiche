@@ -27,9 +27,7 @@ const fetchUserProducts = async (userId, limit, page) => {
 };
 
 const fetchAffiliatedProductIds = async (userId) => {
-  return Affiliation.find({ influencerId: userId, isDeleted: false }).distinct(
-    "productId",
-  );
+  return Affiliation.find({ influencerId: userId }).distinct("productId");
 };
 
 const fetchUserPosts = async (userId, limit, page) => {
