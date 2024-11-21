@@ -3,6 +3,7 @@ import {
   createAffiliationController,
   getAffiliationProductController,
   getProductsAffiliatedByUser,
+  deleteAffiliationController,
 } from "./affiliation_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
@@ -17,6 +18,7 @@ affiliationRouter.use(auth);
 
 affiliationRouter
   .post("/create-affiliation", createAffiliationController)
-  .get("/get-user-affiliated-products", getProductsAffiliatedByUser);
+  .get("/get-user-affiliated-products", getProductsAffiliatedByUser)
+  .get("/delete-affiliation/:id", deleteAffiliationController);
 
 export { publicAffiliationRouter, affiliationRouter };

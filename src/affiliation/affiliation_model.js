@@ -32,6 +32,10 @@ const affiliationSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

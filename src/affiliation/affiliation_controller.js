@@ -91,8 +91,25 @@ const getProductsAffiliatedByUser = asyncHandler(async (req, res, next) => {
   }
 });
 
+const deleteAffiliationController = asyncHandler(async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const affiliation = await Affiliation.findOneAndUpdate(
+      { _id: id, influencerId: userId },
+      { isDeleted: true },
+    );
+    return res.json(
+      new ApiResponse(200, affiliation, "Affiliation deleted successfully"),
+    );
+  } catch (err) {
+    return next(err);
+  }
+});
+
 export {
   getAffiliationProductController,
   createAffiliationController,
   getProductsAffiliatedByUser,
+  deleteAffiliationController,
 };
