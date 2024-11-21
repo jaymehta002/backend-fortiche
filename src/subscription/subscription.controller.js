@@ -33,7 +33,7 @@ export const createCheckoutSession = async (req, res) => {
       customer_email: user.email,
       // customer_email: customerEmail,
       line_items: [{ price: stripePriceId, quantity: 1 }],
-      success_url: `${process.env.CLIENT_URL}/success`,
+      success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       billing_address_collection: "required",
       metadata: {
