@@ -398,6 +398,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
   const affiliation = await Affiliation.find({
     influencerId,
     productId: { $in: products.map((p) => p.productId) },
+    isDeleted: false,
   });
   console.log(affiliation);
   if (!affiliation) throw ApiError(404, "Affiliation not found");
