@@ -4,16 +4,19 @@ import {
   getAffiliationProductController,
   getProductsAffiliatedByUser,
   deleteAffiliationController,
+  getInfluencerIdController,
 } from "./affiliation_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 
 const publicAffiliationRouter = Router();
 const affiliationRouter = Router();
 
-affiliationRouter.get(
-  "/get-affiliation-product/:affiliationId",
-  getAffiliationProductController,
-);
+affiliationRouter
+  .get(
+    "/get-affiliation-product/:affiliationId",
+    getAffiliationProductController,
+  )
+  .get("/get-influencer-id/:affiliationId", getInfluencerIdController);
 affiliationRouter.use(auth);
 
 affiliationRouter

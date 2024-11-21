@@ -32,7 +32,20 @@ const getAffiliationProductController = asyncHandler(async (req, res, next) => {
     return next(err);
   }
 });
-
+const getInfluencerIdController = asyncHandler(async (req, res, next) => {
+  const { affiliationId } = req.params;
+  const affiliation = await Affiliation.findById(affiliationId);
+  const influencerId = affiliation.influencerId;
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { influencerId: influencerId },
+        "influencer id fetched successfully",
+      ),
+    );
+});
 const createAffiliationController = asyncHandler(async (req, res, next) => {
   try {
     if (req.user.accountType != accountType.INFLUENCER) {
@@ -113,4 +126,5 @@ export {
   createAffiliationController,
   getProductsAffiliatedByUser,
   deleteAffiliationController,
+  getInfluencerIdController,
 };
