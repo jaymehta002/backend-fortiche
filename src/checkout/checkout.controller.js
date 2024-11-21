@@ -396,37 +396,30 @@ export const getTaxes = asyncHandler(async (req, res, next) => {
 
 export const handleCheckout = asyncHandler(async (req, res, next) => {
   const { influencerId, products, address, email, name, phone } = req.body;
-  console.log(products.map((p) => p.productId));
   const affiliation = await Affiliation.find({
     influencerId,
     productId: { $in: products.map((p) => p.productId) },
-    // isDeleted: false,
+    $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }],
   });
+
   const sponsor = await sponsorshipModel.find({
     influencerId: influencerId,
     productId: { $in: products.map((p) => p.productId) },
     endDate: { $gte: new Date() },
     startDate: { $lte: new Date() },
   });
-  console.log(sponsor);
   if (!affiliation) throw ApiError(404, "Affiliation not found");
   const productData = await Product.find({
     _id: { $in: products.map((p) => p.productId) },
-  }).select("brandId commissionPercentage pricing");
+  })
+    .select("_id brandId commissionPercentage pricing wholesalePricing")
+    .lean();
+
   const brandIds = productData.map((p) => p.brandId.toString());
   const shipping = await Shipping.find({
     brandId: { $in: brandIds },
     countries: { $in: address.country },
   });
-  // console.log(shipping);
-  const commission = await Commision.find({
-    productId: { $in: products.map((p) => p.productId) },
-    "recipients.userId": influencerId,
-  });
-  console.log(commission);
-
-  // let userCommisi
-
   const totalPrice = products.reduce((sum, p) => {
     const product = productData.find(
       (prod) => prod._id.toString() === p.productId.toString(),
@@ -442,63 +435,219 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     );
   }, 0);
 
+  const productDataWithQuantity = productData.map((product) => {
+    const matchedProduct = products.find(
+      (p) => p.productId === product._id.toString(),
+    );
+    return {
+      ...product,
+      quantity: matchedProduct ? matchedProduct.quantity : 0,
+      shippingCharges: shipping.find(
+        (ship) => ship.brandId.toString() === product.brandId.toString(),
+      ).shippingCharges,
+    };
+  });
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
-    line_items: [
-      {
+    line_items: products.map((p) => {
+      const product = productData.find(
+        (prod) => prod._id.toString() === p.productId.toString(),
+      );
+      const shippingCharges = shipping.find(
+        (ship) => ship.brandId.toString() === product.brandId.toString(),
+      ).shippingCharges;
+      const unitPrice =
+        p.quantity * product.pricing +
+        p.quantity * product.pricing * countryVat(address.country) +
+        shippingCharges;
+
+      return {
         price_data: {
           currency: "usd",
           product_data: {
-            name: "Fortiche",
-            description: products.length + "items",
+            name: product.title || "Product",
+            description: `Quantity: ${p.quantity}`,
           },
-          unit_amount: totalPrice * 100,
+          unit_amount: Math.round(unitPrice * 100),
         },
-        quantity: products.length,
-      },
-    ],
+        quantity: p.quantity,
+      };
+    }),
     customer_email: email,
     success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.CLIENT_URL}/cancel`,
     metadata: {
       influencerId,
-      products: JSON.stringify(products),
+      products: JSON.stringify({ productDataWithQuantity }),
       address: JSON.stringify(address),
       brandIds: JSON.stringify(brandIds),
+      affiliation: JSON.stringify(affiliation),
+      sponsor: JSON.stringify(sponsor),
+      email,
+      name,
+      phone,
       invoice: true,
     },
+    payment_intent_data: {
+      metadata: {
+        generate_invoice: true, // Add this to track which payments need invoices
+      },
+    },
   });
+
+  // // Create invoice
+  // const invoice = await stripe.invoices.create({
+  //   customer_email: email,
+  //   customer_name: name,
+  //   collection_method: "send_invoice",
+  //   metadata: {
+  //     address: JSON.stringify(address),
+  //   },
+  // });
 
   res.status(200).json({
     success: true,
     checkoutUrl: session.url,
-    totalPrice,
+    totalPrice: totalPrice.toFixed(2),
   });
 });
 
 export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
   const { session_id } = req.body;
   const session = await stripe.checkout.sessions.retrieve(session_id);
-  console.log(session.metadata);
 
-  const { influencerId, products, address, brandIds } = session.metadata;
+  const {
+    influencerId,
+    products,
+    address,
+    brandIds,
+    affiliation,
+    sponsor,
+    email,
+    name,
+    phone,
+  } = session.metadata;
+
   const influencer = await User.findById(influencerId);
-
   const productsData = JSON.parse(products);
   const addressData = JSON.parse(address);
   const brandIdsData = JSON.parse(brandIds);
+  const affiliationUpdate = await updateAffiliation(
+    influencerId,
+    productsData.productDataWithQuantity.map((p) => p._id),
+  );
+  // let buyer =
+  //   (await User.findOne({ email })) || (await Guest.findOne({ email }));
+  // if (!buyer) {
+  //   buyer = new Guest({
+  //     name,
+  //     email,
+  //     phone,
+  //     address: addressData,
+  //   });
+  //   await buyer.save();
+  // }
+  const influencerCommusion = productsData.productDataWithQuantity.reduce(
+    (sum, p) => {
+      const product = productsData.productDataWithQuantity.find(
+        (prod) => prod._id.toString() === p._id.toString(),
+      );
+      // const commission = await Commision.find({
+      //   productId: p._id,
+      //   "recepient.userId": influencerId,
+      // });
+      // console.log(commission);
+      return (
+        sum +
+        (Number(product.quantity) *
+          Number(product.pricing) *
+          Number(product.commissionPercentage)) /
+          100
+      );
+    },
+    0,
+  );
+  const brandMetrics = {};
 
-  const transfer = await stripe.transfers.create({
-    amount: session.amount_total * 0.9,
+  await Promise.all(
+    productsData.productDataWithQuantity.map(async (p) => {
+      const product = await Product.findById(p._id);
+      const brand = await User.findById(product.brandId);
+      const amount =
+        product.pricing * p.quantity +
+        product.pricing * p.quantity * countryVat(addressData.country) +
+        p.shippingCharges -
+        (product.pricing * p.quantity * p.commissionPercentage) / 100;
+
+      if (brandMetrics[brand._id]) {
+        brandMetrics[brand._id].amount += amount;
+      } else {
+        brandMetrics[brand._id] = {
+          brandId: brand._id,
+          brandStripeAccountId: brand.stripeAccountId,
+          amount: amount,
+        };
+      }
+    }),
+  );
+
+  await Promise.all(
+    Object.values(brandMetrics).map(async (brand) => {
+      const transferToBrand = await stripe.transfers.create({
+        amount: brand.amount,
+        currency: "usd",
+        destination: brand.brandStripeAccountId,
+      });
+    }),
+  );
+  const transferToInfluencer = await stripe.transfers.create({
+    amount: influencerCommusion,
     currency: "usd",
     destination: influencer.stripeAccountId,
   });
-
-  console.log(transfer);
-
   res.status(200).json({
     success: true,
-    session,
+    affiliationUpdate,
   });
 });
+
+const updateAffiliation = async (influencerId, productIds) => {
+  const affiliationUpdateData = await Affiliation.find({
+    influencerId,
+    productId: { $in: productIds },
+  }).populate("productId");
+  const affiliationUpdates = affiliationUpdateData.map(async (aff) => {
+    aff.totalSaleQty += 1;
+    const diff =
+      Number(aff.productId.pricing) - Number(aff.productId.wholesalePricing);
+    aff.totalSaleRevenue += diff;
+    return aff.save();
+  });
+  await Promise.all(affiliationUpdates);
+  return affiliationUpdateData;
+};
+
+const createOrder = async ({
+  guestId = null,
+  productId,
+  totalAmount,
+  paymentId,
+  shippingAddress,
+  stripeAccountId,
+  brandStripeAccountId,
+}) => {
+  const newOrder = new Order({
+    guestId,
+    productId,
+    totalAmount,
+    paymentId,
+    status: "paid",
+    shippingStatus: "pending",
+    shippingAddress,
+    stripeAccountId,
+    brandStripeAccountId,
+  });
+
+  return await newOrder.save();
+};
