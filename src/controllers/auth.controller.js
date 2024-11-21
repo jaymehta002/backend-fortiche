@@ -205,23 +205,32 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
       req.body.refreshToken ||
       req.header("Authorization")?.replace("Bearer ", "");
 
+    console.log("Incoming Refresh Token:", incomingRefreshToken);
+
     if (!incomingRefreshToken) {
+      console.log("Error: Refresh token is required");
       throw ApiError(401, "Refresh token is required");
     }
+
     const decodedToken = verifyToken(
       incomingRefreshToken,
       process.env.ACCESS_TOKEN_SECRET,
     );
 
+    console.log("Decoded Token:", decodedToken);
+
     const user = await User.findById(decodedToken._id).select("+refreshToken");
 
     if (!user || incomingRefreshToken !== user.refreshToken) {
+      console.log("Error: Invalid refresh token");
       throw ApiError(401, "Invalid refresh token");
     }
 
     const tokens = generateTokens(user._id);
     user.refreshToken = tokens.refreshToken;
     await user.save({ validateModifiedOnly: true });
+
+    console.log("New Tokens Generated:", tokens);
 
     const response = createTokenResponse(tokens, user);
 
@@ -231,6 +240,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
       .cookie("refreshToken", tokens.refreshToken, refreshCookieOptions)
       .json(response);
   } catch (error) {
+    console.error("Error during token refresh:", error);
     res
       .clearCookie("accessToken", cookieOptions)
       .clearCookie("refreshToken", refreshCookieOptions);
