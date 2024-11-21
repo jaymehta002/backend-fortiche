@@ -208,10 +208,9 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
     if (!incomingRefreshToken) {
       throw ApiError(401, "Refresh token is required");
     }
-
     const decodedToken = verifyToken(
       incomingRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET,
+      process.env.ACCESS_TOKEN_SECRET,
     );
 
     const user = await User.findById(decodedToken._id).select("+refreshToken");
