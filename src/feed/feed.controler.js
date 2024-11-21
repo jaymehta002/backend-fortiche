@@ -98,10 +98,10 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
     // );
 
     const affiliations = await Affiliation.find({
-      isDeleted: { $exists: false },
+      $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }],
       influencerId: user._id,
     }).populate("productId");
-    console.log(affiliations);
+    console.log(affiliations, "dfeed");
     const { totalProducts, totalAffiliatedProducts, totalPosts } =
       await calculatePaginationTotals(user._id, affiliatedProductIds);
 
