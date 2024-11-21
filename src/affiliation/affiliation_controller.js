@@ -74,6 +74,7 @@ const getProductsAffiliatedByUser = asyncHandler(async (req, res, next) => {
     const userId = req.user._id;
     // Fetch affiliations and populate the product details
     const affiliations = await Affiliation.find({
+      $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }],
       influencerId: userId,
     })
       .populate("productId")
