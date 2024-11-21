@@ -399,6 +399,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     influencerId,
     productId: { $in: products.map((p) => p.productId) },
   });
+  if (!affiliation) throw ApiError(404, "Affiliation not found");
   const productData = await Product.find({
     _id: { $in: products.map((p) => p.productId) },
   }).select("brandId commissionPercentage pricing");

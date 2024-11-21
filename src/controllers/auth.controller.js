@@ -219,16 +219,15 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 
     console.log("Decoded Token:", decodedToken);
 
-    const user = await User.findById(decodedToken._id).select("+refreshToken");
-
-    if (!user || incomingRefreshToken !== user.refreshToken) {
+    if (incomingRefreshToken !== decodedToken.refreshToken) {
       console.log("Error: Invalid refresh token");
       throw ApiError(401, "Invalid refresh token");
     }
 
-    const tokens = generateTokens(user._id);
-    user.refreshToken = tokens.refreshToken;
-    await user.save({ validateModifiedOnly: true });
+    const tokens = generateTokens(decodedToken._id);
+    const user = await User.findByIdAndUpdate(decodedToken._id, {
+      refreshToken: tokens.refreshToken,
+    });
 
     console.log("New Tokens Generated:", tokens);
 

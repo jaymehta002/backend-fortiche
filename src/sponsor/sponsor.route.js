@@ -175,6 +175,7 @@ const handleSuccessPage = async (req, res) => {
 // Add new handler for sponsored product checkout
 const handleSponsoredProductCheckout = async (req, res) => {
   const { productId, shippingAddress, quantity, brandId } = req.body;
+  const { sponsorshipId, address,  } = req.body;
   const brandStripeAccountId =
     await User.findById(brandId).select("stripeAccountId");
   try {
@@ -193,7 +194,6 @@ const handleSponsoredProductCheckout = async (req, res) => {
         .json({ message: "Product or active sponsorship not found" });
     }
 
-    // Create Stripe checkout session
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
