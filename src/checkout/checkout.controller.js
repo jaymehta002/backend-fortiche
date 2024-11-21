@@ -412,6 +412,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     productId: { $in: products.map((p) => p.productId) },
     "recipients.userId": influencerId,
   });
+  console.log(commission);
 
   // let userCommisi
 
@@ -430,84 +431,63 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     );
   }, 0);
 
-  // const influencerCommision = commission.reduce((sum, comm) => {
-  //   return (
-  //     sum +
-  //     comm.recipients.find(
-  //       (r) => r.userId.toString() === influencerId.toString(),
-  //     ).amount
-  //   );
-  // }, 0);
-
-  // Generate transfer group ID first
-  // const transferGroupId = `order_${Date.now()}`;
-
-  // const session = await stripe.checkout.sessions.create({
-  //   payment_method_types: ["card"],
-  //   mode: "payment",
-  //   line_items: products.map((p) => {
-  //     const product = productData.find(
-  //       (prod) => prod._id.toString() === p.productId.toString(),
-  //     );
-  //     const shippingCharge = shipping.find(
-  //       (ship) => ship.brandId.toString() === product.brandId.toString(),
-  //     ).shippingCharges;
-  //     const vatAmount = product.pricing * countryVat(address.country);
-
-  //     return {
-  //       price_data: {
-  //         currency: "usd",
-  //         product_data: {
-  //           name: "Fortiche Product",
-  //           description: "Single item",
-  //         },
-  //         unit_amount: totalPrice * 100,
-  //       },
-  //       quantity: p.quantity,
-  //     };
-  //   }),
-  //   customer_email: email,
-  //   success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-  //   cancel_url: `${process.env.CLIENT_URL}/cancel`,
-  //   metadata: {
-  //     products: JSON.stringify(products),
-  //     influencerId,
-  //     address: JSON.stringify(address),
-  //     transfer_group: transferGroupId, // Store in metadata for later use
-  //   },
-  // });
-
-  // After session creation, create transfer instructions for each brand
-  // const transferPromises = products.map(async (p) => {
-  //   const product = productData.find(
-  //     (prod) => prod._id.toString() === p.productId.toString(),
-  //   );
-  //   const brand = await User.findById(product.brandId);
-
-  //   if (!brand?.stripeAccountId) {
-  //     throw new ApiError(
-  //       400,
-  //       `Brand ${product.brandId} doesn't have a connected Stripe account`,
-  //     );
-  // }
-
-  // Calculate amount for this product (including quantity)
-  // const amount = Math.round(product.pricing * p.quantity * 100); // Convert to cents
-
-  // Create transfer for this brand using the pre-generated transfer group ID
-  // return stripe.transfers.create({
-  //   amount: amount,
-  //   currency: "usd",
-  //   destination: brand.stripeAccountId,
-  //   transfer_group: transferGroupId,
-  // });
-  // });
-
-  // await Promise.all(transferPromises);
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    mode: "payment",
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: "Fortiche",
+            description: products.length + "items",
+          },
+          unit_amount: totalPrice * 100,
+        },
+        quantity: products.length,
+      },
+    ],
+    customer_email: email,
+    success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.CLIENT_URL}/cancel`,
+    metadata: {
+      influencerId,
+      products: JSON.stringify(products),
+      address: JSON.stringify(address),
+      brandIds: JSON.stringify(brandIds),
+      invoice: true,
+    },
+  });
 
   res.status(200).json({
     success: true,
-    // checkoutUrl: session.url,
+    checkoutUrl: session.url,
     totalPrice,
+  });
+});
+
+export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
+  const { session_id } = req.body;
+  const session = await stripe.checkout.sessions.retrieve(session_id);
+  console.log(session.metadata);
+
+  const { influencerId, products, address, brandIds } = session.metadata;
+  const influencer = await User.findById(influencerId);
+
+  const productsData = JSON.parse(products);
+  const addressData = JSON.parse(address);
+  const brandIdsData = JSON.parse(brandIds);
+
+  const transfer = await stripe.transfers.create({
+    amount: session.amount_total * 0.9,
+    currency: "usd",
+    destination: influencer.stripeAccountId,
+  });
+
+  console.log(transfer);
+
+  res.status(200).json({
+    success: true,
+    session,
   });
 });
