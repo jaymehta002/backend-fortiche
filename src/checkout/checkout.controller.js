@@ -592,19 +592,25 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     }),
   );
 
+  const balance = await stripe.balance.retrieve();
+  console.log(balance);
   await Promise.all(
     Object.values(brandMetrics).map(async (brand) => {
       const transferToBrand = await stripe.transfers.create({
-        amount: brand.amount,
+        amount: Math.round(Number(brand.amount) * 100),
         currency: "usd",
         destination: brand.brandStripeAccountId,
+        // source_transaction: session.payment_intent,
+        // transfer_group: session_id,
       });
     }),
   );
   const transferToInfluencer = await stripe.transfers.create({
-    amount: influencerCommusion,
+    amount: Math.round(Number(influencerCommusion) * 100),
     currency: "usd",
     destination: influencer.stripeAccountId,
+    // source_transaction: session.payment_intent,
+    // transfer_group: session_id,
   });
   res.status(200).json({
     success: true,

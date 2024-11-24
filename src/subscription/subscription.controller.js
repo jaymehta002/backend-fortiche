@@ -64,8 +64,7 @@ export const handleStripeWebhook = async (req, res) => {
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      // process.env.STRIPE_WEBHOOK_SECRET,
-      "whsec_YMlCChhgdT18UJSdkviTNbhfyJhJWRWj",
+      process.env.SUBSCRIPTION_STRIPE_WEBHOOK_SECRET,
     );
     // console.log(event);
   } catch (err) {

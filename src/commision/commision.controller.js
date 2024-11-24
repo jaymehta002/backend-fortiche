@@ -4,8 +4,9 @@ import { Product } from "../product/product.model.js";
 import { ApiError } from "../utils/APIError.js";
 
 export const createCommision = asyncHandler(async (req, res) => {
+  console.log("createCommision");
   const user = req.user;
-  const { productId, userId, amount } = req.body;
+  const { productId, recipients } = req.body;
 
   const product = await Product.findById(productId);
   if (!product) throw ApiError(404, "Product not found");
@@ -15,8 +16,12 @@ export const createCommision = asyncHandler(async (req, res) => {
       "You are not authorized to create commision for this product",
     );
   const commision = await Commision.create({
+    brandId: user._id,
     productId,
-    recipients: [{ userId, amount }],
+    recipients: recipients.map((recipient) => ({
+      userId: recipient.userId,
+      percentage: recipient.amount,
+    })),
   });
 
   res.status(201).json(commision);
@@ -81,4 +86,24 @@ export const deleteCommision = asyncHandler(async (req, res) => {
   await Commision.findByIdAndUpdate(commisionId, { isDeleted: true });
 
   res.status(200).json({ message: "Commission deleted successfully" });
+});
+
+export const getCommisions = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const commisions = await Commision.find({
+    brandId: user._id,
+    isDeleted: false,
+  })
+    .populate("productId", "title pricing")
+    .populate("recipients.userId", "fullName");
+  console.log(commisions);
+  res.status(200).json(commisions);
+});
+
+export const removeCommision = asyncHandler(async (req, res) => {
+  const { commisionId, userId } = req.params;
+  await Commision.findByIdAndUpdate(commisionId, {
+    $pull: { recipients: { userId } },
+  });
+  res.status(200).json({ message: "Commission removed successfully" });
 });

@@ -2,6 +2,11 @@ import { Schema, model } from "mongoose";
 
 const commisionSchema = new Schema(
   {
+    brandId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
