@@ -20,6 +20,6 @@ router.get("/product/:productId", getCommisionsByProduct);
 router.get("/user/:userId?", getCommisionsByUser);
 router.patch("/:commisionId", updateCommision);
 router.delete("/:commisionId", deleteCommision);
-router.get("/remove", removeCommision);
+router.post("/remove", removeCommision);
 
 export default router;

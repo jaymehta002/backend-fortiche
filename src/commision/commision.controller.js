@@ -28,10 +28,14 @@ export const createCommision = asyncHandler(async (req, res) => {
     commision = await Commision.findByIdAndUpdate(
       existingCommision._id,
       {
-        recipients: recipients.map((recipient) => ({
-          userId: recipient.userId,
-          percentage: recipient.amount,
-        })),
+        $addToSet: {
+          recipients: {
+            $each: recipients.map((recipient) => ({
+              userId: recipient.userId,
+              percentage: recipient.amount,
+            })),
+          },
+        },
       },
       { new: true },
     );
@@ -123,9 +127,14 @@ export const getCommisions = asyncHandler(async (req, res) => {
 });
 
 export const removeCommision = asyncHandler(async (req, res) => {
-  const { commisionId, userId } = req.params;
-  await Commision.findByIdAndUpdate(commisionId, {
-    $pull: { recipients: { userId } },
-  });
-  res.status(200).json({ message: "Commission removed successfully" });
+  try {
+    const { commissionId, userId } = req.body;
+
+    await Commision.findByIdAndUpdate(commissionId, {
+      $pull: { recipients: { userId } },
+    });
+    res.status(200).json({ message: "Commission removed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
