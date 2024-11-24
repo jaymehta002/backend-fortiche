@@ -52,11 +52,11 @@ export const getOrder = asyncHandler(async (req, res) => {
 
 export const getUserOrders = asyncHandler(async (req, res) => {
   const products = await Product.find({ brandId: req.user._id });
-  // Use findOrders instead of direct query
   const orders = await Order.find({
-    productId: { $in: products.map((product) => product._id) },
+    "orderItems.productId": { $in: products.map((product) => product._id) },
   })
-    .populate("productId")
+    .populate("orderItems.productId")
+    .populate("userId")
     .sort({ createdAt: -1 });
   console.log(orders);
   res
@@ -68,6 +68,7 @@ export const deleteOrder = asyncHandler(async (req, res) => {
   const order = await Order.findOne({
     _id: req.params.id,
     userId: req.user._id,
+    userModel: "User",
   });
 
   if (!order) {
@@ -78,15 +79,15 @@ export const deleteOrder = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Cannot delete non-pending order");
   }
 
-  // Update affiliation metrics (assuming Affiliation model exists)
+  // Update affiliation metrics
   await mongoose.model("Affiliation").updateMany(
     {
-      productId: { $in: order.items.map((item) => item.productId) },
-      influencerId: order.influencerId,
+      productId: { $in: order.orderItems.map((item) => item.productId) },
+      influencerId: order.userId,
     },
     {
       $inc: {
-        totalSaleQty: -order.items.reduce(
+        totalSaleQty: -order.orderItems.reduce(
           (sum, item) => sum + item.quantity,
           0,
         ),

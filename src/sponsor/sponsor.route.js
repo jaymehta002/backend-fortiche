@@ -6,6 +6,7 @@ import { Product } from "../product/product.model.js";
 import { User } from "../user/user.model.js";
 import { stripeClient } from "../lib/stripe.js";
 import Order from "../orders/order.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 // Initialize Stripe properly
 // const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -233,7 +234,7 @@ const handleSponsoredProductCheckout = async (req, res) => {
 };
 
 // Add new handler for order success
-const handleOrderSuccess = async (req, res) => {
+const handleOrderSuccess = asyncHandler(async (req, res) => {
   const { session_id } = req.query;
 
   try {
@@ -244,36 +245,47 @@ const handleOrderSuccess = async (req, res) => {
         session.metadata;
       const parsedAddress = JSON.parse(shippingAddress);
 
-      // Get sponsorship to access brand and influencer Stripe accounts
+      // Get sponsorship and product details
       const sponsorship = await Sponsorship.findById(sponsorshipId);
+      const product = await Product.findById(productId);
 
-      // Create order
+      // Create order with new schema
       const order = await Order.create({
-        productId,
+        orderItems: [
+          {
+            productId,
+            quantity: session.line_items[0].quantity,
+            price: product.price,
+            commission:
+              (product.price * sponsorship.commissionPercentage) / 100,
+          },
+        ],
+        userId: influencerId || session.customer,
+        userModel: influencerId ? "User" : "Guest",
         totalAmount: session.amount_total / 100,
         paymentId: session.payment_intent,
         status: "paid",
         shippingStatus: "pending",
         shippingAddress: parsedAddress,
-        influencerId: influencerId || null,
-        guestId: !influencerId ? session.customer : null,
-        stripeAccountId: sponsorship.influencerStripeAccountId,
-        brandStripeAccountId: sponsorship.brandStripeAccountId,
+        vatAmount: (session.amount_total / 100) * 0.2, // Assuming 20% VAT
+        shippingAmount: 0, // Add actual shipping amount if available
       });
 
       return res.status(200).json({ success: true, order });
     }
 
-    return res
-      .status(400)
-      .json({ success: false, message: "Payment not completed" });
+    return res.status(400).json({
+      success: false,
+      message: "Payment not completed",
+    });
   } catch (error) {
     console.error("Order creation error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Order creation failed" });
+    return res.status(500).json({
+      success: false,
+      message: "Order creation failed",
+    });
   }
-};
+});
 
 // Routes
 sponsorRouter.get("/terms/:influencerId", async (req, res) => {

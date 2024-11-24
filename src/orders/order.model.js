@@ -2,10 +2,41 @@ import mongoose from "mongoose";
 
 const OrderSchema = new mongoose.Schema(
   {
-    productId: {
+    influencerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
+      ref: "User",
+    },
+    orderItems: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+        price: {
+          type: Number,
+          required: true,
+        },
+        commission: {
+          type: Number,
+          required: true,
+        },
+      },
+    ],
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
+      refPath: "userModel",
+    },
+    userModel: {
+      type: String,
+      required: true,
+      enum: ["User", "Guest"],
     },
     totalAmount: {
       type: Number,
@@ -33,28 +64,14 @@ const OrderSchema = new mongoose.Schema(
       postalCode: { type: String, required: true },
       country: { type: String, required: true },
     },
-    influencerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Influencer",
-      required: function () {
-        return !this.guestId; // If guestId is not present, influencerId is required
-      },
+    vatAmount: {
+      type: Number,
+      required: true,
     },
-    guestId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Guest",
-      required: function () {
-        return !this.influencerId; // If influencerId is not present, guestId is required
-      },
+    shippingAmount: {
+      type: Number,
+      required: true,
     },
-    stripeAccountId: {
-      type: String,
-      required: true
-    },
-    brandStripeAccountId: {
-      type: String,
-      required: true
-    }
   },
   {
     timestamps: true,

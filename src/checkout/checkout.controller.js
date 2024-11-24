@@ -320,7 +320,7 @@ export const getRecentTransactions = asyncHandler(async (req, res) => {
   try {
     const user = req.user;
     if (!user?.stripeAccountId) {
-      throw new ApiError(400, "No Stripe account found for this user");
+      throw ApiError(400, "No Stripe account found for this user");
     }
 
     // Fetch balance transactions from Stripe
@@ -471,7 +471,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
           },
           unit_amount: Math.round(unitPrice * 100),
         },
-        quantity: p.quantity,
+        quantity: 1,
       };
     }),
     customer_email: email,
@@ -529,94 +529,127 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     phone,
   } = session.metadata;
 
-  const influencer = await User.findById(influencerId);
-  const productsData = JSON.parse(products);
+  // Check if order already exists
+  // const existingOrder = await Order.findOne({
+  //   paymentId: session.payment_intent,
+  // });
+  // if (existingOrder) {
+  //   throw ApiError(400, "Order already exists");
+  // }
+
   const addressData = JSON.parse(address);
-  const brandIdsData = JSON.parse(brandIds);
+  const productsData = JSON.parse(products).productDataWithQuantity;
+
+  let buyer =
+    (await User.findOne({ email })) || (await Guest.findOne({ email }));
+  if (!buyer) {
+    buyer = new Guest({
+      name,
+      email,
+      phone,
+      address: addressData,
+    });
+    await buyer.save();
+  }
+  console.log(buyer);
+
+  // Calculate order details
+  const orderItems = await Promise.all(
+    productsData.map(async (p) => {
+      const product = await Product.findById(p._id);
+      const commission = await Commision.findOne({
+        productId: p._id,
+        "recipients.userId": influencerId,
+      });
+      const commissionPercentage =
+        commission?.recipients.find(
+          (recipient) => recipient.userId.toString() === influencerId,
+        )?.percentage || product.commissionPercentage;
+
+      return {
+        productId: p._id,
+        quantity: p.quantity,
+        price: product.pricing,
+        commission: (product.pricing * commissionPercentage) / 100,
+      };
+    }),
+  );
+
+  // Create order
+  const order = new Order({
+    influencerId,
+    orderItems,
+    userId: buyer._id,
+    userModel: buyer instanceof Guest ? "Guest" : "User",
+    totalAmount: session.amount_total / 100,
+    paymentId: session.payment_intent,
+    status: "paid",
+    shippingStatus: "pending",
+    shippingAddress: addressData,
+    vatAmount: productsData.reduce(
+      (sum, p) =>
+        sum + p.quantity * p.pricing * countryVat(addressData.country),
+      0,
+    ),
+    shippingAmount: productsData.reduce((sum, p) => sum + p.shippingCharges, 0),
+  });
+
+  await order.save();
+
+  // Handle transfers to influencer and brands
+  // await handlePaymentTransfers(order, session.payment_intent);
+
+  // Update affiliations
   const affiliationUpdate = await updateAffiliation(
     influencerId,
-    productsData.productDataWithQuantity.map((p) => p._id),
-  );
-  // let buyer =
-  //   (await User.findOne({ email })) || (await Guest.findOne({ email }));
-  // if (!buyer) {
-  //   buyer = new Guest({
-  //     name,
-  //     email,
-  //     phone,
-  //     address: addressData,
-  //   });
-  //   await buyer.save();
-  // }
-  const influencerCommusion = productsData.productDataWithQuantity.reduce(
-    (sum, p) => {
-      const product = productsData.productDataWithQuantity.find(
-        (prod) => prod._id.toString() === p._id.toString(),
-      );
-      // const commission = await Commision.find({
-      //   productId: p._id,
-      //   "recepient.userId": influencerId,
-      // });
-      // console.log(commission);
-      return (
-        sum +
-        (Number(product.quantity) *
-          Number(product.pricing) *
-          Number(product.commissionPercentage)) /
-          100
-      );
-    },
-    0,
-  );
-  const brandMetrics = {};
-
-  await Promise.all(
-    productsData.productDataWithQuantity.map(async (p) => {
-      const product = await Product.findById(p._id);
-      const brand = await User.findById(product.brandId);
-      const amount =
-        product.pricing * p.quantity +
-        product.pricing * p.quantity * countryVat(addressData.country) +
-        p.shippingCharges -
-        (product.pricing * p.quantity * p.commissionPercentage) / 100;
-
-      if (brandMetrics[brand._id]) {
-        brandMetrics[brand._id].amount += amount;
-      } else {
-        brandMetrics[brand._id] = {
-          brandId: brand._id,
-          brandStripeAccountId: brand.stripeAccountId,
-          amount: amount,
-        };
-      }
-    }),
+    productsData.map((p) => p._id),
   );
 
-  const balance = await stripe.balance.retrieve();
-  console.log(balance);
-  await Promise.all(
-    Object.values(brandMetrics).map(async (brand) => {
-      const transferToBrand = await stripe.transfers.create({
-        amount: Math.round(Number(brand.amount) * 100),
-        currency: "usd",
-        destination: brand.brandStripeAccountId,
-        // source_transaction: session.payment_intent,
-        // transfer_group: session_id,
-      });
-    }),
-  );
-  const transferToInfluencer = await stripe.transfers.create({
-    amount: Math.round(Number(influencerCommusion) * 100),
-    currency: "usd",
-    destination: influencer.stripeAccountId,
-    // source_transaction: session.payment_intent,
-    // transfer_group: session_id,
-  });
+  await stripe.checkout.sessions.expire(session_id);
+
   res.status(200).json({
     success: true,
+    order,
     affiliationUpdate,
   });
 });
+
+// Helper function to handle payment transfers
+const handlePaymentTransfers = async (order, paymentIntentId) => {
+  const brandTransfers = {};
+  let influencerAmount = 0;
+
+  // Calculate amounts for each party
+  order.orderItems.forEach((item) => {
+    const brandAmount = item.price * item.quantity - item.commission;
+    if (brandTransfers[item.brandId]) {
+      brandTransfers[item.brandId] += brandAmount;
+    } else {
+      brandTransfers[item.brandId] = brandAmount;
+    }
+    influencerAmount += item.commission;
+  });
+
+  // Process transfers
+  await Promise.all([
+    // Transfer to brands
+    ...Object.entries(brandTransfers).map(([brandId, amount]) =>
+      stripe.transfers.create({
+        amount: Math.round(amount * 100),
+        currency: "usd",
+        destination: brandId,
+        // source_transaction: paymentIntentId,
+      }),
+    ),
+    // Transfer to influencer
+    stripe.transfers.create({
+      amount: Math.round(influencerAmount * 100),
+      currency: "usd",
+      destination: order.userId,
+      // source_transaction: paymentIntentId,
+    }),
+  ]);
+};
 
 const updateAffiliation = async (influencerId, productIds) => {
   const affiliationUpdateData = await Affiliation.find({

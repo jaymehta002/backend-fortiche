@@ -51,6 +51,7 @@ export const getEarnings = asyncHandler(async (req, res, next) => {
     const totalClicks = affiliations.reduce((total, aff) => {
       return total + (Number(aff.clicks) || 0);
     }, 0);
+    console.log(totalSale, totalSaleQty, totalClicks);
     return res.json({ totalSale, totalSaleQty, totalClicks });
   } catch (error) {
     next(error);
@@ -61,10 +62,16 @@ export const getPurchases = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
     if (!user) throw ApiError(404, "Unauthorized request");
-    const orders = await Order.find({ influencerId: user._id });
+
+    const orders = await Order.find({
+      userId: user._id,
+      userModel: "User",
+    });
+
     const totalPurchases = orders.reduce((total, order) => {
       return total + order.totalAmount;
     }, 0);
+
     return res.json({ totalPurchases });
   } catch (error) {
     next(error);
@@ -94,7 +101,10 @@ export const getAllMetrics = asyncHandler(async (req, res, next) => {
 
     // Fetch affiliations and orders
     const affiliations = await Affiliation.find({ influencerId: user._id });
-    const orders = await Order.find({ influencerId: user._id });
+    const orders = await Order.find({
+      userId: user._id,
+      userModel: "User",
+    });
 
     // Calculate metrics
     const totalSale = affiliations.reduce(
@@ -117,7 +127,13 @@ export const getAllMetrics = asyncHandler(async (req, res, next) => {
       (total, aff) => total + (Number(aff.pageView) || 0),
       0,
     );
-
+    console.log(
+      totalSale,
+      totalSaleQty,
+      totalClicks,
+      totalPurchases,
+      totalPageViews,
+    );
     return res.json({
       totalSale,
       totalSaleQty,
