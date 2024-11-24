@@ -15,14 +15,36 @@ export const createCommision = asyncHandler(async (req, res) => {
       403,
       "You are not authorized to create commision for this product",
     );
-  const commision = await Commision.create({
-    brandId: user._id,
+
+  // Check if commission already exists for this product
+  const existingCommision = await Commision.findOne({
     productId,
-    recipients: recipients.map((recipient) => ({
-      userId: recipient.userId,
-      percentage: recipient.amount,
-    })),
+    isDeleted: false,
   });
+
+  let commision;
+  if (existingCommision) {
+    // Update existing commission
+    commision = await Commision.findByIdAndUpdate(
+      existingCommision._id,
+      {
+        recipients: recipients.map((recipient) => ({
+          userId: recipient.userId,
+          percentage: recipient.amount,
+        })),
+      },
+      { new: true },
+    );
+  } else {
+    commision = await Commision.create({
+      brandId: user._id,
+      productId,
+      recipients: recipients.map((recipient) => ({
+        userId: recipient.userId,
+        percentage: recipient.amount,
+      })),
+    });
+  }
 
   res.status(201).json(commision);
 });
