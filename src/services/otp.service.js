@@ -1,6 +1,6 @@
 import { ApiError } from "../utils/APIError.js";
 import bcrypt from "bcrypt";
-import { sendEmail } from "./mail.service.js";
+import { sendOTPEmail } from "../mail/mailgun.service.js";
 
 const generateOTP = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
@@ -14,7 +14,7 @@ export const generateAndSendOTP = async (email) => {
   const otpToHash = `${otp}.${otpExpiration}`;
   const hashedOTP = await bcrypt.hash(otpToHash, 10);
 
-  await sendEmail(email, otp);
+  await sendOTPEmail(email, otp);
 
   return { hashedOTP, otpExpiration };
 };

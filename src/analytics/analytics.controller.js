@@ -145,3 +145,48 @@ export const getAllMetrics = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
+
+export const getMostViewedProducts = asyncHandler(async (req, res, next) => {
+  try {
+    console.log("test");
+    const user = req.user;
+    if (!user) throw ApiError(404, "Unauthorized request");
+    const affiliations = await Affiliation.find({ influencerId: user._id })
+      .select("productId pageView")
+      .populate("productId", "_id title imageUrls");
+    const mostViewedProducts = affiliations
+      .sort((a, b) => b.pageView - a.pageView)
+      .slice(0, 3);
+    return res.json({ mostViewedProducts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export const getDemographics = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) throw ApiError(404, "Unauthorized request");
+    const orders = await Order.find({
+      influencerId: user._id,
+    });
+    const demographics = orders
+      .map((order) => order.shippingAddress.country)
+      .reduce((acc, country) => {
+        acc[country] = (acc[country] || 0) + 1;
+        return acc;
+      }, {});
+
+    const totalOrders = orders.length;
+    const topDemographics = Object.entries(demographics)
+      .sort(([, countA], [, countB]) => countB - countA)
+      .slice(0, 3)
+      .map(([country, count]) => ({
+        country,
+        percentage: ((count / totalOrders) * 100).toFixed(2),
+      }));
+    return res.json({ topDemographics });
+  } catch (error) {
+    next(error);
+  }
+});

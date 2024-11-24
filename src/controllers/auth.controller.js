@@ -1,17 +1,17 @@
+import { compare } from "bcrypt";
+import passport from "passport";
+import { OTP } from "../models/otp.model.js";
+import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
+import { generateTokens, verifyToken } from "../services/token.service.js";
 import { User } from "../user/user.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { generateAndSendOTP, verifyOTP } from "../services/otp.service.js";
-import { generateTokens, verifyToken } from "../services/token.service.js";
-import { compare } from "bcrypt";
 import {
   cookieOptions,
-  refreshCookieOptions,
   createTokenResponse,
+  refreshCookieOptions,
 } from "../utils/config.js";
-import passport from "passport";
-import { sendEmail, sendResetPasswordMail } from "../services/mail.service.js";
-import { OTP } from "../models/otp.model.js";
+import { sendResetPasswordEmail } from "../mail/mailgun.service.js";
 
 export const googleLogin = passport.authenticate("google", {
   scope: ["profile", "email"],
@@ -250,10 +250,10 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 
 const forgotPassword = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
-
+  console.log(email);
   if (!email) {
     return next(ApiError(400, "Email is required"));
-  }
+  } 
 
   const user = await User.findOne({ email });
 
@@ -266,8 +266,8 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
   // const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
 
-  await sendResetPasswordMail(email, resetPasswordLink);
-
+  const bool = await sendResetPasswordEmail(email, resetPasswordLink);
+  console.log(bool);
   res.status(200).json({
     success: true,
     message: "Password reset link sent to email",
@@ -342,14 +342,14 @@ const changeAccountPassword = asyncHandler(async (req, res, next) => {
 });
 
 export {
-  registerUser,
-  verifyOTPAndRegister,
+  changeAccountPassword,
+  forgotPassword,
   loginUser,
   logoutUser,
+  onboarding,
   refreshAccessToken,
-  forgotPassword,
+  registerUser,
   resetPassword,
   validateToken,
-  onboarding,
-  changeAccountPassword,
+  verifyOTPAndRegister,
 };

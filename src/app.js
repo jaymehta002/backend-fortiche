@@ -15,7 +15,7 @@ import { globalErrorHandler } from "./middlewares/globalErrorHandler.js";
 import router from "./routes/index.js";
 import { setupSocketEvents } from "./socket.js";
 import MongoStore from "connect-mongo";
-
+import mg from "./mail/mail.client.js";
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -95,7 +95,7 @@ io.use(authenticateSocket);
 // Setup Socket.IO events
 setupSocketEvents(io);
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
   res.send("hello world");
 });
 
