@@ -31,7 +31,7 @@ const createShipping = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
-
+ 
 // Get All Shipping Rules for a User
 const getUserShipping = asyncHandler(async (req, res, next) => {
   try {

@@ -9,37 +9,37 @@ export const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendEmail = async (email, otp) => {
-  try {
-    const mailOptions = {
-      from: process.env.EMAIL_USERNAME,
-      to: email,
-      subject: "OTP for Verification",
-      text: `Your OTP for verification is ${otp}. It will expire in ${process.env.OTP_EXPIRY_MINUTES} minutes.`,
-    };
+// export const sendEmail = async (email, otp) => {
+//   try {
+//     const mailOptions = {
+//       from: process.env.EMAIL_USERNAME,
+//       to: email,
+//       subject: "OTP for Verification",
+//       text: `Your OTP for verification is ${otp}. It will expire in ${process.env.OTP_EXPIRY_MINUTES} minutes.`,
+//     };
 
-    await transporter.sendMail(mailOptions);
-  } catch (err) {
-    console.error(err);
-    throw ApiError(500, "Error sending OTP email");
-  }
-};
+//     await transporter.sendMail(mailOptions);
+//   } catch (err) {
+//     console.error(err);
+//     throw ApiError(500, "Error sending OTP email");
+//   }
+// };
 
-export const sendResetPasswordMail = async (email, resetToken) => {
-  try {
-    const mailOptions = {
-      from: process.env.EMAIL_USERNAME,
-      to: email,
-      subject: "Reset Password",
-      text: `Click on the link to reset your password: ${resetToken}`,
-    };
+// export const sendResetPasswordMail = async (email, resetToken) => {
+//   try {
+//     const mailOptions = {
+//       from: process.env.EMAIL_USERNAME,
+//       to: email,
+//       subject: "Reset Password",
+//       text: `Click on the link to reset your password: ${resetToken}`,
+//     };
 
-    await transporter.sendMail(mailOptions);
-  } catch (err) {
-    console.error(err);
-    throw ApiError(500, "Error sending reset password email");
-  }
-};
+//     await transporter.sendMail(mailOptions);
+//   } catch (err) {
+//     console.error(err);
+//     throw ApiError(500, "Error sending reset password email");
+//   }
+// };
 
 // New email option for product purchase
 export const sendProductPurchaseMail = async (email, productDetails) => {
@@ -59,18 +59,18 @@ export const sendProductPurchaseMail = async (email, productDetails) => {
 };
 
 // New email option for payment confirmation
-export const sendPaymentConfirmationMail = async (email, paymentId, amount) => {
-  try {
-    const mailOptions = {
-      from: process.env.EMAIL_USERNAME,
-      to: email,
-      subject: "Payment Confirmation",
-      text: `Your payment has been confirmed!\n\nPayment ID: ${paymentId}\nAmount: $${amount}`,
-    };
+// export const sendPaymentConfirmationMail = async (email, paymentId, amount) => {
+//   try {
+//     const mailOptions = {
+//       from: process.env.EMAIL_USERNAME,
+//       to: email,
+//       subject: "Payment Confirmation",
+//       text: `Your payment has been confirmed!\n\nPayment ID: ${paymentId}\nAmount: $${amount}`,
+//     };
 
-    await transporter.sendMail(mailOptions);
-  } catch (err) {
-    console.error(err);
-    throw ApiError(500, "Error sending payment confirmation email");
-  }
-};
+//     await transporter.sendMail(mailOptions);
+//   } catch (err) {
+//     console.error(err);
+//     throw ApiError(500, "Error sending payment confirmation email");
+//   }
+// };

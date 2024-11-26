@@ -59,7 +59,7 @@ const createAffiliationController = asyncHandler(async (req, res, next) => {
       productId,
       influencerId,
     });
-
+    
     return res
       .status(200)
       .json(

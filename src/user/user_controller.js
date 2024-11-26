@@ -14,6 +14,7 @@ import { Affiliation } from "../affiliation/affiliation_model.js";
 import { Product } from "../product/product.model.js";
 import { User } from "./user.model.js";
 import stripe from "stripe";
+import { sendCustomEmail } from "../mail/mailgun.service.js";
 
 const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -533,6 +534,18 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
       type: "account_onboarding",
     });
     console.log("account link created");
+
+    // Send Stripe connection email
+    await sendCustomEmail(
+      user.email,
+      "Stripe Account Connected",
+      `
+        <h2>Your Stripe Account Has Been Connected!</h2>
+        <p>You're now ready to receive payments through our platform.</p>
+        <p>Please complete the Stripe onboarding process to ensure smooth payouts.</p>
+      `,
+    );
+
     return res
       .status(200)
       .json(

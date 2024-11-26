@@ -4,6 +4,7 @@ import { ApiError } from "../utils/APIError.js";
 import { ApiResponse } from "../utils/APIResponse.js";
 import { User } from "./user.model.js";
 import { updateUserByUserId } from "../user/user_service.js";
+import { sendPaymentConfirmationEmail, sendCustomEmail } from "../mail/mailgun.service.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -75,6 +76,22 @@ const createSubscription = asyncHandler(async (req, res) => {
     },
     plan,
   });
+
+  // Send subscription confirmation email
+  await sendCustomEmail(
+    user.email,
+    "Subscription Confirmation",
+    `
+      <h2>Welcome to ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan!</h2>
+      <div class="highlight-box">
+        <h3>Subscription Details</h3>
+        <p><strong>Plan:</strong> ${plan}</p>
+        <p><strong>Start Date:</strong> ${startDate.toLocaleDateString()}</p>
+        <p><strong>Next Billing Date:</strong> ${endDate.toLocaleDateString()}</p>
+      </div>
+      <p>Thank you for subscribing! You now have access to all ${plan} features.</p>
+    `
+  );
 
   res.status(200).json(
     new ApiResponse(
@@ -157,6 +174,22 @@ const upgradeSubscription = asyncHandler(async (req, res) => {
     },
     plan: newPlan,
   });
+
+  // Send upgrade confirmation email
+  await sendCustomEmail(
+    user.email,
+    "Subscription Upgraded",
+    `
+      <h2>Your Subscription Has Been Upgraded!</h2>
+      <div class="highlight-box">
+        <h3>New Plan Details</h3>
+        <p><strong>Plan:</strong> ${newPlan}</p>
+        <p><strong>Effective:</strong> Immediately</p>
+      </div>
+      <p>Thank you for upgrading! You now have access to all ${newPlan} features.</p>
+      <p>Your next billing cycle will reflect the new plan rate.</p>
+    `
+  );
 
   res
     .status(200)
