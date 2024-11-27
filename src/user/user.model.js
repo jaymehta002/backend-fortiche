@@ -70,6 +70,12 @@ const feedSchema = new Schema({
 
 const userSchema = new Schema(
   {
+    wishlist: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],    
     username: {
       type: String,
       required: true,
@@ -94,6 +100,7 @@ const userSchema = new Schema(
       lowercase: true,
       trim: true,
     },
+   
     fullName: {
       type: String,
       required: true,
