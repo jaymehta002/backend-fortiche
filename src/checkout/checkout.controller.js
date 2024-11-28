@@ -523,9 +523,9 @@ export const getTaxes = asyncHandler(async (req, res, next) => {
 
 export const handleCheckout = asyncHandler(async (req, res, next) => {
  
-  const { influencerId, products, address, email, name } = req.body;
+  const { influencerId, products, address, email, name , phone} = req.body;
 
-  let phone=124346355;
+   
   // Validate influencer and products exist
   const influencer = await User.findById(influencerId);
   if (!influencer) {
