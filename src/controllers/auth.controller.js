@@ -84,7 +84,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
   if (existedUser) {
     return next(ApiError(409, "User with email or username already exists"));
   }
-
+  
   const { hashedOTP, otpExpiration } = await generateAndSendOTP(email);
 
   await OTP.create({
