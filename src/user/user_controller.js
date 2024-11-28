@@ -194,6 +194,9 @@ const getAllInfluencerController = asyncHandler(async (req, res, next) => {
     if (user.accountType !== accountType.BRAND) {
       throw ApiError(403, "user should be an brnad");
     }
+    const affiliations = await Affiliation.find({ brandId: user._id }).populate(
+      "influencerId",
+    );
 
     const allInfluencer = await fetchUsers({
       accountType: accountType.INFLUENCER,
@@ -204,7 +207,7 @@ const getAllInfluencerController = asyncHandler(async (req, res, next) => {
       .json(
         new ApiResponse(
           200,
-          allInfluencer,
+          { affiliations },
           "all influencers fetched successfully",
         ),
       );
