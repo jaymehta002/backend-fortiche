@@ -16,6 +16,8 @@ import {
   sendCustomEmail,
   sendProductPurchaseEmail,
 } from "../mail/mailgun.service.js";
+import { applyCoupon } from "../coupon/coupon.controller.js";
+import Coupon from "../coupon/coupon_model.js";
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -523,7 +525,7 @@ export const getTaxes = asyncHandler(async (req, res, next) => {
 
 export const handleCheckout = asyncHandler(async (req, res, next) => {
  
-  const { influencerId, products, address, email, name , phone} = req.body;
+  const { influencerId, products, address, email, name , phone, couponCode} = req.body;
 
    
   // Validate influencer and products exist
@@ -547,23 +549,6 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }],
   });
 
-  const sponser = await sponsorshipModel.find({
-    influencerId,
-    productId: { $in: productData.map((p) => p._id) },
-    endDate: { $gte: new Date() },
-    startDate: { $lte: new Date() },
-  });
-
-  if (sponser.length && sponser.length !== products.length) {
-    console.error(
-      "Invalid product affiliations:",
-      sponser.length,
-      products.length,
-    );
-    throw ApiError(400, "Invalid product Sponser");
-  }
-
-
   if (affiliations.length !== products.length) {
     console.error(
       "Invalid product affiliations:",
@@ -573,8 +558,46 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     throw ApiError(400, "Invalid product affiliations");
   }
 
+  const sponser = await sponsorshipModel.find({
+    influencerId,
+    productId: { $in: productData.map((p) => p._id) },
+    endDate: { $gte: new Date() },
+    startDate: { $lte: new Date() },
+  });
+
+  if (sponser.length && sponser.length !== products.length) {
+    console.error(
+      "Invalid sponsor ",
+      sponser.length,
+      products.length,
+    );
+    throw ApiError(400, "Invalid product Sponser");
+  }
+
+
   const brandSummaries = {};
   const orderItems = [];
+
+  let coupon;
+  if (couponCode) {
+    coupon = await  Coupon.findOne({
+      name: couponCode,
+      brandId: { $in: productData.map(p => p.brandId) },
+      isActive: true,
+    })
+
+    if (!coupon) {
+      throw new ApiError(404, "Coupon not found or inactive");
+    }
+
+    if (coupon.expiry && new Date() > coupon.expiry) {
+      throw new ApiError(400, "Coupon has expired");
+    }
+
+    if (coupon.usage >= coupon.usageLimit) {
+      throw new ApiError(400, "Coupon usage limit reached");
+    }
+  }
 
   for (const product of products) {
     const productInfo = productData.find(
@@ -602,6 +625,15 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     // Calculate item-specific totals
     const unitPrice = productInfo.pricing;
     const quantity = product.quantity;
+ 
+    if (coupon && coupon.brandId.toString() === brandId) {
+      if (coupon.discount.type === 'PERCENTAGE') {
+        unitPrice *= (1 - coupon.discount.amount / 100);
+      } else if (coupon.discount.type === 'AMOUNT') {
+        unitPrice = Math.max(0, unitPrice - coupon.discount.amount);
+      }
+    }
+
     const vatAmount = unitPrice * quantity * countryVat(address.country);
     const shippingAmount = await calculateShipping(brandId, address.country);
     const commission = (unitPrice * productInfo.commissionPercentage) / 100;
@@ -627,7 +659,12 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     brandSummaries[brandId].commission += commission * quantity;
     brandSummaries[brandId].totalAmount += totalAmount;
   }
-
+  if (coupon) {
+    const brandTotal = brandSummaries[coupon.brandId.toString()].subtotal;
+    if (coupon.activateCondition && coupon.activateCondition.minOrderValue && brandTotal < coupon.activateCondition.minOrderValue) {
+      throw new ApiError(400, `Minimum order value of ${coupon.activateCondition.minOrderValue} is required to apply this coupon`);
+    }
+  }
   // Generating stripe check out session
   const stripeLineItems = Object.values(brandSummaries).flatMap((brand) =>
     brand.items.map((productId) => {
@@ -663,8 +700,14 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       address: JSON.stringify(address),
     productData: JSON.stringify(productData),
       customerInfo: JSON.stringify({ email, name, phone }),
+      couponCode: coupon ? coupon.name : '',
     },
   });
+
+  if (coupon) {
+    coupon.usage += 1;
+    await coupon.save();
+  }
 
   // console.log("Product:", productData);
   const totalAmount = Object.values(brandSummaries).reduce(
@@ -695,6 +738,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       brandIds,
       affiliation,
       sponsor,
+      couponCode
     } = session.metadata;
 
     const customerData = JSON.parse(rawCustomerInfo);
@@ -764,6 +808,40 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       }),
     );
 
+    let coupon;
+    if(couponCode){
+      coupon=await Coupon.findOne({
+        name:couponCode,
+        brandId: { $in: productsData.map((p) => p.brandId) },
+        isActive: true,
+      })
+      if (!coupon) {
+        throw new ApiError(404, "Coupon not found or inactive");
+      }
+
+      if (coupon.expiry && new Date() > coupon.expiry) {
+        throw new ApiError(400, "Coupon has expired");
+      }
+      
+      if (coupon.usage >= coupon.usageLimit) {
+        throw new ApiError(400, "Coupon usage limit reached");
+      }
+
+      orderItems.forEach((item)=>{
+        if(item.brandId.toString()===coupon.brandId.toString()){
+          if(coupon.discount.type==="PERCENTAGE"){
+            item.unitPrice *= (1 - coupon.discount.amount / 100);
+          }else if(coupon.discount.type==="AMOUNT"){
+            item.unitPrice = Math.max(0, item.unitPrice - coupon.discount.amount);
+          }
+          item.totalAmount = item.unitPrice * item.quantity + item.shippingAmount + item.vatAmount;
+        }
+      })
+      coupon.usage += 1;
+      await coupon.save();
+    }
+
+    
     console.log("Order items:", orderItems);
    
     // Create the order with more comprehensive details
