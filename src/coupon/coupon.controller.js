@@ -162,11 +162,36 @@ const applyCoupon = asyncHandler(async (req, res, next) => {
     return next(ApiError(404, "Coupon not found or inactive"));
   }
 
+  if (coupon.expiry && new Date() > coupon.expiry) {
+    return next(ApiError(400, "Coupon has expired"));
+  }
+
+  if (coupon.usage >= coupon.usageLimit) {
+    return next(ApiError(400, "Coupon usage limit reached"));
+  }
+
+  const conditions = coupon.activateCondition || {};
+  if (conditions.minOrderValue && orderValue < conditions.minOrderValue) {
+    return next(
+      ApiError(
+        400,
+        `Minimum order value of ${conditions.minOrderValue} is required to apply this coupon`
+      )
+    );
+  }
+
+  const sanitizedCoupon = {
+    name: coupon.name,
+    discount: coupon.discount,
+    cumulative: coupon.cumulative,
+    applyTo: coupon.applyTo,
+    expiry: coupon.expiry,
+  };
   // Additional logic for validating usage limits, expiry, and activation conditions can be added here
 
   return res
     .status(200)
-    .json(new ApiResponse(200, coupon, "Coupon applied successfully"));
+    .json(new ApiResponse(200, sanitizedCoupon, "Coupon applied successfully"));
 });
 
 export {
