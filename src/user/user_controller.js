@@ -196,10 +196,10 @@ const getAllInfluencerController = asyncHandler(async (req, res, next) => {
     if (user.accountType !== accountType.BRAND) {
       throw ApiError(403, "User should be a brand");
     }
- 
+
     const affiliatedInfluencers = await Affiliation.find(
-      { isDeleted: false },  
-      { influencerId: 1 }   
+      { isDeleted: false },
+      { influencerId: 1 },
     ).distinct("influencerId");
 
     if (affiliatedInfluencers.length === 0) {
@@ -208,7 +208,6 @@ const getAllInfluencerController = asyncHandler(async (req, res, next) => {
         .json(new ApiResponse(200, [], "No affiliated influencers found"));
     }
 
-     
     const allInfluencerDetails = await fetchUsers({
       _id: { $in: affiliatedInfluencers },
       accountType: accountType.INFLUENCER,
@@ -220,14 +219,13 @@ const getAllInfluencerController = asyncHandler(async (req, res, next) => {
         new ApiResponse(
           200,
           allInfluencerDetails,
-          "Affiliated influencers fetched successfully"
-        )
+          "Affiliated influencers fetched successfully",
+        ),
       );
   } catch (err) {
     return next(err);
   }
 });
-
 
 const getBrandDetailsAndProductsController = asyncHandler(
   async (req, res, next) => {
