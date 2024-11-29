@@ -39,6 +39,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
       downloadableDetails,
       virtualDetails,
       tags,
+      
     } = req.body;
 
     if (!["physical", "virtual", "downloadable"].includes(productType)) {
@@ -81,7 +82,37 @@ const createProduct = asyncHandler(async (req, res, next) => {
           "Physical details are required for physical products",
         );
       }
-      productData.physicalDetails = physicalDetails;
+      const { weight, height, width, length, packageFormat, ean, sku } =
+      physicalDetails;
+
+      if (ean) {
+        const existingProductByEan = await Product.findOne({
+          "physicalDetails.ean": ean,
+        });
+        if (existingProductByEan) {
+          throw ApiError(409, "EAN must be unique");
+        }
+      }
+
+      if (sku) {
+        const existingProductBySku = await Product.findOne({
+          "physicalDetails.sku": sku,
+        });
+        if (existingProductBySku) {
+          throw ApiError(409, "SKU must be unique");
+        }
+      }
+      productData.physicalDetails = {
+        weight,
+        height,
+        width,
+        length,
+        packageFormat,
+        ...(ean && { ean }),
+        ...(sku && { sku }),
+      };
+
+
     } else if (productType === "downloadable") {
       if (!downloadableDetails || !downloadableDetails.fileUpload) {
         throw ApiError(
