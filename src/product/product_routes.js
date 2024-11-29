@@ -27,7 +27,11 @@ productRouter
   .get("/get-product-details/:id", getProductDetails)
   .get("/get-most-viewed-products", getMostViewedProductsController)
   .get("/search", searchProduct)
-  .post("/create-product", upload.array("imageUrls"), createProduct)
+  .post("/create-product",upload.fields([{
+    name:"imageUrls",maxCount:5
+  },{
+    name:"specificationPdf",maxCount:1
+  }]), createProduct)
   .delete("/delete-product/:id", deleteProduct)
   .patch("/update-product/:id", updateProduct)
   .get("/get-products-by-user", getProductsByUser)

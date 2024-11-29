@@ -82,6 +82,10 @@ const productSchema = new mongoose.Schema(
     imageUrls: {
       type: [String],
     },
+    specificationPdf: {
+      type: String, 
+      trim: true,
+    },
     brandId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

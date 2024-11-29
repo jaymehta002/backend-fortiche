@@ -12,6 +12,8 @@ import { Collection } from "../models/collection.model.js";
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
     console.log(req.user.accountType);
+    // console.log(req.files.imageUrls)
+    console.log(req.files.specificationPdf)
     if (req.user.accountType !== "brand") {
       throw ApiError(400, "Action restricted for Influencer accounts");
     }
@@ -47,15 +49,33 @@ const createProduct = asyncHandler(async (req, res, next) => {
     }
 
     let imageUrls = [];
-    if (req.files && req.files.length > 0) {
-      const imageUrlsLocal = req.files.map((file) => file.path);
+    if (req.files && req.files.imageUrls && req.files.imageUrls.length > 0) {
+      const imageUrlsLocal = req.files.imageUrls.map((file) => file.path);
+      console.log("image urls local", imageUrlsLocal);
       imageUrls = await Promise.all(
-        imageUrlsLocal.map(async (image) => {
-          const result = await uploadOnCloudinary(image);
-          return result.url;
-        }),
+          imageUrlsLocal.map(async (image) => {
+              const result = await uploadOnCloudinary(image);
+              return result.url;
+          }),
       );
-    }
+  }
+  
+  let specificationPdf = null;
+  if (req.files && req.files.specificationPdf && req.files.specificationPdf.length > 0) {
+      const pdfFile = req.files.specificationPdf[0]; 
+      if (pdfFile.mimetype !== "application/pdf") {
+          throw ApiError(400, "Invalid file type. Only PDF files are allowed");
+      }
+  
+      try {
+          console.log(pdfFile.path, "pdfFile.path");
+          const uploadedFile = await uploadOnCloudinary(pdfFile.path);
+          specificationPdf = uploadedFile.url;
+      } catch (error) {
+          throw ApiError(500, "Failed to upload specification PDF to Cloudinary");
+      }
+  }
+  
 
     const productData = {
       title,
@@ -67,6 +87,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
       productType,
       imageUrls,
       rating,
+      specificationPdf,
       isRecommended,
       tags,
       commissionPercentage,
@@ -130,6 +151,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
 
     const product = await Product.create(productData);
 
+    console.log(product, "product");
     return res
       .status(201)
       .json(new ApiResponse(201, product, "Product created successfully"));
