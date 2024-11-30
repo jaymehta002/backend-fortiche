@@ -17,7 +17,6 @@ const PLAN_TO_PRICE_MAPPING = {
 export const createCheckoutSession = async (req, res) => {
   try {
     const user = req.user;
-    // console.log(user._id.toString());
     if (!user) throw ApiError(404, "unauthorized request");
     const { plan } = req.body;
     if (!plan) throw ApiError(400, "Plan is required");
@@ -29,9 +28,8 @@ export const createCheckoutSession = async (req, res) => {
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
-      mode: "subscription",
+      mode: plan === "believer" ? "payment" : "subscription",
       customer_email: user.email,
-      // customer_email: customerEmail,
       line_items: [{ price: stripePriceId, quantity: 1 }],
       success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
@@ -39,9 +37,6 @@ export const createCheckoutSession = async (req, res) => {
       metadata: {
         customer_name: user.fullName,
         userId: user._id.toString(),
-        // customer_id: user._id.toString(),
-        // customer_address: JSON.stringify(customerAddress),
-        // description: description,
         plan: plan,
       },
     });

@@ -52,7 +52,6 @@ userRouter
   .get("/get-brand-details-and-products", getBrandDetailsAndProductsController)
   .patch("/update-social", updateSocialsController)
   .post("/update-feed-link", updateFeedLinkController)
-  // Subscription-related routes
   .post("/create-subscription", createSubscription)
   .post("/cancel-subscription", cancelSubscription)
   .post("/upgrade-subscription", upgradeSubscription)
