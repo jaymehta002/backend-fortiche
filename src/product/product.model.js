@@ -9,6 +9,8 @@ const physicalProductSchema = new mongoose.Schema(
     width: { type: Number, required: true },
     length: { type: Number, required: true },
     packageFormat: { type: String, required: true },
+    ean: { type: String,   unique: true },  
+    sku: { type: String,  unique: true },
   },
   { _id: false },
 );
@@ -79,6 +81,10 @@ const productSchema = new mongoose.Schema(
     },
     imageUrls: {
       type: [String],
+    },
+    specificationPdf: {
+      type: String, 
+      trim: true,
     },
     brandId: {
       type: mongoose.Schema.Types.ObjectId,

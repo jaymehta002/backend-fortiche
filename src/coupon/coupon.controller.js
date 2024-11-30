@@ -186,9 +186,12 @@ const applyCoupon = asyncHandler(async (req, res, next) => {
     cumulative: coupon.cumulative,
     applyTo: coupon.applyTo,
     expiry: coupon.expiry,
+    isActive:coupon.isActive,
+    usageLimit:coupon.usageLimit,
+    usage:coupon.usage
   };
   // Additional logic for validating usage limits, expiry, and activation conditions can be added here
-
+ console.log(sanitizedCoupon)
   return res
     .status(200)
     .json(new ApiResponse(200, sanitizedCoupon, "Coupon applied successfully"));
