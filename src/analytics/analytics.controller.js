@@ -1,5 +1,6 @@
 import { Affiliation } from "../affiliation/affiliation_model.js";
 import Order from "../orders/order.model.js";
+import { Product } from "../product/product.model.js";
 import Recommendation from "../recommendation/recommendation.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -187,6 +188,155 @@ export const getDemographics = asyncHandler(async (req, res, next) => {
       }));
     return res.json({ topDemographics });
   } catch (error) {
+    next(error);
+  }
+});
+
+export const getBrandAnalytics = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user || !user._id) throw ApiError(401, "Unauthorized request");
+
+    const orders = await Order.aggregate([
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      {
+        $unwind: "$product",
+      },
+      {
+        $match: {
+          "product.brandId": user._id,
+        },
+      },
+    ]);
+
+    const affiliations = await Affiliation.aggregate([
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      {
+        $unwind: "$product",
+      },
+      {
+        $match: {
+          "product.brandId": user._id,
+        },
+      },
+    ]);
+
+  
+    const totalSaleQty = affiliations.reduce((total, aff) => {
+      return total + (Number(aff.totalSaleQty) || 0);
+    }, 0);
+
+    const totalClicks = affiliations.reduce((total, aff) => {
+      return total + (Number(aff.clicks) || 0);
+    }, 0);
+
+    const totalPageViews = affiliations.reduce((total, aff) => {
+      return total + (Number(aff.pageView) || 0);
+    }, 0);
+
+    const uniqueInfluencers = new Set(
+      affiliations.map((aff) => aff.influencerId.toString()),
+    );
+
+    const mostViewedProducts = await Affiliation.aggregate([
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      {
+        $unwind: "$product",
+      },
+      {
+        $match: {
+          "product.brandId": user._id,
+        },
+      },
+      {
+        $sort: { pageView: -1 },
+      },
+      {
+        $limit: 3,
+      },
+      {
+        $project: {
+          productId: "$product._id",
+          title: "$product.title",
+          imageUrls: "$product.imageUrls",
+          pageView: 1,
+        },
+      },
+    ]);
+
+    return res.json({
+      totalOrders: orders.length,
+      totalSaleQty,
+      totalPageViews,
+      totalClicks,
+      totalInfluencers: uniqueInfluencers.size,
+      mostViewedProducts,
+    });
+  } catch (error) {
+    console.error("Error in getBrandAnalytics:", error);
+    next(error);
+  }
+});
+
+export const getBrandDemographics = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) throw ApiError(404, "Unauthorized request");
+
+   
+    const products = await Product.find({ brandId: req.user._id });
+ 
+    const orders = await Order.find({
+      "orderItems.productId": { $in: products.map((product) => product._id) },
+    })
+    .populate("orderItems.productId")
+    .populate("userId")
+    .sort({ createdAt: -1 });
+
+  
+    const demographics = orders
+      .map((order) => order.shippingAddress.country)
+      .reduce((acc, country) => {
+        acc[country] = (acc[country] || 0) + 1;  
+        return acc;
+      }, {});
+
+    
+    const totalOrders = orders.length;
+
+ 
+    const topDemographics = Object.entries(demographics)
+      .sort(([, countA], [, countB]) => countB - countA)
+      .slice(0, 3)
+      .map(([country, count]) => ({
+      country,
+      percentage: totalOrders > 0 ? ((count / totalOrders) * 100).toFixed(2) : 0,
+      }));
+
+    return res.json(topDemographics);
+  } catch (error) {
+    console.error("Error in getBrandDemographics:", error);
     next(error);
   }
 });

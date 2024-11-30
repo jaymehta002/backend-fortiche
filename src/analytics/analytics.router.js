@@ -7,13 +7,17 @@ import {
   getPageViews,
   getAllMetrics,
   getMostViewedProducts,
-  getDemographics
+  getDemographics,
+  getBrandAnalytics,
+  getBrandDemographics
 } from "./analytics.controller.js";
 
 const analyticsRouter = Router();
 analyticsRouter.use(auth);
 
 analyticsRouter.post("/recommendation", getRecommendationAnalytics);
+analyticsRouter.get("/brand",getBrandAnalytics)
+analyticsRouter.get("/brand-demographics",getBrandDemographics)
 analyticsRouter.get("/earnings", getEarnings);
 analyticsRouter.get("/purchases", getPurchases);
 analyticsRouter.get("/page-views", getPageViews);
