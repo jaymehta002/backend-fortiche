@@ -1,5 +1,7 @@
 import { Tipping } from "../models/tipping.model.js";
 import { auth } from "../middlewares/auth.middleware.js";
+import { Router } from "express";
+
 const tippingRouter = Router();
 
 const createTipping = async (req, res) => {
