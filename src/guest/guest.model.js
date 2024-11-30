@@ -37,13 +37,12 @@ const GuestSchema = new Schema(
       },
       state: {
         type: String,
-        required: true,
       },
       postalCode: {
         type: String,
         required: true,
         match: [
-          /^[0-9]{5}(?:-[0-9]{4})?$/,
+          /^[0-9]{6}$/,
           "Please provide a valid postal code",
         ],
       },

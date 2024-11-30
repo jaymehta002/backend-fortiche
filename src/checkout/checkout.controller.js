@@ -163,16 +163,40 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
       address,
       quantity = 1,
     } = req.body;
+
+    // Destructure and provide defaults for optional fields
+    const {
+      line1 = "N/A",
+      line2 = "N/A",
+      state = "N/A",
+      city,
+      postalCode,
+      country,
+    } = address;
+
+    // Validate required fields
+    if (!postalCode || typeof postalCode !== "string") {
+      throw new ApiError(400, "Validation error: Please provide a valid postal code.");
+    }
+    if (!country || typeof country !== "string") {
+      throw new ApiError(400, "Validation error: Please provide a valid country.");
+    }
+    if (!city || typeof city !== "string") {
+      throw new ApiError(400, "Validation error: Please provide a valid city.");
+    }
+
     const affiliation = await Affiliation.find({
       _id: { $in: affiliationIds },
     }).populate("productId");
+
     let totalPrice = 0;
-    if (!affiliation) throw ApiError(404, "Affiliation not found");
+    if (!affiliation || affiliation.length === 0) {
+      throw new ApiError(404, "Affiliation not found.");
+    }
+
     const products = affiliation.reduce((acc, aff) => {
       if (aff.productId) {
-        acc.push({
-          _id: aff.productId._id,
-        });
+        acc.push({ _id: aff.productId._id });
       }
       return acc;
     }, []);
@@ -183,19 +207,14 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
         Number(aff.productId.pricing) - Number(aff.productId.wholesalePricing);
       aff.totalSaleRevenue += diff;
       totalPrice += Number(aff.productId.pricing);
-
       return aff.save();
     });
     await Promise.all(updatePromises);
 
     const productsString = JSON.stringify(
-      products.map((p) => ({
-        _id: p._id,
-      })),
+      products.map((p) => ({ _id: p._id }))
     );
-    console.log(totalPrice);
-    // const product = await Product.findById(affiliation.productId);
-    console.log(affiliation[0].influencerId);
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -205,23 +224,23 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
             currency: "eur",
             product_data: {
               name: "Fortiche",
-              description: products.length + "items",
+              description: `${products.length} items`,
             },
             unit_amount: totalPrice * 100 * quantity,
           },
           quantity: quantity,
         },
       ],
-      customer_email: email, // Use guest's email
+      customer_email: email,
       success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       metadata: {
         products: productsString,
-        influencerId: affiliation[0].influencerId.toString(),
+        influencerId: affiliation[0]?.influencerId?.toString() || "N/A",
         name,
         email,
         phone,
-        address: JSON.stringify(address),
+        address: JSON.stringify({ line1, line2, city, state, postalCode, country }),
         quantity,
       },
       billing_address_collection: "required",
@@ -235,6 +254,7 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
+
 
 export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
   try {
@@ -250,6 +270,8 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
     // Extract metadata (including guest details)
     let { products, name, email, phone, address, influencerId } =
       session.metadata;
+  
+     
     products = JSON.parse(products);
     // Check if the guest already exists (if your system allows multiple orders for a guest)
     let guest = await Guest.findOne({ email });
@@ -625,12 +647,19 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
         unitPrice = Math.max(0, unitPrice - coupon.discount.amount);
       }
     }
-
+    
+    
     const vatAmount = unitPrice * quantity * countryVat(address.country);
     const shippingAmount = await calculateShipping(brandId, address.country);
-    const commission = (unitPrice * productInfo.commissionPercentage) / 100;
+    const commissionPercentage = productInfo.commissionPercentage || 0;
+    const commission = Number((unitPrice * (commissionPercentage )) / 100) || 0;
     const totalAmount = unitPrice * quantity + vatAmount + shippingAmount;
     console.log("Calculated totals for product:", totalAmount);
+
+    if (isNaN(commission)) {
+      console.error(`Invalid commission calculation for product ${productInfo._id}`);
+      throw new ApiError(400, `Invalid commission for product ${productInfo.title}`);
+    }
     // Add to orderItems
     orderItems.push({
       productId: productInfo._id,
@@ -648,7 +677,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     brandSummaries[brandId].subtotal += unitPrice * quantity;
     brandSummaries[brandId].vatAmount += vatAmount;
     brandSummaries[brandId].shippingAmount += shippingAmount;
-    brandSummaries[brandId].commission += commission * quantity;
+    brandSummaries[brandId].commission += isNaN(commission) ? 0 : commission * quantity;
     brandSummaries[brandId].totalAmount += totalAmount;
   }
   if (coupon) {
@@ -717,7 +746,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     checkoutUrl: session.url,
-    // totalAmount: totalAmount.toFixed(2),
+    totalAmount: totalAmount.toFixed(2),
   });
 });
 
@@ -947,6 +976,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
           "stripeAccountId",
         );
 
+        
         // Validate Stripe account ID
         if (!brand) {
           throw new Error(`Brand with ID ${item.brandId} not found.`);

@@ -5,6 +5,7 @@ import {
   getOrder,
   getUserOrders,
   deleteOrder,
+  updateUserOrders,
 } from "./order.controller.js";
 
 const orderRouter = Router();
@@ -15,7 +16,8 @@ orderRouter
   .post("/create-order", createOrder)
   .get("/get-order", getUserOrders)
   .get("/get-order/:id", getOrder)
-  .delete("/delete-order/:id", deleteOrder);
+  .delete("/delete-order/:id", deleteOrder)
+  .put("/update-order", updateUserOrders);
 
 export default orderRouter;
 
