@@ -613,6 +613,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     }
   }
 
+
   for (const product of products) {
     const productInfo = productData.find(
       (p) => p._id.toString() === product.productId,
@@ -637,7 +638,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     }
 
     // Calculate item-specific totals
-    const unitPrice = productInfo.pricing;
+    let unitPrice = productInfo.pricing;
     const quantity = product.quantity;
 
     if (coupon && coupon.brandId.toString() === brandId) {
@@ -647,6 +648,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
         unitPrice = Math.max(0, unitPrice - coupon.discount.amount);
       }
     }
+ 
     
     
     const vatAmount = unitPrice * quantity * countryVat(address.country);
