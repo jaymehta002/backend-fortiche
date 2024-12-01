@@ -14,7 +14,10 @@ import { Affiliation } from "../affiliation/affiliation_model.js";
 import { Product } from "../product/product.model.js";
 import { User } from "./user.model.js";
 import stripe from "stripe";
-import { sendCustomEmail } from "../mail/mailgun.service.js";
+import {
+  sendCustomEmail,
+  sendPageViewedEmail,
+} from "../mail/mailgun.service.js";
 
 const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -276,6 +279,7 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       coverImage: 1,
       additionalLinks: 1,
       accountType: 1,
+      email: 1,
     });
 
     const products = await Product.find({ brandId: influencer._id });
@@ -313,12 +317,18 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       influencerInfo: influencer,
       affiliations,
     };
+    console.log("Influencer page info", influencerPageInfo);
     // await increasePageViewCount(influencerId, 1);
 
     const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
     const lastVisitTime = req.cookies[lastVisitTimeCookieKey];
     if (!lastVisitTime) {
       await increasePageViewCount(influencerId, 1);
+      try {
+        await sendPageViewedEmail(influencer.email);
+      } catch (error) {
+        console.log(error, "error sending email");
+      }
       res.cookie(lastVisitTimeCookieKey, Date.now(), {
         httpOnly: true,
         secure: process.env.NODE_ENV === "PRODUCTION",

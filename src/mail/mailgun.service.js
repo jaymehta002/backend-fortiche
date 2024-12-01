@@ -216,10 +216,32 @@ const sendCustomEmail = async (to, subject, customContent) => {
   return response;
 };
 
+const sendPageViewedEmail=async (user)=>{
+const content=`<div class="header">
+      <h1>Page Viewed</h1>
+    </div>
+    <div class="content">
+      <p>Hi ${user.name || "User"},</p>
+      <p>Your page has been viewed!</p>
+      <p>Thanks for using our platform!</p>
+    </div>`
+
+  
+  const response = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+    from: `Support <noreply@${process.env.MAILGUN_DOMAIN}>`,
+    to,
+    subject:"Your Page Viewed by someone",
+    html: createEmailTemplate("Your Page Viewed by someone", content),
+  });
+  return response;
+
+}
+
 export {
   sendOTPEmail,
   sendResetPasswordEmail,
   sendProductPurchaseEmail,
   sendPaymentConfirmationEmail,
   sendCustomEmail,
+  sendPageViewedEmail,
 };
