@@ -92,28 +92,34 @@ const updateCoupon = asyncHandler(async (req, res, next) => {
     expiry,
     cumulative,
     activateCondition,
+    isActive,
   } = req.body;
 
-  const coupon = await Coupon.findOne({ _id: id, brandId: user._id });
-  if (!coupon) {
+  const updatedCoupon = await Coupon.findOneAndUpdate(
+    { _id: id, brandId: user._id },
+    {
+      $set: {
+        ...(name && { name }),
+        ...(usageLimit && { usageLimit }),
+        ...(applyTo && { applyTo }),
+        ...(discountType && { "discount.type": discountType }),
+        ...(discountAmount !== undefined && { "discount.amount": discountAmount }),
+        ...(expiry && { expiry }),
+        ...(cumulative !== undefined && { cumulative }),
+        ...(activateCondition !== undefined && { activateCondition: activateCondition || {} }),
+        ...(isActive !== undefined && { isActive })
+      }
+    },
+    { new: true }
+  );
+
+  if (!updatedCoupon) {
     return next(ApiError(404, "Coupon not found"));
   }
 
-  // Update only fields that are provided
-  if (name) coupon.name = name;
-  if (usageLimit) coupon.usageLimit = usageLimit;
-  if (applyTo) coupon.applyTo = applyTo;
-  if (discountType) coupon.discount.type = discountType;
-  if (discountAmount !== undefined) coupon.discount.amount = discountAmount;
-  if (expiry) coupon.expiry = expiry;
-  if (cumulative !== undefined) coupon.cumulative = cumulative; // Only update if cumulative is provided
-  if (activateCondition !== undefined)
-    coupon.activateCondition = activateCondition || {}; // Allow condition to be updated or default to empty object
-
-  await coupon.save();
   return res
     .status(200)
-    .json(new ApiResponse(200, coupon, "Coupon updated successfully"));
+    .json(new ApiResponse(200, updatedCoupon, "Coupon updated successfully"));
 });
 
 // Controller to delete a coupon (permanent deletion)
