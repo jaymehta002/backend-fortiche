@@ -197,24 +197,14 @@ export const getBrandAnalytics = asyncHandler(async (req, res, next) => {
     const user = req.user;
     if (!user || !user._id) throw ApiError(401, "Unauthorized request");
 
-    const orders = await Order.aggregate([
-      {
-        $lookup: {
-          from: "products",
-          localField: "productId",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
-      {
-        $unwind: "$product",
-      },
-      {
-        $match: {
-          "product.brandId": user._id,
-        },
-      },
-    ]);
+    const products = await Product.find({ brandId: user._id });
+    const orders = await Order.find({
+      "orderItems.productId": { $in: products.map((product) => product._id) },
+    })
+      .populate("orderItems.productId")
+      .populate("userId")
+      .sort({ createdAt: -1 });
+ 
 
     const affiliations = await Affiliation.aggregate([
       {
