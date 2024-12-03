@@ -176,13 +176,13 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
 
     // Validate required fields
     if (!postalCode || typeof postalCode !== "string") {
-      throw new ApiError(400, "Validation error: Please provide a valid postal code.");
+      throw  ApiError(400, "Validation error: Please provide a valid postal code.");
     }
     if (!country || typeof country !== "string") {
-      throw new ApiError(400, "Validation error: Please provide a valid country.");
+      throw  ApiError(400, "Validation error: Please provide a valid country.");
     }
     if (!city || typeof city !== "string") {
-      throw new ApiError(400, "Validation error: Please provide a valid city.");
+      throw  ApiError(400, "Validation error: Please provide a valid city.");
     }
 
     const affiliation = await Affiliation.find({
@@ -191,7 +191,7 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
 
     let totalPrice = 0;
     if (!affiliation || affiliation.length === 0) {
-      throw new ApiError(404, "Affiliation not found.");
+      throw ApiError(404, "Affiliation not found.");
     }
 
     const products = affiliation.reduce((acc, aff) => {
@@ -601,15 +601,15 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     });
 
     if (!coupon) {
-      throw new ApiError(404, "Coupon not found or inactive");
+      throw  ApiError(404, "Coupon not found or inactive");
     }
 
     if (coupon.expiry && new Date() > coupon.expiry) {
-      throw new ApiError(400, "Coupon has expired");
+      throw ApiError(400, "Coupon has expired");
     }
 
     if (coupon.usage >= coupon.usageLimit) {
-      throw new ApiError(400, "Coupon usage limit reached");
+      throw ApiError(400, "Coupon usage limit reached");
     }
   }
 
@@ -660,7 +660,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
 
     if (isNaN(commission)) {
       console.error(`Invalid commission calculation for product ${productInfo._id}`);
-      throw new ApiError(400, `Invalid commission for product ${productInfo.title}`);
+      throw ApiError(400, `Invalid commission for product ${productInfo.title}`);
     }
     // Add to orderItems
     orderItems.push({
@@ -689,7 +689,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       coupon.activateCondition.minOrderValue &&
       brandTotal < coupon.activateCondition.minOrderValue
     ) {
-      throw new ApiError(
+      throw ApiError(
         400,
         `Minimum order value of ${coupon.activateCondition.minOrderValue} is required to apply this coupon`,
       );
@@ -848,15 +848,15 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         isActive: true,
       });
       if (!coupon) {
-        throw new ApiError(404, "Coupon not found or inactive");
+        throw ApiError(404, "Coupon not found or inactive");
       }
 
       if (coupon.expiry && new Date() > coupon.expiry) {
-        throw new ApiError(400, "Coupon has expired");
+        throw  ApiError(400, "Coupon has expired");
       }
 
       if (coupon.usage >= coupon.usageLimit) {
-        throw new ApiError(400, "Coupon usage limit reached");
+        throw ApiError(400, "Coupon usage limit reached");
       }
 
       orderItems.forEach((item) => {
@@ -1128,7 +1128,7 @@ export const handleTipping = async (req, res) => {
   const influencer = await User.findById(influencerId);
 
   if (!influencer) {
-    throw new ApiError(404, "Influencer not found");
+    throw ApiError(404, "Influencer not found");
   }
 
   const stripeCheckout = await stripe.checkout.sessions.create({
@@ -1152,7 +1152,7 @@ export const handleTippingSuccess = async (req, res) => {
   const { influencerId, title, message } = session.metadata;
   const influencer = await User.findById(influencerId);
   if (!influencer) {
-    throw new ApiError(404, "Influencer not found");
+    throw ApiError(404, "Influencer not found");
   }
   await stripe.transfers.create({
     amount: session.amount_total,
