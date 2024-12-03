@@ -75,7 +75,7 @@ const userSchema = new Schema(
         type: Schema.Types.ObjectId,
         ref: "Product",
       },
-    ],    
+    ],
     username: {
       type: String,
       required: true,

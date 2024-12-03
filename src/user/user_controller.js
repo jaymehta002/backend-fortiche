@@ -583,6 +583,35 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
+ 
+const deleteAccountController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    
+    await User.findByIdAndDelete(user._id);
+ 
+    try {
+      await sendCustomEmail(
+        user.email,
+        "Account Deleted",
+        `
+          <h2>Your Account Has Been Deleted</h2>
+          <p>We're sorry to see you go. Your account and all associated data has been permanently deleted from our system.</p>
+        `,
+      );
+    } catch (error) {
+      console.log("Error sending deletion email:", error);
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Account permanently deleted"));
+  } catch (err) {
+    return next(err);
+  }
+});
+
 
 export {
   getUserDetailsController,
@@ -600,4 +629,5 @@ export {
   deleteLink,
   updateFeedLinkController,
   connectStripeController,
+ deleteAccountController,
 };

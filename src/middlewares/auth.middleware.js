@@ -74,6 +74,11 @@ export const auth = asyncHandler(async (req, _, next) => {
       throw ApiError(401, "Invalid Access Token");
     }
 
+    
+    if (user.isDeleted) {
+      throw ApiError(401, "Account has been deleted.");
+    }
+
     req.user = user;
     next();
   } catch (error) {
@@ -97,6 +102,10 @@ export const authenticateSocket = async (socket, next) => {
 
     if (!user) {
       return next(new Error("Authentication error: Invalid token"));
+    }
+
+    if (user.isDeleted) {
+      throw new ApiError(403, "Account has been deleted.");
     }
 
     socket.user = user;
