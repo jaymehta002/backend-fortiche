@@ -31,10 +31,7 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       throw ApiError(403, "Action restricted");
     }
     if (!user.stripeAccountId) {
-      throw ApiError(
-        400,
-        "No Stripe account found. Please connect your Stripe account first.",
-      );
+      throw ApiError(400, "No Stripe account found. Please connect your Stripe account first.");
     }
 
     const { productId } = req.body;
@@ -47,28 +44,30 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
 
     const brand = await User.findById(product.brandId);
     if (!brand || !brand.stripeAccountId) {
-      throw ApiError(
-        404,
-        "Brand not found or brand's Stripe account not connected",
-      );
+      throw ApiError(404, "Brand not found or brand's Stripe account not connected");
+    }
+
+    // Create line item with conditional description
+    const lineItem = {
+      price_data: {
+        currency: "eur",
+        product_data: {
+          name: product.title,
+        },
+        unit_amount: product.pricing * 100,
+      },
+      quantity: 1,
+    };
+
+    // Only add description if it exists
+    if (product.description) {
+      lineItem.price_data.product_data.description = product.description;
     }
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: product.title,
-              description: product.description,
-            },
-            unit_amount: product.pricing * 100,
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: [lineItem],
       customer_email: user.email,
       success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/dashboard`,
@@ -1123,28 +1122,78 @@ const calculateShipping = async (brandId, country) => {
   return Number(shipping?.shippingCharges) || 0;
 };
 
-export const handleTipping = async (req, res) => {
+export const handleTipping = asyncHandler(async (req, res) => {
   const { influencerId, amount, title, message } = req.body;
-  const influencer = await User.findById(influencerId);
+  
+  // Validate inputs
+  if (!amount || amount <= 0) {
+    throw ApiError(400, "Invalid amount");
+  }
 
+  const influencer = await User.findById(influencerId);
   if (!influencer) {
     throw ApiError(404, "Influencer not found");
   }
 
-  const stripeCheckout = await stripe.checkout.sessions.create({
-    amount,
-    currency: "usd",
-    success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.FRONTEND_URL}/checkout`,
+  if (!influencer.stripeAccountId) {
+    throw ApiError(400, "Influencer has no connected Stripe account");
+  }
+
+  // Calculate total amount including Stripe fee that sender will pay
+  // Stripe fee is 2.9% + $0.30
+  const stripeFeePercentage = 0.029;
+  const stripeFeeFixed = 0.30;
+  
+  // Calculate the total amount sender needs to pay to ensure influencer gets the desired amount
+  const desiredAmountInCents = Math.round(amount * 100); // The amount influencer should receive
+  const totalAmountInCents = Math.round(
+    (desiredAmountInCents + (stripeFeeFixed * 100)) / (1 - stripeFeePercentage)
+  );
+  
+  
+  // Create Stripe checkout session
+  const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
+    mode: "payment",
+    line_items: [{
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: title || "Tip for Creator",
+          description: message || `Tip amount: $${amount} (including processing fees)`
+        },
+        unit_amount: totalAmountInCents,
+      },
+      quantity: 1
+    }],
+    success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.CLIENT_URL}/checkout`,
     metadata: {
       influencerId,
       title,
       message,
+      type: "tip",
+      originalAmount: desiredAmountInCents,
+      totalAmount: totalAmountInCents,
     },
+    payment_intent_data: {
+      transfer_data: {
+        destination: influencer.stripeAccountId,
+        amount: desiredAmountInCents, 
+      },
+    }
   });
-  // await sendCustomEmail(influencer.email, title, message);
-};
+
+  res.status(200).json({
+    success: true,
+    checkoutUrl: session.url,
+    breakdown: {
+      tipAmount: amount,  
+      processingFee: (totalAmountInCents - desiredAmountInCents) / 100,  
+      totalCharge: totalAmountInCents / 100,  
+    }
+  });
+});
 
 export const handleTippingSuccess = async (req, res) => {
   const { session_id } = req.query;
