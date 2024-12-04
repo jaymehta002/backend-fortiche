@@ -13,7 +13,7 @@ const createTipping = async (req, res) => {
 
 const getTipping = async (req, res) => {
   const influencerId = req.body.influencerId;
-  const tipping = await Tipping.find({ influencerId });
+  const tipping = await Tipping.find({ influencerId });cc
   res.status(200).json(tipping);
 };
 
