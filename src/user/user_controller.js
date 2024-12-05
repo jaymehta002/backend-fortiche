@@ -126,7 +126,7 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
 
   try {
     const { id, host, url, isActive } = req.body;
-    const thumbnail = req.file ? req.file.path : req.body.thumbnail;
+    const thumbnail = req.file ? req.file?.path : req.body.thumbnail;
     let existingLinkIndex = -1;
     if (id) {
       existingLinkIndex = user.additionalLinks.findIndex(
