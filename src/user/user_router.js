@@ -17,6 +17,7 @@ import {
   connectStripeController,
  
   deleteAccountController,
+  updateSeo,
  
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
@@ -60,8 +61,8 @@ userRouter
   .post("/upgrade-subscription", upgradeSubscription)
   .post("/toggle-auto-renewal", toggleAutoRenewal)
   .post("/connect-stripe", connectStripeController)
-  .delete("/delete-account", deleteAccountController);
-
+  .delete("/delete-account", deleteAccountController)
+  .patch("/update-seo", updateSeo);
 publicUserRouter.get("/get-influencer-page", getInfluencerPageController);
 
 export { userRouter, publicUserRouter };

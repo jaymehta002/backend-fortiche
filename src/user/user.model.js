@@ -125,6 +125,16 @@ const userSchema = new Schema(
       type: String,
       select: false,
     },
+    seo: {
+      metaTitle: {
+        type: String,
+        default: ''
+      },
+      metaDescription: {
+        type: String,
+        default: ''
+      }
+    },
     socials: {
       twitter: {
         type: String,

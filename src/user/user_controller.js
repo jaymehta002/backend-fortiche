@@ -612,6 +612,36 @@ const deleteAccountController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const updateSeo = asyncHandler(async (req, res, next) => {
+  try {
+    const { metaTitle, metaDescription } = req.body;
+    const userId = req.user.id; 
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        seo: {
+          metaTitle,
+          metaDescription
+        }
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating SEO settings',
+      error: error.message
+    });
+  }
+});
+
+
 
 export {
   getUserDetailsController,
@@ -630,4 +660,5 @@ export {
   updateFeedLinkController,
   connectStripeController,
  deleteAccountController,
+ updateSeo,
 };
