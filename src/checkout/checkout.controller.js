@@ -31,7 +31,10 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       throw ApiError(403, "Action restricted");
     }
     if (!user.stripeAccountId) {
-      throw ApiError(400, "No Stripe account found. Please connect your Stripe account first.");
+      throw ApiError(
+        400,
+        "No Stripe account found. Please connect your Stripe account first.",
+      );
     }
 
     const { productId } = req.body;
@@ -44,7 +47,16 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
 
     const brand = await User.findById(product.brandId);
     if (!brand || !brand.stripeAccountId) {
-      throw ApiError(404, "Brand not found or brand's Stripe account not connected");
+      throw ApiError(
+        404,
+        "Brand not found or brand's Stripe account not connected",
+      );
+    }
+
+    // Verify brand's Stripe account capabilities
+    const brandAccount = await stripe.accounts.retrieve(brand.stripeAccountId);
+    if (!brandAccount.capabilities?.transfers === 'active') {
+      throw ApiError(400, "Brand's Stripe account is not properly set up for transfers. Please contact support.");
     }
 
     // Create line item with conditional description
@@ -54,7 +66,7 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
         product_data: {
           name: product.title,
         },
-        unit_amount: product.pricing * 100,
+        unit_amount: product.wholesalePricing * 100,
       },
       quantity: 1,
     };
@@ -63,7 +75,8 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
     if (product.description) {
       lineItem.price_data.product_data.description = product.description;
     }
-
+ 
+    const account = await stripe.accounts.retrieve(brand.stripeAccountId);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -74,7 +87,7 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       metadata: {
         productId: productId,
         userId: user._id.toString(),
-        address: user.address,
+        address: JSON.stringify(user.address),
         stripeAccountId: user.stripeAccountId,
         brandStripeAccountId: brand.stripeAccountId,
       },
@@ -102,38 +115,68 @@ export const handleSuccessPage = async (req, res) => {
     // Retrieve the session from Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id);
 
+    // Check for existing order first
     const existingOrder = await Order.findOne({
       paymentId: session.payment_intent,
     });
 
     if (existingOrder) {
-      return res.status(400).json({
-        success: false,
-        message: "This session has already been used for an order.",
+      // Instead of error, return success with existing order
+      return res.status(200).json({
+        success: true,
+        message: "Order already processed",
+        orderId: existingOrder._id,
       });
     }
-
+    console.log(session.payment_status , "session.payment_status"); 
     if (session.payment_status === "paid") {
       const { metadata } = session;
       const { productId, userId, address } = metadata;
 
-      // Find the product
-      const product = await Product.findById(productId);
+      // Find the product and user
+      const [product, user] = await Promise.all([
+        Product.findById(productId),
+        User.findById(userId),
+      ]);
+
       if (!product) {
         throw new Error("Product not found");
       }
 
-      // Create an order
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Parse address if it's a string
+      const shippingAddress =
+        typeof address === "string" ? JSON.parse(address) : address;
+
+         console.log(shippingAddress)
+      // Create an order with all required fieds
       const newOrder = new Order({
+        orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         influencerId: userId,
         productId: productId,
         totalAmount: product.pricing,
         paymentId: session.payment_intent,
         status: "paid",
         shippingStatus: "pending",
-        shippingAddress: address || defaultAddress,
+        shippingAddress: {
+          country: shippingAddress.country || "N/A",
+          postalCode: shippingAddress.postalCode || "N/A",
+          city: shippingAddress.city || "N/A",
+          line1: shippingAddress.line1 || "N/A",
+          line2: shippingAddress.line2 || "N/A",
+          state: shippingAddress.state || "N/A",
+        },
         stripeAccountId: metadata.stripeAccountId,
         brandStripeAccountId: metadata.brandStripeAccountId,
+        customerInfo: {
+          name: user.name || "N/A",
+          email: user.email || "N/A",
+        },
+        userId: userId,
+        userModel: "User", // Since this is for influencers, we know it's a User
       });
 
       await newOrder.save();
@@ -144,7 +187,7 @@ export const handleSuccessPage = async (req, res) => {
         orderId: newOrder._id,
       });
     } else {
-      throw new Error("Payment not successful");
+      throw ApiError(400,"Payment not successful");
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -175,13 +218,16 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
 
     // Validate required fields
     if (!postalCode || typeof postalCode !== "string") {
-      throw  ApiError(400, "Validation error: Please provide a valid postal code.");
+      throw ApiError(
+        400,
+        "Validation error: Please provide a valid postal code.",
+      );
     }
     if (!country || typeof country !== "string") {
-      throw  ApiError(400, "Validation error: Please provide a valid country.");
+      throw ApiError(400, "Validation error: Please provide a valid country.");
     }
     if (!city || typeof city !== "string") {
-      throw  ApiError(400, "Validation error: Please provide a valid city.");
+      throw ApiError(400, "Validation error: Please provide a valid city.");
     }
 
     const affiliation = await Affiliation.find({
@@ -211,7 +257,7 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
     await Promise.all(updatePromises);
 
     const productsString = JSON.stringify(
-      products.map((p) => ({ _id: p._id }))
+      products.map((p) => ({ _id: p._id })),
     );
 
     const session = await stripe.checkout.sessions.create({
@@ -239,7 +285,14 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
         name,
         email,
         phone,
-        address: JSON.stringify({ line1, line2, city, state, postalCode, country }),
+        address: JSON.stringify({
+          line1,
+          line2,
+          city,
+          state,
+          postalCode,
+          country,
+        }),
         quantity,
       },
       billing_address_collection: "required",
@@ -253,7 +306,6 @@ export const createGuestCheckout = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
-
 
 export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
   try {
@@ -269,8 +321,7 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
     // Extract metadata (including guest details)
     let { products, name, email, phone, address, influencerId } =
       session.metadata;
-  
-     
+
     products = JSON.parse(products);
     // Check if the guest already exists (if your system allows multiple orders for a guest)
     let guest = await Guest.findOne({ email });
@@ -600,7 +651,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     });
 
     if (!coupon) {
-      throw  ApiError(404, "Coupon not found or inactive");
+      throw ApiError(404, "Coupon not found or inactive");
     }
 
     if (coupon.expiry && new Date() > coupon.expiry) {
@@ -611,7 +662,6 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       throw ApiError(400, "Coupon usage limit reached");
     }
   }
-
 
   for (const product of products) {
     const productInfo = productData.find(
@@ -637,30 +687,39 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     }
 
     // Calculate item-specific totals
-    let unitPrice = productInfo.pricing;
-    const quantity = product.quantity;
+    let unitPrice = Number(productInfo.pricing);
+    const quantity = Number(product.quantity) || 1;
 
     if (coupon && coupon.brandId.toString() === brandId) {
       if (coupon.discount.type === "PERCENTAGE") {
-        unitPrice *= 1 - coupon.discount.amount / 100;
+        unitPrice *= 1 - Number(coupon.discount.amount) / 100;
       } else if (coupon.discount.type === "AMOUNT") {
-        unitPrice = Math.max(0, unitPrice - coupon.discount.amount);
+        unitPrice = Math.max(0, unitPrice - Number(coupon.discount.amount));
       }
     }
- 
-    
-    
-    const vatAmount = unitPrice * quantity * countryVat(address.country);
-    const shippingAmount = await calculateShipping(brandId, address.country);
-    const commissionPercentage = productInfo.commissionPercentage || 0;
-    const commission = Number((unitPrice * (commissionPercentage )) / 100) || 0;
-    const totalAmount = unitPrice * quantity + vatAmount + shippingAmount;
-    console.log("Calculated totals for product:", totalAmount);
 
-    if (isNaN(commission)) {
-      console.error(`Invalid commission calculation for product ${productInfo._id}`);
-      throw ApiError(400, `Invalid commission for product ${productInfo.title}`);
-    }
+    const vatRate = Number(countryVat(address.country)) || 0;
+    const vatAmount = Number(unitPrice * quantity * vatRate) || 0;
+    const shippingAmount =
+      Number(await calculateShipping(brandId, address.country)) || 0;
+    const commissionPercentage = Number(productInfo.commissionPercentage) || 0;
+    const commission = Number((unitPrice * commissionPercentage) / 100) || 0;
+
+    const subtotal = Number(unitPrice * quantity) || 0;
+    const totalAmount = Number(subtotal + vatAmount + shippingAmount) || 0;
+
+    console.log("Calculation details:", {
+      unitPrice,
+      quantity,
+      vatRate,
+      vatAmount,
+      shippingAmount,
+      commissionPercentage,
+      commission,
+      subtotal,
+      totalAmount,
+    });
+
     // Add to orderItems
     orderItems.push({
       productId: productInfo._id,
@@ -675,11 +734,21 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
 
     // Update brand summary
     brandSummaries[brandId].items.push(product.productId);
-    brandSummaries[brandId].subtotal += unitPrice * quantity;
-    brandSummaries[brandId].vatAmount += vatAmount;
-    brandSummaries[brandId].shippingAmount += shippingAmount;
-    brandSummaries[brandId].commission += isNaN(commission) ? 0 : commission * quantity;
-    brandSummaries[brandId].totalAmount += totalAmount;
+    brandSummaries[brandId].subtotal += isNaN(unitPrice * quantity)
+      ? 0
+      : Number(unitPrice * quantity) || 0;
+    brandSummaries[brandId].vatAmount += isNaN(vatAmount)
+      ? 0
+      : Number(vatAmount) || 0;
+    brandSummaries[brandId].shippingAmount += isNaN(shippingAmount)
+      ? 0
+      : Number(shippingAmount) || 0;
+    brandSummaries[brandId].commission += isNaN(commission)
+      ? 0
+      : Number(commission * quantity) || 0;
+    brandSummaries[brandId].totalAmount += isNaN(totalAmount)
+      ? 0
+      : Number(totalAmount) || 0;
   }
   if (coupon) {
     const brandTotal = brandSummaries[coupon.brandId.toString()].subtotal;
@@ -703,7 +772,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       console.log("Item found:", item);
       return {
         price_data: {
-          currency: "usd",
+          currency: "eur",
           product_data: {
             name: productData.find((p) => p._id.toString() === productId).title,
           },
@@ -754,10 +823,33 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
 export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
   const { session_id } = req.body;
   try {
-    // Retrieve Stripe session
+    // Add session status check and retrieve session
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    console.log("Retrieved session:", session);
+    
+    // Check if payment is not successful
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment not completed'
+      });
+    }
 
+    // Check for existing order with either payment intent or session ID
+    const existingOrder = await Order.findOne({
+      $or: [
+        { paymentId: session.payment_intent },
+        { 'metadata.sessionId': session_id }
+      ]
+    });
+
+    if (existingOrder) {
+      return res.status(200).json({
+        success: true,
+        message: 'Order already processed',
+        order: existingOrder,
+      });
+    }
+ 
     const {
       influencerId,
       productData,
@@ -775,17 +867,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     const influencer = await User.findById(influencerId);
     if (!influencer) throw ApiError(404, "Influencer not found");
     console.log("Influencer found:", influencer);
-
-    const existingOrder = await Order.findOne({
-      paymentId: session.payment_intent,
-    });
-    if (existingOrder) {
-      return res.status(200).json({
-        success: true,
-        message: "Session already processed",
-        orderId: existingOrder._id,
-      });
-    }
 
     const addressData = JSON.parse(address);
     const productsData = JSON.parse(productData);
@@ -833,8 +914,11 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           totalAmount: quantity * product.pricing, // Calculate total amount
           shippingAmount: p.shippingCharges || 0, // Ensure shipping amount
           vatAmount:
-            quantity * product.pricing * countryVat(addressData.country), // Calculate VAT
-          commission: (product.pricing * commissionPercentage) / 100,
+            Number(
+              quantity * product.pricing * countryVat(addressData.country),
+            ) || 0, // Calculate VAT
+          commission:
+            Number((product.pricing * commissionPercentage) / 100) || 0,
         };
       }),
     );
@@ -851,7 +935,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       }
 
       if (coupon.expiry && new Date() > coupon.expiry) {
-        throw  ApiError(400, "Coupon has expired");
+        throw ApiError(400, "Coupon has expired");
       }
 
       if (coupon.usage >= coupon.usageLimit) {
@@ -896,15 +980,20 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       status: "paid",
       shippingStatus: "pending",
       shippingAddress: addressData,
-      vatAmount: productsData.reduce(
-        (sum, p) =>
-          sum + p.quantity * p.pricing * countryVat(addressData.country),
+      vatAmount:
+        Number(
+          productsData.reduce(
+            (sum, p) =>
+              sum + p.quantity * p.pricing * countryVat(addressData.country),
+            0,
+          ),
+        ) || 0,
+      shippingAmount:
+        Number(productsData.reduce((sum, p) => sum + p.shippingCharges, 0)) ||
         0,
-      ),
-      shippingAmount: productsData.reduce(
-        (sum, p) => sum + p.shippingCharges,
-        0,
-      ),
+      metadata: {
+        sessionId: session_id
+      }
     });
 
     await order.save();
@@ -918,12 +1007,11 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     );
 
     console.log("Payment transfers and affiliation updates completed");
-    await stripe.checkout.sessions.expire(session_id);
 
     const emailContent = `
       <div>
         <h1>Order Confirmation</h1>
-        <p>Dear ${name},</p>
+        <p>Dear ${customerData.name},</p>
         <p>Thank you for your order! Here are your order details:</p>
         <ul>
           ${orderItems
@@ -932,20 +1020,22 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
             <li>
               <strong>Product:</strong> ${item.name}<br>
               <strong>Quantity:</strong> ${item.quantity}<br>
-              <strong>Price:</strong> $${item.price}<br>
+              <strong>Price:</strong> $${item.totalAmount}<br>
+              <strong>VAT:</strong> $${item.vatAmount}<br>
+              <strong>Shipping:</strong> $${item.shippingAmount}<br>
             </li>
           `,
             )
             .join("")}
         </ul>
         <p><strong>Shipping Address:</strong></p>
-        <p>${addressData.street}, ${addressData.city}, ${addressData.state}, ${addressData.zip}</p>
+        <p>${addressData.line1 || ""}, ${addressData.line2 || ""}, ${addressData.city || ""}, ${addressData.state || ""}, ${addressData.postalCode || ""}</p>
         <p>We appreciate your business!</p>
       </div>
     `;
 
-    await sendCustomEmail(influencer.email, "Order Confirmation", emailContent);
-    console.log("Order confirmation email sent to:", influencer.email);
+    await sendCustomEmail(customerData.email, "Order Confirmation", emailContent);
+    console.log("Order confirmation email sent to:", customerData.email);
 
     res.status(200).json({
       success: true,
@@ -977,7 +1067,6 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
           "stripeAccountId",
         );
 
-        
         // Validate Stripe account ID
         if (!brand) {
           throw new Error(`Brand with ID ${item.brandId} not found.`);
@@ -1010,7 +1099,6 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
         influencerAmount += item.commission;
       } catch (error) {
         console.error(`Error processing brand ${item.brandId}:`, error);
-        // Optionally, you might want to log this error or handle it differently
       }
     }),
   );
@@ -1048,7 +1136,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
       return stripe.transfers
         .create({
           amount: amountInCents,
-          currency: "usd",
+          currency: "eur",
           destination: stripeAccountId,
           // source_transaction: paymentIntentId,
         })
@@ -1062,7 +1150,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
     stripe.transfers
       .create({
         amount: Math.max(0, Math.round(influencerAmount * 100)),
-        currency: "usd",
+        currency: "eur",
         destination: influencer.stripeAccountId,
         // source_transaction: paymentIntentId,
       })
@@ -1077,6 +1165,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
 
   console.log("Transfers completed", transferResults);
 };
+
 const updateAffiliation = async (influencerId, productIds) => {
   const affiliationUpdateData = await Affiliation.find({
     influencerId,
@@ -1124,7 +1213,7 @@ const calculateShipping = async (brandId, country) => {
 
 export const handleTipping = asyncHandler(async (req, res) => {
   const { influencerId, amount, title, message } = req.body;
-  
+
   // Validate inputs
   if (!amount || amount <= 0) {
     throw ApiError(400, "Invalid amount");
@@ -1142,30 +1231,32 @@ export const handleTipping = asyncHandler(async (req, res) => {
   // Calculate total amount including Stripe fee that sender will pay
   // Stripe fee is 2.9% + $0.30
   const stripeFeePercentage = 0.029;
-  const stripeFeeFixed = 0.30;
-  
+  const stripeFeeFixed = 0.3;
+
   // Calculate the total amount sender needs to pay to ensure influencer gets the desired amount
   const desiredAmountInCents = Math.round(amount * 100); // The amount influencer should receive
   const totalAmountInCents = Math.round(
-    (desiredAmountInCents + (stripeFeeFixed * 100)) / (1 - stripeFeePercentage)
+    (desiredAmountInCents + stripeFeeFixed * 100) / (1 - stripeFeePercentage),
   );
-  
-  
+
   // Create Stripe checkout session
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
-    line_items: [{
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: title || "Tip for Creator",
-          description: message || `Tip amount: $${amount} (including processing fees)`
+    line_items: [
+      {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: title || "Tip for Creator",
+            description:
+              message || `Tip amount: $${amount} (including processing fees)`,
+          },
+          unit_amount: totalAmountInCents,
         },
-        unit_amount: totalAmountInCents,
+        quantity: 1,
       },
-      quantity: 1
-    }],
+    ],
     success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.CLIENT_URL}/checkout`,
     metadata: {
@@ -1179,19 +1270,19 @@ export const handleTipping = asyncHandler(async (req, res) => {
     payment_intent_data: {
       transfer_data: {
         destination: influencer.stripeAccountId,
-        amount: desiredAmountInCents, 
+        amount: desiredAmountInCents,
       },
-    }
+    },
   });
 
   res.status(200).json({
     success: true,
     checkoutUrl: session.url,
     breakdown: {
-      tipAmount: amount,  
-      processingFee: (totalAmountInCents - desiredAmountInCents) / 100,  
-      totalCharge: totalAmountInCents / 100,  
-    }
+      tipAmount: amount,
+      processingFee: (totalAmountInCents - desiredAmountInCents) / 100,
+      totalCharge: totalAmountInCents / 100,
+    },
   });
 });
 
@@ -1205,7 +1296,7 @@ export const handleTippingSuccess = async (req, res) => {
   }
   await stripe.transfers.create({
     amount: session.amount_total,
-    currency: "usd",
+    currency: "eur",
     destination: influencer.stripeAccountId,
   });
   await sendCustomEmail(influencer.email, title, message);

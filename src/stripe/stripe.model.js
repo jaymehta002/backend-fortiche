@@ -233,6 +233,18 @@ export const handleWebhook = async (req, res) => {
     case "customer.subscription.deleted":
       await handleSubscriptionCancelled(event.data.object);
       break;
+    case "payment_intent.succeeded":
+      const paymentIntent = event.data.object;
+      
+      // Log successful payments
+      if (paymentIntent.metadata.type === 'brand_payment') {
+        console.log(`Successfully paid brand ${paymentIntent.metadata.brandId}`);
+        // You might want to update order status or send notifications here
+      } else if (paymentIntent.metadata.type === 'commission_payment') {
+        console.log(`Successfully paid influencer ${paymentIntent.metadata.influencerId}`);
+        // You might want to update commission status or send notifications here
+      }
+      break;
     // Add more cases as needed
   }
 

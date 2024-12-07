@@ -18,6 +18,7 @@ import {
   sendCustomEmail,
   sendPageViewedEmail,
 } from "../mail/mailgun.service.js";
+import Order from "../orders/order.model.js";
 
 const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -520,77 +521,130 @@ const updateFeedLinkController = asyncHandler(async (req, res, next) => {
 const connectStripeController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    if (!user) throw ApiError(404, "Unauthorized request");
-    if (user.stripeAccountId) {
-      // User already has a Stripe account, return the account link
-      const accountLink = await stripeClient.accountLinks.create({
-        account: user.stripeAccountId,
-        refresh_url: `${process.env.CLIENT_URL}/connect-stripe`,
-        return_url: `${process.env.CLIENT_URL}/connect-stripe`,
-        type: "account_onboarding",
-      });
+    if (!user) throw new ApiError(401, "Unauthorized request");
 
-      return res
-        .status(200)
-        .json(
+    console.log(`User initiating Stripe connect: ${user.email}`);
+
+    // Check if Stripe account already exists
+    if (user.stripeAccountId) {
+      const account = await stripeClient.accounts.retrieve(user.stripeAccountId);
+
+      // Handle incomplete onboarding
+      if (!account.details_submitted || account.requirements.currently_due.length > 0) {
+        const accountLink = await stripeClient.accountLinks.create({
+          account: user.stripeAccountId,
+          refresh_url: `${process.env.CLIENT_URL}/connect-stripe`,
+          return_url: `${process.env.CLIENT_URL}/connect-stripe`,
+          type: "account_onboarding",
+        });
+
+        return res.status(200).json(
           new ApiResponse(
             200,
-            accountLink,
-            "Stripe account connected successfully",
-          ),
+            {
+              accountLink: accountLink.url,
+              status: "pending",
+              requirements_due: account.requirements.currently_due,
+            },
+            "Stripe onboarding link generated. Please complete onboarding."
+          )
         );
+      }
+
+      // Ensure transfers capability is requested
+      if (account.capabilities.transfers !== 'active') {
+        await stripeClient.accounts.update(user.stripeAccountId, {
+          capabilities: { transfers: { requested: true } },
+        });
+        console.log(`Transfers capability requested for account: ${user.stripeAccountId}`);
+      }
+
+      // Onboarding and capabilities complete
+      return res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            status: "complete",
+            charges_enabled: account.charges_enabled,
+            payouts_enabled: account.payouts_enabled,
+            transfers_capability: account.capabilities.transfers,
+          },
+          "Stripe account connected and verified"
+        )
+      );
     }
-    console.log("start");
+
+    // Create new Stripe account
     const account = await stripeClient.accounts.create({
       type: "express",
       email: user.email,
       metadata: {
         userId: user._id.toString(),
       },
+      settings: {
+        payouts: {
+          schedule: {
+            interval: "manual",
+          },
+        },
+      },
     });
+
+    // Save Stripe account ID to user record
     user.stripeAccountId = account.id;
     await user.save();
-    console.log("account created");
+
+    // Create account onboarding link
     const accountLink = await stripeClient.accountLinks.create({
       account: account.id,
-      refresh_url: `https://${process.env.CLIENT_URL}/connect-stripe`,
-      return_url: `https://${process.env.CLIENT_URL}/connect-stripe`,
+      refresh_url: `${process.env.CLIENT_URL}/connect-stripe`,
+      return_url: `${process.env.CLIENT_URL}/connect-stripe`,
       type: "account_onboarding",
     });
-    console.log("account link created");
 
-    // Send Stripe connection email
-    await sendCustomEmail(
-      user.email,
-      "Stripe Account Connected",
-      `
-        <h2>Your Stripe Account Has Been Connected!</h2>
-        <p>You're now ready to receive payments through our platform.</p>
-        <p>Please complete the Stripe onboarding process to ensure smooth payouts.</p>
-      `,
-    );
-
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          accountLink,
-          "Stripe account connected successfully",
-        ),
+    // Send onboarding email
+    try {
+      await sendCustomEmail(
+        user.email,
+        "Stripe Account Connected",
+        `
+          <h2>Your Stripe Account Has Been Created!</h2>
+          <p>Please complete the onboarding process to enable payments:</p>
+          <p><a href="${accountLink.url}">Complete Onboarding</a></p>
+        `
       );
+    } catch (emailError) {
+      console.error("Failed to send Stripe onboarding email:", emailError);
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          accountLink: accountLink.url,
+          status: "pending",
+        },
+        "Stripe account created and onboarding link generated"
+      )
+    );
   } catch (error) {
+    console.error("Stripe error occurred:", error);
+
+    // Handle Stripe-specific errors
+    if (error.type === "StripeInvalidRequestError") {
+      return next(new ApiError(400, `Stripe Request Error: ${error.message}`));
+    }
+
     next(error);
   }
 });
- 
+
 const deleteAccountController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
 
-    
     await User.findByIdAndDelete(user._id);
- 
+
     try {
       await sendCustomEmail(
         user.email,
@@ -615,33 +669,126 @@ const deleteAccountController = asyncHandler(async (req, res, next) => {
 const updateSeo = asyncHandler(async (req, res, next) => {
   try {
     const { metaTitle, metaDescription } = req.body;
-    const userId = req.user.id; 
+    const userId = req.user.id;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
         seo: {
           metaTitle,
-          metaDescription
-        }
+          metaDescription,
+        },
       },
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json({
       success: true,
-      data: updatedUser
+      data: updatedUser,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error updating SEO settings',
-      error: error.message
+      message: "Error updating SEO settings",
+      error: error.message,
     });
   }
 });
 
+const updateInfluencerAddress = asyncHandler(async (req, res) => {
+  const { line1, line2, city, state, postalCode, country } = req.body;
+  const userId = req.user.id;
 
+  const user = await User.findById(userId);
+  if (!user) {
+    throw ApiError(404, "User not found");
+  }
+
+  if (user.accountType !== accountType.INFLUENCER) {
+    throw ApiError(403, "User is not an influencer");
+  }
+
+  const updatedAddress = await User.findByIdAndUpdate(
+    userId,
+    {
+      address: {
+        line1,
+        line2,
+        city,
+        state,
+        postalCode,
+        country
+      }
+    },
+    { new: true }
+  );
+
+  if (!updatedAddress) {
+    throw ApiError(500, "Error updating address");
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: updatedAddress
+  });
+});
+
+const updateBrandAddress=asyncHandler(async(req,res)=>{
+  const { line1,line2,city,state,postalCode,country }=req.body
+  const userId=req.user.id
+
+  const user = await User.findById(userId)
+  if(!user){
+    throw ApiError(404,"User not found")
+  }
+  if(user.accountType!==accountType.BRAND){
+    throw ApiError(403,"User is not a brand")
+  }
+  const updateAddress=await User.findByIdAndUpdate(
+    userId,
+    {
+      address:{
+        line1,
+        line2,
+        city,
+        state,
+        postalCode,
+        country
+      }
+    }
+  )
+  if(!updateAddress){
+    throw ApiError(500,"Error updating address")
+  }
+  return res.status(200).json({
+    success:true,
+    data:updateAddress
+  })
+})
+
+const getInfluencerOrdersController = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  
+  // Find orders where the influencer is the buyer
+  const orders = await Order.find({ buyerId: userId })
+    .populate('productId') // Optionally populate product details
+    .sort({ createdAt: -1 }); // Sort by newest first
+    
+  console.log(orders); 
+  
+  if (!orders || orders.length === 0) {
+    return res.status(200).json({
+      success: true,
+      data: [],
+      message: "No orders found"
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: orders
+  });
+});
 
 export {
   getUserDetailsController,
@@ -659,6 +806,9 @@ export {
   deleteLink,
   updateFeedLinkController,
   connectStripeController,
- deleteAccountController,
- updateSeo,
+  deleteAccountController,
+  updateSeo,
+  updateInfluencerAddress,
+  updateBrandAddress,
+  getInfluencerOrdersController,
 };

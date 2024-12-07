@@ -9,7 +9,8 @@ import {
   getMostViewedProducts,
   getDemographics,
   getBrandAnalytics,
-  getBrandDemographics
+  getBrandDemographics,
+  getInfluencerOrderAnalytics
 } from "./analytics.controller.js";
 
 const analyticsRouter = Router();
@@ -24,4 +25,5 @@ analyticsRouter.get("/page-views", getPageViews);
 analyticsRouter.get("/influencer", getAllMetrics);
 analyticsRouter.get("/most-viewed", getMostViewedProducts);
 analyticsRouter.get('/demographics', getDemographics);
+analyticsRouter.get('/influencer-affiliated-orders',getInfluencerOrderAnalytics) 
 export default analyticsRouter;

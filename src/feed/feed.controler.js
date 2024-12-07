@@ -111,6 +111,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
     const collections = await fetchCollectionsAndProducts(user._id);
 
     const payload = {
+      seo: user.seo,
       coverImage: user.coverImage,
       avatar: user.avatar,
       fullName: user.fullName,

@@ -58,7 +58,6 @@ export const getUserOrders = asyncHandler(async (req, res) => {
     .populate("orderItems.productId")
     .populate("userId")
     .sort({ createdAt: -1 });
-  console.log(orders);
   res
     .status(200)
     .json(new ApiResponse(200, orders, "User orders retrieved successfully"));
