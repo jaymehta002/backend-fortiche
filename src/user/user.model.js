@@ -125,6 +125,16 @@ const userSchema = new Schema(
       type: String,
       select: false,
     },
+    seo: {
+      metaTitle: {
+        type: String,
+        default: ''
+      },
+      metaDescription: {
+        type: String,
+        default: ''
+      }
+    },
     socials: {
       twitter: {
         type: String,
@@ -142,6 +152,32 @@ const userSchema = new Schema(
         type: String,
       },
       tiktok: {
+        type: String,
+      },
+    },
+    address: {
+      line1: {
+        type: String,
+       
+      },
+      line2: {
+        type: String,
+      },
+      city: {
+        type: String,
+   
+      },
+      state: {
+        type: String,
+      },
+      postalCode: {
+        type: String,
+        match: [
+          /^[0-9]{6}$/,
+          "Please provide a valid postal code",
+        ],
+      },
+      country: {
         type: String,
       },
     },

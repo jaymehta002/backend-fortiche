@@ -330,3 +330,118 @@ export const getBrandDemographics = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
+
+export const getInfluencerOrderAnalytics = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user || user.accountType !== "influencer") {
+      throw ApiError(403, "Unauthorized: Only influencers can access this endpoint");
+    }
+
+    // Get orders with product details
+    const orders = await Order.aggregate([
+      {
+        $match: { influencerId: user._id }
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "orderItems.productId",
+          foreignField: "_id",
+          as: "productDetails"
+        }
+      },
+      {
+        $project: {
+          orderNumber: 1,
+          createdAt: 1,
+          orderItems: {
+            $map: {
+              input: "$orderItems",
+              as: "item",
+              in: {
+                productId: "$$item.productId",
+                quantity: "$$item.quantity",
+                commission: "$$item.commission",
+                unitPrice: "$$item.unitPrice",
+                productName: {
+                  $let: {
+                    vars: {
+                      product: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: "$productDetails",
+                              cond: { $eq: ["$$this._id", "$$item.productId"] }
+                            }
+                          },
+                          0
+                        ]
+                      }
+                    },
+                    in: "$$product.title"
+                  }
+                }
+              }
+            }
+          },
+          totalAmount: 1,
+          status: 1
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+    // Calculate analytics
+    const analytics = {
+      totalOrders: orders.length,
+      totalProductsSold: 0,
+      totalCommission: 0,
+      productAnalytics: {}
+    };
+
+    // Process orders for analytics
+    orders.forEach(order => {
+      order.orderItems.forEach(item => {
+        analytics.totalProductsSold += item.quantity;
+        analytics.totalCommission += item.commission * item.quantity;
+
+        // Track per-product analytics
+        const productId = item.productId.toString();
+        if (!analytics.productAnalytics[productId]) {
+          analytics.productAnalytics[productId] = {
+            productName: item.productName,
+            quantitySold: 0,
+            totalCommission: 0,
+            orders: 0
+          };
+        }
+        
+        const productStats = analytics.productAnalytics[productId];
+        productStats.quantitySold += item.quantity;
+        productStats.totalCommission += item.commission * item.quantity;
+        productStats.orders += 1;
+      });
+    });
+
+    // Convert productAnalytics to array and sort by commission
+    analytics.productAnalytics = Object.values(analytics.productAnalytics)
+      .sort((a, b) => b.totalCommission - a.totalCommission);
+
+    return res.json({
+      success: true,
+      data: {
+        summary: {
+          totalOrders: analytics.totalOrders,
+          totalProductsSold: analytics.totalProductsSold,
+          totalCommission: Number(analytics.totalCommission.toFixed(2))
+        },
+        productPerformance: analytics.productAnalytics,
+        recentOrders: orders.slice(0, 50)
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});

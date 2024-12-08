@@ -17,7 +17,11 @@ import {
   connectStripeController,
  
   deleteAccountController,
- 
+  updateSeo,
+  updateInfluencerAddress,
+  updateBrandAddress,
+  getInfluencerOrdersController,
+  
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -60,8 +64,11 @@ userRouter
   .post("/upgrade-subscription", upgradeSubscription)
   .post("/toggle-auto-renewal", toggleAutoRenewal)
   .post("/connect-stripe", connectStripeController)
-  .delete("/delete-account", deleteAccountController);
-
+  .delete("/delete-account", deleteAccountController)
+  .patch("/update-seo", updateSeo)
+  .patch("/update-influencer-address",updateInfluencerAddress)
+  .patch("/update-brand-address",updateBrandAddress)
+  .get("/get-influencer-orders",getInfluencerOrdersController)
 publicUserRouter.get("/get-influencer-page", getInfluencerPageController);
 
 export { userRouter, publicUserRouter };

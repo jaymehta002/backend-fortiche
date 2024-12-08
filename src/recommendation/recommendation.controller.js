@@ -155,42 +155,73 @@ const fetchSingleRecommendation = asyncHandler(async (req, res, next) => {
 const updateRecommendation = asyncHandler(async (req, res, next) => {
   try {
     const recommendationId = req.params.id;
+    const userId = req.user._id; 
+
     if (!mongoose.Types.ObjectId.isValid(recommendationId)) {
       return next(new ApiError("Invalid recommendation ID", 400));
     }
+ 
+    const existingRecommendation =
+      await Recommendation.findById(recommendationId);
 
-    const { title, content, tags, products } = req.body;
-    let updateData = { title, content, tags, products };
-
-    if (req.file) {
-      // Handle file uploads
-      const uploadedThumbnail = await uploadOnCloudinary(req.file.path);
-      updateData.thumbnail = uploadedThumbnail;
-    } else if (req.body.thumbnail) {
-      updateData.thumbnail = req.body.thumbnail; // Handle URL as a string
+    if (!existingRecommendation) {
+      return next(new ApiError("Recommendation not found", 404));
     }
 
-    const recommendation = await Recommendation.findByIdAndUpdate(
+    
+    if (existingRecommendation.author.toString() !== userId.toString()) {
+      return next(
+        new ApiError("Unauthorized to edit this recommendation", 403),
+      );
+    }
+
+    const { title, content, tags, products } = req.body;
+
+    // Parse products if it's a string
+    let productIds = products;
+    if (typeof products === "string") {
+      productIds = JSON.parse(products);
+    }
+
+    // Validate that all product IDs exist
+    if (productIds?.length > 0) {
+      const validProducts = await Product.find({ _id: { $in: productIds } });
+      if (validProducts.length !== productIds.length) {
+        return next(new ApiError("One or more product IDs are invalid", 400));
+      }
+    }
+
+    let updateData = {
+      title,
+      content,
+      tags: typeof tags === "string" ? JSON.parse(tags) : tags,
+      products: productIds,
+    };
+
+    if (req.file) {
+      const uploadedThumbnail = await uploadOnCloudinary(req.file.path);
+      updateData.thumbnail = uploadedThumbnail.url;
+    } else if (req.body.thumbnail) {
+      updateData.thumbnail = req.body.thumbnail;
+    }
+
+    const updatedRecommendation = await Recommendation.findByIdAndUpdate(
       recommendationId,
       updateData,
       { new: true },
-    );
-
-    if (!recommendation) {
-      return next(new ApiError("Recommendation not found", 404));
-    }
+    ).populate("products");
 
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          recommendation,
+          updatedRecommendation,
           "Recommendation updated successfully",
         ),
       );
   } catch (error) {
-    next(error); // Handle error
+    next(error);
   }
 });
 
