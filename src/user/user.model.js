@@ -158,21 +158,20 @@ const userSchema = new Schema(
     address: {
       line1: {
         type: String,
-        required: true,
+       
       },
       line2: {
         type: String,
       },
       city: {
         type: String,
-        required: true,
+   
       },
       state: {
         type: String,
       },
       postalCode: {
         type: String,
-        required: true,
         match: [
           /^[0-9]{6}$/,
           "Please provide a valid postal code",
@@ -180,7 +179,6 @@ const userSchema = new Schema(
       },
       country: {
         type: String,
-        required: true,
       },
     },
     additionalLinks: {
