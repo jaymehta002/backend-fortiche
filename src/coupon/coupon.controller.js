@@ -6,9 +6,13 @@ import Coupon from "./coupon_model.js";
 // Controller to create a new coupon
 const createCoupon = asyncHandler(async (req, res, next) => {
   const user = req.user;
+  if (!user) {
+    return next(ApiError(401, "Authentication required"));
+  }
+
   if (user.accountType !== "brand") {
     return next(
-      ApiError(400, "You must be a brand account to create a coupon"),
+      ApiError(403, "You must be a brand account to create a coupon"),
     );
   }
 
@@ -23,34 +27,103 @@ const createCoupon = asyncHandler(async (req, res, next) => {
     activateCondition,
   } = req.body;
 
-  if (
-    !name ||
-    !usageLimit ||
-    !applyTo ||
-    !discountType ||
-    discountAmount === undefined
-  ) {
-    return next(ApiError(400, "All required fields must be provided"));
+  // Enhanced validation
+  if (!name?.trim()) {
+    return next(ApiError(400, "Coupon name is required"));
   }
 
-  const coupon = new Coupon({
-    name,
-    usageLimit,
-    applyTo,
-    discount: {
-      type: discountType,
-      amount: discountAmount,
-    },
-    expiry,
-    cumulative: cumulative !== undefined ? cumulative : false, // Set default to false if not provided
-    activateCondition: activateCondition || {}, // Default to an empty object if not provided
+  if (name.length > 100) {
+    return next(ApiError(400, "Coupon name cannot exceed 100 characters"));
+  }
+
+  if (!Number.isInteger(usageLimit) || usageLimit <= 0) {
+    return next(ApiError(400, "Usage limit must be a positive integer"));
+  }
+
+  if (
+    !Array.isArray(applyTo) ||
+    applyTo.length === 0 ||
+    !applyTo.every((value) =>
+      [
+        "SUBTOTAL",
+        "DELIVERY",
+        "SELECTED_PRODUCTS",
+        "BUY_X_GET_Y",
+        "PAYMENT_METHOD",
+      ].includes(value),
+    )
+  ) {
+    return next(ApiError(400, "Invalid or empty applyTo value(s)"));
+  }
+
+  if (!["PERCENTAGE", "AMOUNT"].includes(discountType?.toUpperCase())) {
+    return next(
+      ApiError(400, "Invalid discount type. Must be PERCENTAGE or AMOUNT"),
+    );
+  }
+
+  if (typeof discountAmount !== "number" || discountAmount < 0) {
+    return next(ApiError(400, "Discount amount must be a non-negative number"));
+  }
+
+  // Additional validation for percentage discount
+  if (discountType.toUpperCase() === "PERCENTAGE" && discountAmount > 100) {
+    return next(ApiError(400, "Percentage discount cannot exceed 100%"));
+  }
+
+  // Validate expiry date is required and must be in future
+  if (!expiry) {
+    return next(ApiError(400, "Expiry date is required"));
+  }
+
+  const expiryDate = new Date(expiry);
+  if (isNaN(expiryDate.getTime())) {
+    return next(ApiError(400, "Invalid expiry date format"));
+  }
+
+  if (expiryDate <= new Date()) {
+    return next(ApiError(400, "Expiry date must be in the future"));
+  }
+
+  // Validate activateCondition if provided
+  if (activateCondition && typeof activateCondition !== "object") {
+    return next(ApiError(400, "Activate condition must be an object"));
+  }
+
+  // Check if coupon name already exists for this brand
+  const existingCoupon = await Coupon.findOne({
+    name: name.trim(),
     brandId: user._id,
   });
 
-  await coupon.save();
-  return res
-    .status(201)
-    .json(new ApiResponse(201, coupon, "Coupon created successfully"));
+  if (existingCoupon) {
+    return next(ApiError(400, "Coupon with this name already exists"));
+  }
+
+  const coupon = new Coupon({
+    name: name.trim(),
+    usageLimit,
+    applyTo,
+    discount: {
+      type: discountType.toUpperCase(),
+      amount: discountAmount,
+    },
+    expiry: expiryDate,
+    cumulative: Boolean(cumulative),
+    activateCondition: new Map(Object.entries(activateCondition || {})),
+    brandId: user._id,
+    isActive: true,
+    usage: 0,
+  });
+
+  try {
+    await coupon.save();
+    return res
+      .status(201)
+      .json(new ApiResponse(201, coupon, "Coupon created successfully"));
+  } catch (error) {
+    return next(ApiError(500, "Error creating coupon: " + error.message));
+  }
 });
 
 // Controller to get all coupons for the logged-in brand
@@ -103,14 +176,18 @@ const updateCoupon = asyncHandler(async (req, res, next) => {
         ...(usageLimit && { usageLimit }),
         ...(applyTo && { applyTo }),
         ...(discountType && { "discount.type": discountType }),
-        ...(discountAmount !== undefined && { "discount.amount": discountAmount }),
+        ...(discountAmount !== undefined && {
+          "discount.amount": discountAmount,
+        }),
         ...(expiry && { expiry }),
         ...(cumulative !== undefined && { cumulative }),
-        ...(activateCondition !== undefined && { activateCondition: activateCondition || {} }),
-        ...(isActive !== undefined && { isActive })
-      }
+        ...(activateCondition !== undefined && {
+          activateCondition: activateCondition || {},
+        }),
+        ...(isActive !== undefined && { isActive }),
+      },
     },
-    { new: true }
+    { new: true },
   );
 
   if (!updatedCoupon) {
@@ -181,8 +258,8 @@ const applyCoupon = asyncHandler(async (req, res, next) => {
     return next(
       ApiError(
         400,
-        `Minimum order value of ${conditions.minOrderValue} is required to apply this coupon`
-      )
+        `Minimum order value of ${conditions.minOrderValue} is required to apply this coupon`,
+      ),
     );
   }
 
@@ -192,12 +269,12 @@ const applyCoupon = asyncHandler(async (req, res, next) => {
     cumulative: coupon.cumulative,
     applyTo: coupon.applyTo,
     expiry: coupon.expiry,
-    isActive:coupon.isActive,
-    usageLimit:coupon.usageLimit,
-    usage:coupon.usage
+    isActive: coupon.isActive,
+    usageLimit: coupon.usageLimit,
+    usage: coupon.usage,
   };
   // Additional logic for validating usage limits, expiry, and activation conditions can be added here
- console.log(sanitizedCoupon)
+  console.log(sanitizedCoupon);
   return res
     .status(200)
     .json(new ApiResponse(200, sanitizedCoupon, "Coupon applied successfully"));

@@ -584,6 +584,7 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
       settings: {
         payouts: {
           schedule: {
+            delay_days: user.accountType === accountType.INFLUENCER ? 30 : 7,
             interval: "manual",
           },
         },

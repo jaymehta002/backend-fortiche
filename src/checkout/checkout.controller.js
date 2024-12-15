@@ -658,7 +658,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       throw ApiError(400, "Coupon has expired");
     }
 
-    if (coupon.usage >= coupon.usageLimit) {
+    if (coupon.usage > coupon.usageLimit) {
       throw ApiError(400, "Coupon usage limit reached");
     }
   }
@@ -912,7 +912,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           quantity,
           unitPrice: product.pricing, // Use unitPrice instead of price
           totalAmount: quantity * product.pricing, // Calculate total amount
-          shippingAmount: p.shippingCharges || 0, // Ensure shipping amount
+          shippingAmount:await calculateShipping(product.brandId, addressData.country) || 0, // Ensure shipping amount
           vatAmount:
             Number(
               quantity * product.pricing * countryVat(addressData.country),
@@ -938,7 +938,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         throw ApiError(400, "Coupon has expired");
       }
 
-      if (coupon.usage >= coupon.usageLimit) {
+      if (coupon.usage > coupon.usageLimit) {
         throw ApiError(400, "Coupon usage limit reached");
       }
 
@@ -989,7 +989,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           ),
         ) || 0,
       shippingAmount:
-        Number(productsData.reduce((sum, p) => sum + p.shippingCharges, 0)) ||
+        Number(orderItems.reduce((sum, p) => sum + p.shippingAmount, 0)) ||
         0,
       metadata: {
         sessionId: session_id
@@ -1153,6 +1153,8 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
         currency: "eur",
         destination: influencer.stripeAccountId,
         // source_transaction: paymentIntentId,
+      
+      
       })
       .catch((error) => {
         console.error(`Transfer to influencer failed:`, error);

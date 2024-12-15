@@ -77,7 +77,7 @@ const createEmailTemplate = (title, content) => `
     <div class="container">
       ${content}
       <div class="footer">
-        © ${new Date().getFullYear()} Your Company Name. All rights reserved.
+        © ${new Date().getFullYear()} Fortiche. All rights reserved.
       </div>
     </div>
   </body>
