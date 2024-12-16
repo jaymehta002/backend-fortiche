@@ -12,11 +12,11 @@ import {
 
 const router = Router();
 
+router.get("/:id", fetchSingleRecommendation);
 router.use(auth);
 router.post("/create", upload.single("thumbnail"), createRecommendation);
 router.get("/all", fetchAllRecommendations);
 router.get("/user", fetchUserRecommendations);
-router.get("/:id", fetchSingleRecommendation);
 router.patch("/update/:id", upload.single("thumbnail"), updateRecommendation);
 router.delete("/:id", deleteRecommendation);
 
