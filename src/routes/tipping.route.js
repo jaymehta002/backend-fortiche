@@ -9,16 +9,14 @@ const createTipping = async (req, res) => {
     const influencerId = req.user._id;
     const { amounts } = req.body;
     
-    // Find existing tipping record or create new one
     let tipping = await Tipping.findOne({ influencerId });
     
     if (tipping) {
-      // Filter out duplicates and merge with existing amounts
+     
       const newAmounts = [...new Set([...tipping.amounts, ...amounts])];
       tipping.amounts = newAmounts;
       await tipping.save();
-    } else {
-      // Create new tipping record with unique amounts
+   
       const uniqueAmounts = [...new Set(amounts)];
       tipping = await Tipping.create({ influencerId, amounts: uniqueAmounts });
     }
@@ -37,7 +35,7 @@ const getTipping = async (req, res) => {
 
 const updateTipping = async (req, res) => {
   try {
-    const influencerId = req.params.id;
+    const influencerId = req.user._id;
     const { amounts } = req.body;
     const tipping = await Tipping.findOne({ influencerId });
     if (!tipping) {
@@ -54,7 +52,7 @@ const updateTipping = async (req, res) => {
 
 const removeTipping = async (req, res) => {
   try {
-    const influencerId = req.params.id;
+    const influencerId = req.user._id;
     const tipping = await Tipping.findOneAndDelete({ influencerId });
     if (!tipping) {
       return res.status(404).json({ message: "Tipping not found" });

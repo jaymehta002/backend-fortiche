@@ -21,7 +21,7 @@ checkoutRouter.post("/taxes", getTaxes);
 checkoutRouter.post("/test", handleCheckout);
 checkoutRouter.post("/verify/test", handleStripeCheckout);
 checkoutRouter.post("/tipping", handleTipping);
-checkoutRouter.get("/tipping/success", handleTippingSuccess);
+checkoutRouter.post("/verify/tipping", handleTippingSuccess);
 
 checkoutRouter.use(auth);
 checkoutRouter.post("/influencer", checkoutInfluencer);
