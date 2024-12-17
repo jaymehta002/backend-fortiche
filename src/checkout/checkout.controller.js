@@ -1,25 +1,29 @@
+import countryVat from "country-vat";
 import Stripe from "stripe";
 import { Affiliation } from "../affiliation/affiliation_model.js";
+import Commision from "../commision/commision.model.js";
+import Coupon from "../coupon/coupon_model.js";
 import Guest from "../guest/guest.model.js";
+import { sendCustomEmail } from "../mail/mailgun.service.js";
 import Order from "../orders/order.model.js"; // Assuming you have an Order model
+import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { Product } from "../product/product.model.js";
+import Shipping from "../shipping/shipping.model.js";
+import sponsorshipModel from "../sponsor/sponsorship.model.js";
+import { User } from "../user/user.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { sendProductPurchaseMail } from "../preference/preference.service.js";
-import { stripeClient } from "../lib/stripe.js";
-import { User } from "../user/user.model.js";
-import Shipping from "../shipping/shipping.model.js";
-import countryVat from "country-vat";
-import Commision from "../commision/commision.model.js";
-import sponsorshipModel from "../sponsor/sponsorship.model.js";
-import {
-  sendCustomEmail,
-  sendProductPurchaseEmail,
-} from "../mail/mailgun.service.js";
-import { applyCoupon } from "../coupon/coupon.controller.js";
-import Coupon from "../coupon/coupon_model.js";
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+const platformFee = {
+  free: 10,
+  starter: 5,
+  believer: 3,
+  basic: 5,
+  business: 2,
+  enterprise: 1,
+};
 
 // Create a payment session for an influencer
 export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
@@ -55,8 +59,11 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
 
     // Verify brand's Stripe account capabilities
     const brandAccount = await stripe.accounts.retrieve(brand.stripeAccountId);
-    if (!brandAccount.capabilities?.transfers === 'active') {
-      throw ApiError(400, "Brand's Stripe account is not properly set up for transfers. Please contact support.");
+    if (!brandAccount.capabilities?.transfers === "active") {
+      throw ApiError(
+        400,
+        "Brand's Stripe account is not properly set up for transfers. Please contact support.",
+      );
     }
 
     // Create line item with conditional description
@@ -75,7 +82,7 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
     if (product.description) {
       lineItem.price_data.product_data.description = product.description;
     }
- 
+
     const account = await stripe.accounts.retrieve(brand.stripeAccountId);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -128,7 +135,7 @@ export const handleSuccessPage = async (req, res) => {
         orderId: existingOrder._id,
       });
     }
-    console.log(session.payment_status , "session.payment_status"); 
+    console.log(session.payment_status, "session.payment_status");
     if (session.payment_status === "paid") {
       const { metadata } = session;
       const { productId, userId, address } = metadata;
@@ -151,7 +158,7 @@ export const handleSuccessPage = async (req, res) => {
       const shippingAddress =
         typeof address === "string" ? JSON.parse(address) : address;
 
-         console.log(shippingAddress)
+      console.log(shippingAddress);
       // Create an order with all required fieds
       const newOrder = new Order({
         orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -187,7 +194,7 @@ export const handleSuccessPage = async (req, res) => {
         orderId: newOrder._id,
       });
     } else {
-      throw ApiError(400,"Payment not successful");
+      throw ApiError(400, "Payment not successful");
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -349,8 +356,6 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       if (isNaN(price)) throw new Error("Invalid pricing value");
       return sum + price;
     }, 0);
-
-    // transfer 10% to influencer and 90% to platform
 
     const influencerAmount = totalPrice * 0.1;
     await stripe.transfers.create({
@@ -825,12 +830,12 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
   try {
     // Add session status check and retrieve session
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    
+
     // Check if payment is not successful
-    if (session.payment_status !== 'paid') {
+    if (session.payment_status !== "paid") {
       return res.status(400).json({
         success: false,
-        message: 'Payment not completed'
+        message: "Payment not completed",
       });
     }
 
@@ -838,18 +843,18 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     const existingOrder = await Order.findOne({
       $or: [
         { paymentId: session.payment_intent },
-        { 'metadata.sessionId': session_id }
-      ]
+        { "metadata.sessionId": session_id },
+      ],
     });
 
     if (existingOrder) {
       return res.status(200).json({
         success: true,
-        message: 'Order already processed',
+        message: "Order already processed",
         order: existingOrder,
       });
     }
- 
+
     const {
       influencerId,
       productData,
@@ -912,7 +917,9 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           quantity,
           unitPrice: product.pricing, // Use unitPrice instead of price
           totalAmount: quantity * product.pricing, // Calculate total amount
-          shippingAmount:await calculateShipping(product.brandId, addressData.country) || 0, // Ensure shipping amount
+          shippingAmount:
+            (await calculateShipping(product.brandId, addressData.country)) ||
+            0, // Ensure shipping amount
           vatAmount:
             Number(
               quantity * product.pricing * countryVat(addressData.country),
@@ -989,11 +996,10 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           ),
         ) || 0,
       shippingAmount:
-        Number(orderItems.reduce((sum, p) => sum + p.shippingAmount, 0)) ||
-        0,
+        Number(orderItems.reduce((sum, p) => sum + p.shippingAmount, 0)) || 0,
       metadata: {
-        sessionId: session_id
-      }
+        sessionId: session_id,
+      },
     });
 
     await order.save();
@@ -1034,7 +1040,11 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       </div>
     `;
 
-    await sendCustomEmail(customerData.email, "Order Confirmation", emailContent);
+    await sendCustomEmail(
+      customerData.email,
+      "Order Confirmation",
+      emailContent,
+    );
     console.log("Order confirmation email sent to:", customerData.email);
 
     res.status(200).json({
@@ -1064,20 +1074,17 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
     order.orderItems.map(async (item) => {
       try {
         const brand = await User.findById(item.brandId).select(
-          "stripeAccountId",
+          "stripeAccountId plan",
         );
-
-        // Validate Stripe account ID
         if (!brand) {
           throw new Error(`Brand with ID ${item.brandId} not found.`);
         }
 
         if (!brand.stripeAccountId) {
           console.error(`Brand ${item.brandId} has no Stripe account ID`);
-          return; // Skip this brand instead of throwing an error
+          return;
         }
 
-        // Validate Stripe account ID format
         if (
           typeof brand.stripeAccountId !== "string" ||
           !brand.stripeAccountId.startsWith("acct_")
@@ -1086,15 +1093,24 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
             `Invalid Stripe account ID for brand ${item.brandId}:`,
             brand.stripeAccountId,
           );
-          return; // Skip this brand
+          return;
         }
-
-        console.log("Brand found:", brand);
-
-        const brandAmount = item.unitPrice * item.quantity - item.commission;
+        const platformAmt = platformFee[brand.plan] || 0;
+        const brandAmount =
+          item.unitPrice * item.quantity -
+          item.commission +
+          item.shippingAmount +
+          item.vatAmount -
+          ((item.unitPrice * item.quantity -
+            item.commission +
+            item.shippingAmount +
+            item.vatAmount) *
+            platformAmt) /
+            100;
 
         brandTransfers[brand.stripeAccountId] =
-          (brandTransfers[brand.stripeAccountId] || 0) + brandAmount;
+          (brandTransfers[brand.stripeAccountId] || 0) +
+          Math.round(brandAmount);
 
         influencerAmount += item.commission;
       } catch (error) {
@@ -1107,7 +1123,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
   console.log("Influencer amount:", influencerAmount);
 
   const influencer = await User.findById(order.influencerId).select(
-    "stripeAccountId",
+    "stripeAccountId plan",
   );
   if (
     !influencer ||
@@ -1119,7 +1135,8 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
     );
     return;
   }
-
+  const influencerFee =
+    influencerAmount - (influencerAmount * platformFee[influencer.plan]) / 100;
   // Process transfers
   const transferPromises = [
     // Transfer to brands
@@ -1146,15 +1163,12 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
         });
     }),
 
-    // Transfer to influencer
     stripe.transfers
       .create({
-        amount: Math.max(0, Math.round(influencerAmount * 100)),
+        amount: Math.max(0, Math.round(influencerFee * 100)),
         currency: "eur",
         destination: influencer.stripeAccountId,
         // source_transaction: paymentIntentId,
-      
-      
       })
       .catch((error) => {
         console.error(`Transfer to influencer failed:`, error);
@@ -1184,30 +1198,6 @@ const updateAffiliation = async (influencerId, productIds) => {
   return affiliationUpdateData;
 };
 
-const createOrder = async ({
-  guestId = null,
-  productId,
-  totalAmount,
-  paymentId,
-  shippingAddress,
-  stripeAccountId,
-  brandStripeAccountId,
-}) => {
-  const newOrder = new Order({
-    guestId,
-    productId,
-    totalAmount,
-    paymentId,
-    status: "paid",
-    shippingStatus: "pending",
-    shippingAddress,
-    stripeAccountId,
-    brandStripeAccountId,
-  });
-
-  return await newOrder.save();
-};
-
 const calculateShipping = async (brandId, country) => {
   const shipping = await Shipping.findOne({ brandId, countries: country });
   return Number(shipping?.shippingCharges) || 0;
@@ -1233,20 +1223,21 @@ export const handleTipping = asyncHandler(async (req, res) => {
   // Get commission rate based on influencer's plan
   let commissionRate;
   switch (influencer.plan) {
-    case 'pro':
-      commissionRate = 0.05;  
+    case "pro":
+      commissionRate = 0.05;
       break;
-    case 'premium':
-      commissionRate = 0.03;  
+    case "premium":
+      commissionRate = 0.03;
       break;
     default:
-      commissionRate = 0.10; 
+      commissionRate = 0.1;
   }
 
   const amountInCents = Math.round(amount * 100);
   const platformFeeInCents = Math.round(amountInCents * commissionRate);
   const stripeFeeInCents = Math.round(amountInCents * 0.029 + 30);
-  const influencerAmountInCents = amountInCents - platformFeeInCents - stripeFeeInCents;
+  const influencerAmountInCents =
+    amountInCents - platformFeeInCents - stripeFeeInCents;
 
   // Create Stripe checkout session
   const session = await stripe.checkout.sessions.create({
@@ -1274,8 +1265,8 @@ export const handleTipping = asyncHandler(async (req, res) => {
       type: "tip",
       influencerAmount: influencerAmountInCents,
       platformFee: platformFeeInCents,
-      plan: influencer.plan
-    }
+      plan: influencer.plan,
+    },
   });
 
   res.status(200).json({
@@ -1294,33 +1285,28 @@ export const handleTippingSuccess = asyncHandler(async (req, res) => {
   try {
     // Check both query params and request body for session_id
     const session_id = req.query.session_id || req.body.session_id;
-    
+
     // Validate session_id exists
     if (!session_id) {
-      throw ApiError(400, 'Session ID is required');
+      throw ApiError(400, "Session ID is required");
     }
 
     // Retrieve the session
     const session = await stripe.checkout.sessions.retrieve(session_id);
 
     // Verify payment status
-    if (session.payment_status !== 'paid') {
-      throw ApiError(400, 'Payment not completed');
+    if (session.payment_status !== "paid") {
+      throw ApiError(400, "Payment not completed");
     }
 
     // Check if this session was already processed
     // You might want to store processed sessions in your database
-    const { 
-      influencerId, 
-      title, 
-      message,
-      influencerAmount,
-      type 
-    } = session.metadata;
+    const { influencerId, title, message, influencerAmount, type } =
+      session.metadata;
 
     // Verify this is a tip payment
-    if (type !== 'tip') {
-      throw ApiError(400, 'Invalid session type');
+    if (type !== "tip") {
+      throw ApiError(400, "Invalid session type");
     }
 
     const influencer = await User.findById(influencerId);
@@ -1342,23 +1328,22 @@ export const handleTippingSuccess = asyncHandler(async (req, res) => {
 
     // Send email notification
     await sendCustomEmail(
-      influencer.email, 
-      title || "You received a tip!", 
-      `${message || 'Someone tipped you!'}\n\nAmount: €${parseInt(influencerAmount)/100}`
+      influencer.email,
+      title || "You received a tip!",
+      `${message || "Someone tipped you!"}\n\nAmount: €${parseInt(influencerAmount) / 100}`,
     );
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
       transfer: transfer.id,
       breakdown: {
         totalAmount: session.amount_total / 100,
         influencerReceived: parseInt(influencerAmount) / 100,
-        platformFee: (session.amount_total - parseInt(influencerAmount)) / 100
-      }
+        platformFee: (session.amount_total - parseInt(influencerAmount)) / 100,
+      },
     });
-
   } catch (error) {
-    console.error('Error processing tip success:', error);
-    throw ApiError(500, error?.message || 'Error processing tip payment');
+    console.error("Error processing tip success:", error);
+    throw ApiError(500, error?.message || "Error processing tip payment");
   }
 });
