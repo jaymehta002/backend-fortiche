@@ -10,13 +10,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const subscriptions = {
   influencer: {
-    basic: "basic",
-    pro: "pro",
-    premium: "premium",
+    free: "free",
+    starter: "starter",
+    believer: "believer",
   },
   brand: {
-    starter: "starter",
-    business: "business",
+    free: "free",
+    bu: "professional",
     enterprise: "enterprise",
   },
 };

@@ -12,13 +12,11 @@ const createTipping = async (req, res) => {
     let tipping = await Tipping.findOne({ influencerId });
     
     if (tipping) {
-     
       const newAmounts = [...new Set([...tipping.amounts, ...amounts])];
       tipping.amounts = newAmounts;
       await tipping.save();
-   
-      const uniqueAmounts = [...new Set(amounts)];
-      tipping = await Tipping.create({ influencerId, amounts: uniqueAmounts });
+    } else {
+      tipping = await Tipping.create({ influencerId, amounts });
     }
     
     res.status(201).json(tipping);
@@ -30,6 +28,7 @@ const createTipping = async (req, res) => {
 const getTipping = async (req, res) => {
   const influencerId = req.query.influencerId;
   const tipping = await Tipping.find({ influencerId });
+  console.log(tipping , "tipping");
   res.status(200).json(tipping);
 };
 

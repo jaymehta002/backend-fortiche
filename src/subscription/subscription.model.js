@@ -2,13 +2,13 @@ import mongoose, { Schema } from "mongoose";
 
 const subscriptions = {
   influencer: {
-    basic: "basic",
-    pro: "pro",
-    premium: "premium",
+    free: "free",
+    starter: "starter",
+    believer: "believer",
   },
   brand: {
-    starter: "starter",
-    business: "business",
+    free: "free",
+    professional: "business",
     enterprise: "enterprise",
   },
 };

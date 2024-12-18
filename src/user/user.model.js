@@ -191,7 +191,7 @@ const userSchema = new Schema(
     },
     plan: {
       type: String,
-      default: "basic",
+      default: "free",
       // enum: ["basic", "stater", "pro"],
     },
     subscription: {

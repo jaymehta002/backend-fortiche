@@ -20,8 +20,7 @@ const platformFee = {
   free: 10,
   starter: 5,
   believer: 3,
-  basic: 5,
-  business: 2,
+  professional: 2,
   enterprise: 1,
 };
 
@@ -135,7 +134,6 @@ export const handleSuccessPage = async (req, res) => {
         orderId: existingOrder._id,
       });
     }
-    console.log(session.payment_status, "session.payment_status");
     if (session.payment_status === "paid") {
       const { metadata } = session;
       const { productId, userId, address } = metadata;
@@ -158,7 +156,6 @@ export const handleSuccessPage = async (req, res) => {
       const shippingAddress =
         typeof address === "string" ? JSON.parse(address) : address;
 
-      console.log(shippingAddress);
       // Create an order with all required fieds
       const newOrder = new Order({
         orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -384,7 +381,6 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
         return newOrder;
       }),
     );
-    console.log(newOrders);
 
     sendProductPurchaseMail(influencerId, productIds);
     await stripe.checkout.sessions.expire(session_id);
@@ -609,7 +605,6 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     throw ApiError(404, "Influencer not found");
   }
 
-  console.log("influencer not found");
   // Get product details and validate affiliations
   const productData = await Product.find({
     _id: { $in: products.map((p) => p.productId) },
@@ -713,17 +708,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     const subtotal = Number(unitPrice * quantity) || 0;
     const totalAmount = Number(subtotal + vatAmount + shippingAmount) || 0;
 
-    console.log("Calculation details:", {
-      unitPrice,
-      quantity,
-      vatRate,
-      vatAmount,
-      shippingAmount,
-      commissionPercentage,
-      commission,
-      subtotal,
-      totalAmount,
-    });
+ 
 
     // Add to orderItems
     orderItems.push({
@@ -774,7 +759,6 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       const item = orderItems.find(
         (oi) => oi.productId.toString() === productId,
       );
-      console.log("Item found:", item);
       return {
         price_data: {
           currency: "eur",
@@ -798,7 +782,6 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     cancel_url: `${process.env.CLIENT_URL}/cart`,
     metadata: {
       influencerId,
-      orderItems: JSON.stringify(orderItems),
       brandSummary: JSON.stringify(Object.values(brandSummaries)),
       address: JSON.stringify(address),
       productData: JSON.stringify(productData),
@@ -812,7 +795,6 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     await coupon.save();
   }
 
-  // console.log("Product:", productData);
   const totalAmount = Object.values(brandSummaries).reduce(
     (sum, brand) => sum + brand.totalAmount,
     0,
@@ -867,15 +849,12 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     } = session.metadata;
 
     const customerData = JSON.parse(rawCustomerInfo);
-    console.log("Customer data:", customerData.email);
 
     const influencer = await User.findById(influencerId);
     if (!influencer) throw ApiError(404, "Influencer not found");
-    console.log("Influencer found:", influencer);
 
     const addressData = JSON.parse(address);
     const productsData = JSON.parse(productData);
-    console.log("Products data:", productsData);
 
     let buyer =
       (await User.findOne({ email: customerData.email })) ||
@@ -890,7 +869,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       });
       await buyer.save();
     }
-    console.log(buyer);
 
     // Calculate order items and commissions
     const orderItems = await Promise.all(
@@ -898,34 +876,35 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         const product = await Product.findById(p._id);
         if (!product) throw ApiError(404, `Product with ID ${p._id} not found`);
 
-        const commission = await Commision.findOne({
+        const commissionId = await Commision.findOne({
           productId: p._id,
           "recipients.userId": influencerId,
         });
 
         const commissionPercentage =
-          commission?.recipients.find(
+          commissionId?.recipients.find(
             (recipient) => recipient.userId.toString() === influencerId,
           )?.percentage || product.commissionPercentage;
 
         const quantity = Number(p.quantity) || 1;
+
+        const unitPrice = product.pricing;
+        const shippingAmount =
+          (await calculateShipping(product.brandId, addressData.country)) || 0;
+        const vatAmount =
+          Number(quantity * unitPrice * countryVat(addressData.country)) || 0;
+        let commission = Number((unitPrice * commissionPercentage) / 100) || 0;
 
         return {
           productId: p._id,
           brandId: product.brandId, // Add brandId
           name: product.title,
           quantity,
-          unitPrice: product.pricing, // Use unitPrice instead of price
-          totalAmount: quantity * product.pricing, // Calculate total amount
-          shippingAmount:
-            (await calculateShipping(product.brandId, addressData.country)) ||
-            0, // Ensure shipping amount
-          vatAmount:
-            Number(
-              quantity * product.pricing * countryVat(addressData.country),
-            ) || 0, // Calculate VAT
-          commission:
-            Number((product.pricing * commissionPercentage) / 100) || 0,
+          unitPrice, // Use unitPrice instead of price
+          totalAmount: quantity * unitPrice + shippingAmount + vatAmount, // Calculate total amount
+          shippingAmount, // Ensure shipping amount
+          vatAmount, // Calculate VAT
+          commission,
         };
       }),
     );
@@ -969,7 +948,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       await coupon.save();
     }
 
-    console.log("Order items:", orderItems);
 
     // Create the order with more comprehensive details
     const order = new Order({
@@ -1003,7 +981,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     });
 
     await order.save();
-    console.log("Order created:", order);
 
     // payment transfers and affiliation updates
     await handlePaymentTransfers(order, session.payment_intent);
@@ -1012,7 +989,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       productsData.map((p) => p._id),
     );
 
-    console.log("Payment transfers and affiliation updates completed");
 
     const emailContent = `
       <div>
@@ -1026,9 +1002,9 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
             <li>
               <strong>Product:</strong> ${item.name}<br>
               <strong>Quantity:</strong> ${item.quantity}<br>
-              <strong>Price:</strong> $${item.totalAmount}<br>
               <strong>VAT:</strong> $${item.vatAmount}<br>
               <strong>Shipping:</strong> $${item.shippingAmount}<br>
+              <strong>Price:</strong> $${item.totalAmount}<br>
             </li>
           `,
             )
@@ -1045,7 +1021,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       "Order Confirmation",
       emailContent,
     );
-    console.log("Order confirmation email sent to:", customerData.email);
 
     res.status(200).json({
       success: true,
@@ -1064,7 +1039,6 @@ function generateOrderNumber() {
 
 // Helper function to handle payment transfers
 const handlePaymentTransfers = async (order, paymentIntentId) => {
-  console.log("Handling payment transfers for order:", order._id);
 
   const brandTransfers = {};
   let influencerAmount = 0;
@@ -1119,8 +1093,6 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
     }),
   );
 
-  console.log("Brand transfers:", brandTransfers);
-  console.log("Influencer amount:", influencerAmount);
 
   const influencer = await User.findById(order.influencerId).select(
     "stripeAccountId plan",
@@ -1135,20 +1107,24 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
     );
     return;
   }
+
   const influencerFee =
-    influencerAmount - (influencerAmount * platformFee[influencer.plan]) / 100;
+    Number(influencerAmount - (influencerAmount * platformFee[influencer.plan]) / 100);
   // Process transfers
+
+ 
   const transferPromises = [
     // Transfer to brands
     ...Object.entries(brandTransfers).map(([stripeAccountId, amount]) => {
       const amountInCents = Math.max(0, Math.round(amount * 100));
+      const influencerFeeInCents = Math.max(0, Math.round(influencerFee * 100));
 
       if (amountInCents === 0) {
         console.warn(
           `Skipping transfer to ${stripeAccountId} - amount too small`,
         );
         return Promise.resolve(null);
-      }
+      } 
 
       return stripe.transfers
         .create({
@@ -1179,7 +1155,6 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
   // Wait for all transfers
   const transferResults = await Promise.all(transferPromises);
 
-  console.log("Transfers completed", transferResults);
 };
 
 const updateAffiliation = async (influencerId, productIds) => {

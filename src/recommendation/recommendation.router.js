@@ -12,7 +12,7 @@ import {
 
 const router = Router();
 
-router.get("/:id", fetchSingleRecommendation);
+router.get("/get-recommendation/:id", fetchSingleRecommendation);
 router.use(auth);
 router.post("/create", upload.single("thumbnail"), createRecommendation);
 router.get("/all", fetchAllRecommendations);
