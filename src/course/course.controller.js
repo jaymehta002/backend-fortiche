@@ -11,7 +11,7 @@ const createCourse = asyncHandler(async (req, res, next) => {
   if (!title || !customUrl || !description) {
     throw ApiError(400, "Title, custom URL, and description are required");
   }
-  if (user.plan !== "beleiver") {
+  if (user.plan !== "believer") {
     throw ApiError(403, "You are not authorized to create a course");
   }
   const newCourse = new Course({
@@ -33,7 +33,7 @@ const createCourse = asyncHandler(async (req, res, next) => {
 const uploadThumbnailOrVideo = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    if (user.plan !== "beleiver") {
+    if (user.plan !== "believer") {
       throw ApiError(403, "You are not authorized to upload a file");
     }
     const file = req.file?.path;

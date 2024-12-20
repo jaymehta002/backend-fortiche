@@ -78,6 +78,31 @@ const getCollectionbyId = asyncHandler(async (req, res, next) => {
   }
 });
 
+
+const getCheckoutCollectionById = asyncHandler(async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const collection = await Collection.findById(id);
+    
+    if (!collection) {
+      throw new ApiError(404, "Collection not found");
+    }
+
+    const products = await Product.find({ _id: { $in: collection.productIds } });
+    const payload = {
+      userId: collection.userId,
+      title: collection.title,
+      products: products,
+    };
+    
+    return res
+      .status(200)
+      .json(new ApiResponse(200, payload, "Collection fetched successfully"));
+  } catch (error) {
+    next(error);
+  }
+});
+
 const updateCollection = asyncHandler(async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -124,4 +149,5 @@ export {
   getCollectionbyId,
   updateCollection,
   deleteCollection,
+  getCheckoutCollectionById,
 };

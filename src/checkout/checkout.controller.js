@@ -28,61 +28,46 @@ const platformFee = {
 export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-
-    // Ensure the user is an influencer and has a Stripe account
-    if (!user || user.accountType !== "influencer") {
-      throw ApiError(403, "Action restricted");
-    }
-    if (!user.stripeAccountId) {
-      throw ApiError(
-        400,
-        "No Stripe account found. Please connect your Stripe account first.",
-      );
+    const { productId, quantity = 1 } = req.body;
+ 
+    if (!user?.stripeAccountId || user.accountType !== "influencer") {
+      throw ApiError(403, "Must be an influencer with connected Stripe account");
     }
 
-    const { productId } = req.body;
-
-    // Find the product and brand
+   
     const product = await Product.findById(productId);
-    if (!product) {
-      throw ApiError(404, "Product not found");
-    }
-
+    if (!product) throw ApiError(404, "Product not found");
+ 
     const brand = await User.findById(product.brandId);
-    if (!brand || !brand.stripeAccountId) {
-      throw ApiError(
-        404,
-        "Brand not found or brand's Stripe account not connected",
-      );
+    if (!brand?.stripeAccountId) {
+      throw ApiError(404, "Brand not found or not properly setup");
     }
+ 
+    const unitPrice = Number(product.wholesalePricing);
+    const vatRate = Number(countryVat(user.address?.country)) || 0;
+    const vatAmount = Number(quantity * unitPrice * vatRate) || 0;
+    const shippingAmount = await calculateShipping(brand._id, user.address?.country) || 0;
+    const commission = 0;
+    const totalAmount = (unitPrice * quantity) + vatAmount + shippingAmount;
 
-    // Verify brand's Stripe account capabilities
-    const brandAccount = await stripe.accounts.retrieve(brand.stripeAccountId);
-    if (!brandAccount.capabilities?.transfers === "active") {
-      throw ApiError(
-        400,
-        "Brand's Stripe account is not properly set up for transfers. Please contact support.",
-      );
-    }
+    // Calculate platform fee based on brand's plan
+    const platformFeePercentage = platformFee[brand.plan] || 10;
+    const platformFeeAmount = (totalAmount * platformFeePercentage) / 100;
 
-    // Create line item with conditional description
+    // Create line item
     const lineItem = {
       price_data: {
         currency: "eur",
         product_data: {
           name: product.title,
+          description: product.description,
         },
-        unit_amount: product.wholesalePricing * 100,
+        unit_amount: Math.round(totalAmount * 100),
       },
       quantity: 1,
     };
 
-    // Only add description if it exists
-    if (product.description) {
-      lineItem.price_data.product_data.description = product.description;
-    }
-
-    const account = await stripe.accounts.retrieve(brand.stripeAccountId);
+    // Create checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -91,112 +76,146 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/dashboard`,
       metadata: {
-        productId: productId,
-        userId: user._id.toString(),
+        type: "influencer_purchase",
+        productId,
+        influencerId: user._id.toString(),
+        brandId: brand._id.toString(),
+        quantity,
+        unitPrice: unitPrice.toString(),
+        vatAmount: vatAmount.toString(),
+        shippingAmount: shippingAmount.toString(),
+        commission: commission.toString(),
+        totalAmount: totalAmount.toString(),
+        platformFee: platformFeeAmount.toString(),
         address: JSON.stringify(user.address),
-        stripeAccountId: user.stripeAccountId,
-        brandStripeAccountId: brand.stripeAccountId,
       },
       payment_intent_data: {
-        transfer_data: {
-          destination: brand.stripeAccountId,
+        metadata: {
+          type: "influencer_purchase",
+          brandStripeAccount: brand.stripeAccountId,
+          influencerStripeAccount: user.stripeAccountId,
         },
-        application_fee_amount: Math.floor(product.pricing * 10), // 10% platform fee
       },
+   
     });
 
     res.status(200).json({
       success: true,
       checkoutUrl: session.url,
+      breakdown: {
+        subtotal: unitPrice * quantity,
+        vatAmount,
+        shippingAmount,
+        commission,
+        platformFee: platformFeeAmount,
+        total: totalAmount,
+      },
     });
+
   } catch (error) {
     next(error);
   }
 });
 
-export const handleSuccessPage = async (req, res) => {
+export const handleSuccessPage = asyncHandler(async (req, res) => {
   try {
     const { session_id } = req.body;
-
-    // Retrieve the session from Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id);
 
-    // Check for existing order first
+    if (session.payment_status !== "paid") {
+      throw ApiError(400, "Payment not successful");
+    }
+
+    // Check for existing order
     const existingOrder = await Order.findOne({
       paymentId: session.payment_intent,
     });
 
     if (existingOrder) {
-      // Instead of error, return success with existing order
       return res.status(200).json({
         success: true,
         message: "Order already processed",
         orderId: existingOrder._id,
       });
     }
-    if (session.payment_status === "paid") {
-      const { metadata } = session;
-      const { productId, userId, address } = metadata;
 
-      // Find the product and user
-      const [product, user] = await Promise.all([
-        Product.findById(productId),
-        User.findById(userId),
-      ]);
+    const {
+      productId,
+      influencerId,
+      brandId,
+      quantity,
+      unitPrice,
+      vatAmount,
+      shippingAmount,
+      commission,
+      totalAmount,
+      address,
+    } = session.metadata;
 
-      if (!product) {
-        throw new Error("Product not found");
-      }
+     const influencerData = await User.findById(influencerId);
 
-      if (!user) {
-        throw new Error("User not found");
-      }
 
-      // Parse address if it's a string
-      const shippingAddress =
-        typeof address === "string" ? JSON.parse(address) : address;
+    // Create order items
+    const orderItem = {
+      productId,
+      brandId,
+      quantity: Number(quantity),
+      unitPrice: Number(unitPrice),
+      commission: Number(commission),
+      vatAmount: Number(vatAmount),
+      shippingAmount: Number(shippingAmount),
+      totalAmount: Number(totalAmount),
+    };
 
-      // Create an order with all required fieds
-      const newOrder = new Order({
-        orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        influencerId: userId,
-        productId: productId,
-        totalAmount: product.pricing,
-        paymentId: session.payment_intent,
-        status: "paid",
-        shippingStatus: "pending",
-        shippingAddress: {
-          country: shippingAddress.country || "N/A",
-          postalCode: shippingAddress.postalCode || "N/A",
-          city: shippingAddress.city || "N/A",
-          line1: shippingAddress.line1 || "N/A",
-          line2: shippingAddress.line2 || "N/A",
-          state: shippingAddress.state || "N/A",
-        },
-        stripeAccountId: metadata.stripeAccountId,
-        brandStripeAccountId: metadata.brandStripeAccountId,
-        customerInfo: {
-          name: user.name || "N/A",
-          email: user.email || "N/A",
-        },
-        userId: userId,
-        userModel: "User", // Since this is for influencers, we know it's a User
-      });
+    // Create brand order summary
+    const brandOrderSummary = {
+      brandId,
+      items: [productId],
+      subtotal: Number(unitPrice) * Number(quantity),
+      vatAmount: Number(vatAmount),
+      shippingAmount: Number(shippingAmount),
+      commission: Number(commission),
+      totalAmount: Number(totalAmount),
+      status: "pending",
+      paymentStatus: "paid",
+      paymentId: session.payment_intent,
+      
+    };
 
-      await newOrder.save();
+    // Create the order
+    const newOrder = new Order({
+      orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      influencerId,
+      userId: influencerId,
+      userModel: "User",
+      orderItems: [orderItem],
+      brandOrders: [brandOrderSummary],
+      totalAmount: Number(totalAmount),
+      paymentStatus: "paid",
+      paymentId: session.payment_intent,
+      shippingAddress: JSON.parse(address),
+      customerInfo: {
+        email:influencerData.email,
+        name: influencerData.fullName,
+      },
+    });
 
-      res.status(200).json({
-        success: true,
-        message: "Payment successful and order created",
-        orderId: newOrder._id,
-      });
-    } else {
-      throw ApiError(400, "Payment not successful");
-    }
+    await newOrder.save();
+
+    // Handle transfers
+    await handlePaymentTransfers(newOrder, session.payment_intent);
+
+    res.status(200).json({
+      success: true,
+      message: "Payment successful and order created",
+      orderId: newOrder._id,
+    });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error in handleSuccessPage:", error);
+    throw ApiError(500, error?.message || "Error processing order");
   }
-};
+});
 
 // Create a payment session for a guest
 export const createGuestCheckout = asyncHandler(async (req, res, next) => {

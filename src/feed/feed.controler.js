@@ -68,11 +68,12 @@ const fetchCollectionsAndProducts = async (userId) => {
   });
 
   return fetchCollection.map((collection) => ({
+    _id: collection._id,
     title: collection.title,
     products: fetchCollectionProducts.filter((product) =>
       collection.productIds.includes(product._id),
     ),
-    userId,
+    userId: collection.userId,
   }));
 };
 

@@ -521,7 +521,9 @@ const updateFeedLinkController = asyncHandler(async (req, res, next) => {
 const connectStripeController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    if (!user) throw new ApiError(401, "Unauthorized request");
+ if(!user){
+  throw ApiError(401,"Unauthorized request") 
+ } 
 
     console.log(`User initiating Stripe connect: ${user.email}`);
 
@@ -584,7 +586,7 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
       settings: {
         payouts: {
           schedule: {
-            delay_days: user.accountType === accountType.INFLUENCER ? 30 : 7,
+            // delay_days: user.accountType === accountType.INFLUENCER ? 30 : 7,
             interval: "manual",
           },
         },
@@ -633,7 +635,7 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
 
     // Handle Stripe-specific errors
     if (error.type === "StripeInvalidRequestError") {
-      return next(new ApiError(400, `Stripe Request Error: ${error.message}`));
+      return next(ApiError(400, `Stripe Request Error: ${error.message}`));
     }
 
     next(error);
@@ -771,9 +773,7 @@ const getInfluencerOrdersController = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   
   // Find orders where the influencer is the buyer
-  const orders = await Order.find({ buyerId: userId })
-    .populate('productId') // Optionally populate product details
-    .sort({ createdAt: -1 }); // Sort by newest first
+  const orders = await Order.find({ userId: userId }).sort({ createdAt: -1 }); // Sort by newest first
     
   console.log(orders); 
   

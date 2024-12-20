@@ -17,9 +17,11 @@ import {
   getCollectionbyId,
   updateCollection,
   deleteCollection,
+  getCheckoutCollectionById,
 } from "./collection.controller.js";
 
 const productRouter = Router();
+productRouter.get("/get-collection/:id", getCheckoutCollectionById);
 productRouter.use(auth);
 
 productRouter
