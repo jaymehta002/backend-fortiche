@@ -7,11 +7,11 @@ import { uploadOnCloudinary } from "../pkg/cloudinary/cloudinary_service.js";
 import { Product } from "../product/product.model.js";
 // Create a recommendation
 const createRecommendation = asyncHandler(async (req, res, next) => {
-  console.log("tested");
+ 
   try {
     const user = req.user;
     const { title, content, tags, products } = req.body;
-    console.log(tags);
+ 
     let thumbnailUrl = "";
 
     if (req.file) {
@@ -24,8 +24,7 @@ const createRecommendation = asyncHandler(async (req, res, next) => {
     if (products) {
       productIds = JSON.parse(products).map((productId) => productId);
     }
-    console.log(productIds);
-
+ 
     const recommendation = await Recommendation.create({
       title,
       content,

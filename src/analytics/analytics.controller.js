@@ -52,7 +52,7 @@ export const getEarnings = asyncHandler(async (req, res, next) => {
     const totalClicks = affiliations.reduce((total, aff) => {
       return total + (Number(aff.clicks) || 0);
     }, 0);
-    console.log(totalSale, totalSaleQty, totalClicks);
+ 
     return res.json({ totalSale, totalSaleQty, totalClicks });
   } catch (error) {
     next(error);
@@ -84,7 +84,7 @@ export const getPageViews = asyncHandler(async (req, res, next) => {
     const user = req.user;
     if (!user) throw ApiError(404, "Unauthorized request");
     const affiliations = await Affiliation.find({ influencerId: user._id });
-    console.log(affiliations);
+ 
     const totalPageViews = affiliations.reduce((total, aff) => {
       return total + (Number(aff.pageView) || 0);
     }, 0);
@@ -128,13 +128,7 @@ export const getAllMetrics = asyncHandler(async (req, res, next) => {
       (total, aff) => total + (Number(aff.pageView) || 0),
       0,
     );
-    console.log(
-      totalSale,
-      totalSaleQty,
-      totalClicks,
-      totalPurchases,
-      totalPageViews,
-    );
+    
     return res.json({
       totalSale,
       totalSaleQty,
@@ -149,7 +143,7 @@ export const getAllMetrics = asyncHandler(async (req, res, next) => {
 
 export const getMostViewedProducts = asyncHandler(async (req, res, next) => {
   try {
-    console.log("test");
+ 
     const user = req.user;
     if (!user) throw ApiError(404, "Unauthorized request");
     const affiliations = await Affiliation.find({ influencerId: user._id })

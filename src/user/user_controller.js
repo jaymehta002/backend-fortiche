@@ -38,9 +38,9 @@ const updateUserDetailsController = asyncHandler(async (req, res, next) => {
     const user = req.user;
 
     const { userName, categories, fullName, bio, theme } = req.body;
-    console.log(userName);
+ 
     const existingUser = await fetchUsers({ username: userName });
-    console.log(existingUser);
+ 
     if (userName && existingUser.length > 0) {
       throw ApiError(409, "username already exists");
     }
@@ -73,7 +73,7 @@ const updateUserAvatarController = asyncHandler(async (req, res, next) => {
     const user = req.user;
 
     const avatarLocalPath = req.file?.path;
-    console.log(req.file);
+ 
     if (!avatarLocalPath) {
       throw ApiError(400, "avatar file is missing");
     }
@@ -318,7 +318,7 @@ const getInfluencerPageController = asyncHandler(async (req, res, next) => {
       influencerInfo: influencer,
       affiliations,
     };
-    console.log("Influencer page info", influencerPageInfo);
+ 
     // await increasePageViewCount(influencerId, 1);
 
     const lastVisitTimeCookieKey = `lastVisitTime::${influencerId}`;
@@ -525,7 +525,7 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
   throw ApiError(401,"Unauthorized request") 
  } 
 
-    console.log(`User initiating Stripe connect: ${user.email}`);
+ 
 
     // Check if Stripe account already exists
     if (user.stripeAccountId) {
@@ -558,7 +558,7 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
         await stripeClient.accounts.update(user.stripeAccountId, {
           capabilities: { transfers: { requested: true } },
         });
-        console.log(`Transfers capability requested for account: ${user.stripeAccountId}`);
+    
       }
 
       // Onboarding and capabilities complete
@@ -775,7 +775,7 @@ const getInfluencerOrdersController = asyncHandler(async (req, res) => {
   // Find orders where the influencer is the buyer
   const orders = await Order.find({ userId: userId }).sort({ createdAt: -1 }); // Sort by newest first
     
-  console.log(orders); 
+  
   
   if (!orders || orders.length === 0) {
     return res.status(200).json({

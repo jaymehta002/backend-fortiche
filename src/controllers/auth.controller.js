@@ -204,11 +204,9 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
       req.cookies?.refreshToken ||
       req.body.refreshToken ||
       req.header("Authorization")?.replace("Bearer ", "");
-
-    console.log("Incoming Refresh Token:", incomingRefreshToken);
-
+ 
     if (!incomingRefreshToken) {
-      console.log("Error: Refresh token is required");
+   
       throw ApiError(401, "Refresh token is required");
     }
 
@@ -217,10 +215,10 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
       process.env.REFRESH_TOKEN_SECRET,
     );
 
-    console.log("Decoded Token:", decodedToken);
+ 
 
     if (!decodedToken) {
-      console.log("Error: Invalid refresh token");
+  
       throw ApiError(401, "Invalid refresh token");
     }
 
@@ -230,7 +228,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
       refreshToken: tokens.refreshToken,
     });
 
-    console.log("New Tokens Generated:", tokens);
+ 
 
     const response = createTokenResponse(tokens, user);
 
@@ -250,7 +248,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 
 const forgotPassword = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
-  console.log(email);
+ 
   if (!email) {
     return next(ApiError(400, "Email is required"));
   } 
@@ -267,7 +265,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   // const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
 
   const bool = await sendResetPasswordEmail(email, resetPasswordLink);
-  console.log(bool);
+ 
   res.status(200).json({
     success: true,
     message: "Password reset link sent to email",
@@ -276,7 +274,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
 const resetPassword = asyncHandler(async (req, res, next) => {
   const { token, newPassword } = req.body;
-  console.log(token, newPassword);
+ 
   if (!token || !newPassword) {
     return next(ApiError(400, "Token and new password are required"));
   }

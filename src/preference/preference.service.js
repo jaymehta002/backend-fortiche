@@ -17,7 +17,7 @@ export const sendProductPurchaseMail = async (userId, productId) => {
         text: `Dear ${user.fullName},\n\nSomeone has purchased a ${product.title} from your page\n\nBest regards,\Fortiche`,
       };
       await transporter.sendMail(mailOptions);
-      console.log("Mail sent");
+ 
     }
   } catch (error) {
     console.log(error);

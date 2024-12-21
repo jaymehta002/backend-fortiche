@@ -56,7 +56,7 @@ const getWishListController = async (req, res, next) => {
       return res.status(404).json( "User not found");
     }
  
-    console.log(user);
+ 
     const wishlist = user.wishlist || [];
     return res.status(200).json(new ApiResponse(200, wishlist, "Wishlist fetched successfully"));
   } catch (error) {

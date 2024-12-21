@@ -99,7 +99,7 @@ const sendOTPEmail = async (to, otp) => {
       </div>
     </div>
   `;
-  console.log("here");
+ 
   const response = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
     from: `Support <noreply@${process.env.MAILGUN_DOMAIN}>`,
     to,

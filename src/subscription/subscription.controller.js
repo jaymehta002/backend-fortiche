@@ -50,7 +50,7 @@ export const createCheckoutSession = async (req, res) => {
 export const handleStripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   if (!sig) {
-    console.log("No stripe-signature header value was provided.");
+ 
     return res.status(400).send("Webhook signature verification failed.");
   }
 
@@ -77,14 +77,14 @@ export const handleStripeWebhook = async (req, res) => {
         await handleSubscriptionUpdated(event.data.object);
         break;
       case "checkout.session.expired":
-        console.log("checkout.session.expired");
+ 
         break;
       case "payment_intent.succeeded":
       case "payment_intent.created":
       case "charge.succeeded":
         break;
       default:
-        console.log(`Unhandled event type ${event.type}`);
+ 
     }
 
     return res.json({ received: true });
@@ -102,7 +102,60 @@ const handleCheckoutSessionCompleted = async (session) => {
       );
       await createOrUpdateSubscription(subscription, session);
     } else {
-      console.log("Processing one-time payment session");
+      let customerId;
+
+      const existingCustomers = await stripe.customers.list({
+        email: session.customer_details.email,
+        limit: 1,  
+      });
+
+      if (existingCustomers.data.length === 0) {
+        const newCustomer = await stripe.customers.create({
+          email: session.customer_details.email,
+        });
+        customerId = newCustomer.id;
+      } else {
+        customerId = existingCustomers.data[0].id;
+      }
+ 
+      const subscriptionData = {
+        plan: session.metadata.plan,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: session.id,
+        status: "active",
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        customerName: session.metadata.customer_name || "Unknown",
+        customerEmail: session.customer_details.email || "Unknown",
+        autoRenew: false,
+        cancelAtPeriodEnd: true,
+      };
+
+      const userId = session.metadata.userId;
+      const mongoSession = await mongoose.startSession();
+      mongoSession.startTransaction();
+
+      try {
+        if (userId) {
+          const user = await User.findById(userId).session(mongoSession);
+          if (user) {
+            user.plan = session.metadata.plan;
+            await user.save({ session: mongoSession });
+          } else {
+            throw new Error(`User not found with ID: ${userId}`);
+          }
+        }
+
+        await Subscription.create([subscriptionData], {
+          session: mongoSession,
+        });
+        await mongoSession.commitTransaction();
+      } catch (error) {
+        await mongoSession.abortTransaction();
+        throw error;
+      } finally {
+        mongoSession.endSession();
+      }
     }
   } catch (error) {
     console.error("Error in handleCheckoutSessionCompleted:", error);

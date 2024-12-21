@@ -147,13 +147,13 @@ const handleSuccessPage = async (req, res) => {
   try {
     // Verify the session with Stripe
     const session = await stripeClient.checkout.sessions.retrieve(session_id);
-    console.log("test1");
+ 
     if (session.payment_status === "paid") {
-      console.log("test2");
+ 
       const sponsorshipId = session.metadata.sponsorshipId;
-      console.log("test3");
+ 
       const sponsorship = await Sponsorship.findById(sponsorshipId);
-      console.log("test4");
+ 
       if (sponsorship) {
         sponsorship.paymentStatus = "completed";
         sponsorship.status = "pending";
@@ -377,7 +377,7 @@ sponsorRouter.get("/get-user-sponsorships", auth, async (req, res) => {
     })
       .populate("brandId")
       .populate("influencerId");
-    console.log(sponsorships);
+ 
     res.status(200).json({ sponsorships });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -4,7 +4,7 @@ import { Product } from "../product/product.model.js";
 import { ApiError } from "../utils/APIError.js";
 
 export const createCommision = asyncHandler(async (req, res) => {
-  console.log("createCommision");
+ 
   const user = req.user;
   const { productId, recipients } = req.body;
 
@@ -122,7 +122,6 @@ export const getCommisions = asyncHandler(async (req, res) => {
   })
     .populate("productId", "title pricing")
     .populate("recipients.userId", "fullName");
-  console.log(commisions);
   res.status(200).json(commisions);
 });
 

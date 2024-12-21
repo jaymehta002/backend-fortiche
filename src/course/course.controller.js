@@ -37,7 +37,7 @@ const uploadThumbnailOrVideo = asyncHandler(async (req, res, next) => {
       throw ApiError(403, "You are not authorized to upload a file");
     }
     const file = req.file?.path;
-    console.log(file);
+ 
     if (!file) throw ApiError(400, "File is required");
     const result = uploadOnCloudinary(file);
     return res.json(

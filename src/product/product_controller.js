@@ -11,9 +11,7 @@ import { Collection } from "../models/collection.model.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
-    console.log(req.user.accountType);
-    // console.log(req.files.imageUrls)
-    console.log(req.files.specificationPdf)
+   
     if (req.user.accountType !== "brand") {
       throw ApiError(400, "Action restricted for Influencer accounts");
     }
@@ -51,7 +49,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
     let imageUrls = [];
     if (req.files && req.files.imageUrls && req.files.imageUrls.length > 0) {
       const imageUrlsLocal = req.files.imageUrls.map((file) => file.path);
-      console.log("image urls local", imageUrlsLocal);
+ 
       imageUrls = await Promise.all(
           imageUrlsLocal.map(async (image) => {
               const result = await uploadOnCloudinary(image);
@@ -68,7 +66,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
       }
   
       try {
-          console.log(pdfFile.path, "pdfFile.path");
+ 
           const uploadedFile = await uploadOnCloudinary(pdfFile.path);
           specificationPdf = uploadedFile.url;
       } catch (error) {
@@ -150,8 +148,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
     }
 
     const product = await Product.create(productData);
-
-    console.log(product, "product");
+ 
     return res
       .status(201)
       .json(new ApiResponse(201, product, "Product created successfully"));
@@ -337,7 +334,7 @@ const updateProduct = asyncHandler(async (req, res, next) => {
       virtualDetails,
       tags,
     } = req.body;
-    console.log(req.body, "req.body");
+ 
     if (req.user.accountType !== "brand") {
       throw ApiError(400, "Action restricted for influencers");
     }
