@@ -1,32 +1,10 @@
-// import { Router } from "express";
-// import express from "express";
-// import {
-//   createCheckoutSession,
-//   handleStripeWebhook,
-//   cancelSubscription,
-// } from "./subscription.controller.js";
-
-// const subscriptionRouter = Router();
-
-// subscriptionRouter.post("/create", createCheckoutSession);
-
-// subscriptionRouter.post(
-//   "/webhook",
-//   express.raw({ type: "application/json" }),
-//   handleStripeWebhook,
-// );
-
-// subscriptionRouter.put("/cancel/:id", cancelSubscription);
-
-// export default subscriptionRouter;
-
 import { Router } from "express";
 import {
   createCheckoutSession,
   handleStripeWebhook,
   cancelSubscription,
   upgradePlan,
-  verifySession
+  verifySession,
 } from "./subscription.controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import express from "express";
@@ -36,7 +14,7 @@ subscriptionRouter.use(express.json());
 subscriptionRouter.post(
   "/webhook",
   express.raw({ type: "application/json" }),
-  handleStripeWebhook
+  handleStripeWebhook,
 );
 
 subscriptionRouter.use(auth);

@@ -49,15 +49,9 @@ export const createCheckoutSession = async (req, res) => {
 
 export const handleStripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
-  console.log("sig");
   if (!sig) {
     console.log("No stripe-signature header value was provided.");
     return res.status(400).send("Webhook signature verification failed.");
-  }
-
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error("Missing STRIPE_WEBHOOK_SECRET environment variable");
-    return res.status(500).send("Server configuration error");
   }
 
   let event;
@@ -106,10 +100,9 @@ const handleCheckoutSessionCompleted = async (session) => {
       const subscription = await stripe.subscriptions.retrieve(
         session.subscription,
       );
-      console.log("subscription", subscription);
       await createOrUpdateSubscription(subscription, session);
     } else {
-      await handleOneTimePayment(session);
+      console.log("Processing one-time payment session");
     }
   } catch (error) {
     console.error("Error in handleCheckoutSessionCompleted:", error);
@@ -189,67 +182,6 @@ const createOrUpdateSubscription = async (
     throw error;
   } finally {
     session.endSession();
-  }
-};
-
-const handleOneTimePayment = async (session) => {
-  console.log("handleOneTimePayment", session);
-  const userId = session.metadata?.userId;
-  if (!userId) {
-    throw new Error("User ID not found in session metadata");
-  }
-
-  const plan = session.metadata?.plan;
-  if (!plan) {
-    throw new Error("Plan information is missing from session");
-  }
-
-  const sessionWithLineItems = await stripe.checkout.sessions.retrieve(
-    session.id,
-    {
-      expand: ["line_items"],
-    },
-  );
-  console.log("sessionWithLineItems");
-  const subscriptionData = {
-    plan: plan,
-    stripeCustomerId: session.customer,
-    status: "active",
-    startDate: new Date(),
-    endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-    customerName: session.metadata?.customer_name || "Unknown",
-    customerEmail: session.customer_details?.email || "Unknown",
-    autoRenew: false,
-    cancelAtPeriodEnd: true,
-    amount: sessionWithLineItems.amount_total / 100,
-  };
-
-  const dbSession = await mongoose.startSession();
-  dbSession.startTransaction();
-
-  try {
-    console.log("subscriptionData");
-    const newSubscription = await Subscription.create([subscriptionData], {
-      session: dbSession,
-    });
-
-    // Update the user with both plan and subscription reference
-    const user = await User.findById(userId).session(dbSession);
-    if (user) {
-      user.plan = plan;
-      user.subscription = newSubscription[0]._id; // Add reference to the subscription
-      await user.save({ session: dbSession });
-    } else {
-      throw new Error(`User not found with ID: ${userId}`);
-    }
-
-    await dbSession.commitTransaction();
-  } catch (error) {
-    await dbSession.abortTransaction();
-    console.error(`Transaction failed: ${error.message}`);
-    throw error;
-  } finally {
-    dbSession.endSession();
   }
 };
 
