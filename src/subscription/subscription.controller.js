@@ -27,7 +27,7 @@ export const createCheckoutSession = async (req, res) => {
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
-      mode: plan === "believer" ? "payment" : "subscription",
+      mode: (plan === "believer" || plan === "enterprise") ? "payment" : "subscription",
       customer_email: user.email,
       line_items: [{ price: stripePriceId, quantity: 1 }],
       success_url: `${process.env.CLIENT_URL}/upgrade-success?session_id={CHECKOUT_SESSION_ID}`,
