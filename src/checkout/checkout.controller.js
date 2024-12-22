@@ -681,6 +681,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       throw ApiError(400, "Coupon usage limit reached");
     }
   }
+  
 
   for (const product of products) {
     const productInfo = productData.find(
