@@ -7,9 +7,9 @@ import Subscription from "./subscription.model.js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PLAN_TO_PRICE_MAPPING = {
-  starter: "price_1Q1rtkHRK1oXhYsFgF9BtLHk",
-  believer: "price_1Q1rvDHRK1oXhYsFBrP8FYTf",
-  professional: "price_1Q1s4RHRK1oXhYsFW9Zec455",
+  starter: "price_1QYhx9HRK1oXhYsF4kGJjMTC",
+  believer: "price_1QYhxMHRK1oXhYsFfIsh85Vi",
+  professional: "price_1QYhxXHRK1oXhYsFq1oepwiZ",
   enterprise: "price_1QYi8pHRK1oXhYsFkmohTHE8",
 };
 
