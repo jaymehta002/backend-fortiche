@@ -10,7 +10,7 @@ const PLAN_TO_PRICE_MAPPING = {
   starter: "price_1Q1rtkHRK1oXhYsFgF9BtLHk",
   believer: "price_1Q1rvDHRK1oXhYsFBrP8FYTf",
   professional: "price_1Q1s4RHRK1oXhYsFW9Zec455",
-  enterprise: "price_1Q1s5PHRK1oXhYsFZuCdEcVO",
+  enterprise: "price_1QYi8pHRK1oXhYsFkmohTHE8",
 };
 
 export const createCheckoutSession = async (req, res) => {
