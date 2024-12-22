@@ -1,8 +1,8 @@
-import Stripe from "stripe";
-import Subscription from "./subscription.model.js";
-import { ApiError } from "../utils/APIError.js";
 import mongoose from "mongoose";
+import Stripe from "stripe";
 import { User } from "../user/user.model.js";
+import { ApiError } from "../utils/APIError.js";
+import Subscription from "./subscription.model.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
