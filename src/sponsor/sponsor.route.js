@@ -15,7 +15,20 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const createSponsorshipTerms = async (req, res) => {
   const { duration, termsAndConditions } = req.body;
   const influencerId = req.user._id;
+ 
+  const existingTerms = await SponsorshipTerms.findOne({
+    influencerId,
+    isActive: true,
+  });
 
+  if (existingTerms) {
+   
+    existingTerms.duration = duration;
+    existingTerms.termsAndConditions = termsAndConditions;
+    await existingTerms.save();
+    return res.status(200).json({ terms: existingTerms });
+  }
+ 
   const terms = await SponsorshipTerms.create({
     influencerId,
     duration,
