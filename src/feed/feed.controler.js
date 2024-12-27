@@ -124,6 +124,8 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
 
     const collections = await fetchCollectionsAndProducts(user._id);
 
+    const shippingTo = await Shipping.findOne({ brandId: user._id }); 
+
     const payload = {
       seo: user.seo,
       coverImage: user.coverImage,
@@ -145,6 +147,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       totalItems,
       limit: validatedLimit,
       collections,
+      shippingTo,
       influencerId: user._id,
     };
 
