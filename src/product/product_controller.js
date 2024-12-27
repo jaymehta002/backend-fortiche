@@ -8,10 +8,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { fetchProductByFilter, fetchProductById } from "./product_service.js";
 import { User } from "../user/user.model.js";
 import { Collection } from "../models/collection.model.js";
+import  Shipping  from "../shipping/shipping.model.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
-   
     if (req.user.accountType !== "brand") {
       throw ApiError(400, "Action restricted for Influencer accounts");
     }
@@ -163,7 +163,7 @@ const getAllProducts = asyncHandler(async (req, res, next) => {
     if (!user || user.accountType !== accountType.INFLUENCER) {
       throw ApiError(401, "Unauthorized");
     }
-
+    const shipping = await Shipping.findOne({ brandId: user._id });
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -173,14 +173,24 @@ const getAllProducts = asyncHandler(async (req, res, next) => {
       Product.countDocuments(),
     ]);
 
-    const totalPages = Math.ceil(totalCount / limit);
+    // Add shipping information to each product
+    const productsWithShipping = await Promise.all(
+      allProducts.map(async (product) => {
+        const shipping = await Shipping.findOne({ brandId: product.brandId });
+        return {
+          ...product.toObject(),
+          shippingTo: shipping || null,
+        };
+      }),
+    );
+
     return res.status(200).json(
       new ApiResponse(
         200,
         {
-          products: allProducts,
+          products: productsWithShipping,
           currentPage: page,
-          totalPages: totalPages,
+          totalPages: Math.ceil(totalCount / limit),
           totalProducts: totalCount,
         },
         "Products fetched successfully",
@@ -203,9 +213,23 @@ const getProductDetails = asyncHandler(async (req, res, next) => {
     if (!product) {
       throw ApiError(404, "invalid productId, not found in the database");
     }
+
+    // Get shipping rules for this product's brand only
+    const shipping = await Shipping.findOne({ brandId: product.brandId });
+    const productWithShipping = {
+      ...product.toObject(),
+      shippingTo: shipping || null,
+    };
+
     return res
       .status(200)
-      .json(new ApiResponse(200, product, "product fetched successfully"));
+      .json(
+        new ApiResponse(
+          200,
+          productWithShipping,
+          "product fetched successfully",
+        ),
+      );
   } catch (err) {
     return next(err);
   }

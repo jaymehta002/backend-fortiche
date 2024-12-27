@@ -6,6 +6,7 @@ import { Product } from "../product/product.model.js";
 import { Affiliation } from "../affiliation/affiliation_model.js";
 import Recommendation from "../recommendation/recommendation.model.js";
 import { Collection } from "../models/collection.model.js";
+import Shipping from "../shipping/shipping.model.js";
 
 const validatePagination = (limit, page) => ({
   validatedLimit: Math.max(parseInt(limit), 1),
@@ -102,7 +103,19 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }],
       influencerId: user._id,
     }).populate("productId");
-  
+
+    const affiliationsWithShipping = await Promise.all(
+      affiliations.map(async (affiliation) => {
+        const shipping = await Shipping.findOne({
+          brandId: affiliation.productId.brandId,
+        });
+        return {
+          ...affiliation.toObject(),
+          shippingTo: shipping || null,
+        };
+      }),
+    );
+
     const { totalProducts, totalAffiliatedProducts, totalPosts } =
       await calculatePaginationTotals(user._id, affiliatedProductIds);
 
@@ -123,7 +136,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       userProducts: products,
       feed: user.feed,
       totalUserProducts: products.length,
-      brandProducts: affiliations,
+      brandProducts: affiliationsWithShipping,
       // totalBrandProducts: affiliatedProducts.length,
       posts: userPosts,
       totalPosts: userPosts.length,

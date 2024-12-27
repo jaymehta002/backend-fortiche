@@ -8,26 +8,37 @@ import { accountType } from "../common/common_constants.js";
 import { Affiliation } from "./affiliation_model.js";
 import { ApiError } from "../utils/APIError.js";
 import { ApiResponse } from "../utils/APIResponse.js";
+import Shipping from "../shipping/shipping.model.js";
 
 const getAffiliationProductController = asyncHandler(async (req, res, next) => {
   try {
     const { affiliationId } = req.params;
-    // console.log(affiliationId);
-    const productId = await Affiliation.findById(affiliationId);
-    // console.log(productId);
+    const affiliation = await Affiliation.findById(affiliationId);
+    const product = await fetchProductById(affiliation.productId);
 
-    const product = await fetchProductById(productId.productId);
-    // console.log(affiliationId);
+    // Fetch shipping information
+    const shipping = await Shipping.findOne({
+      brandId: product.brandId,
+    });
+
+    // Combine product with shipping info
+    const productWithShipping = {
+      ...product.toObject(),
+      shippingTo: shipping || null,
+    };
 
     await increaseAffiliationClickCount(affiliationId, 1);
-    // console.log(affiliationId);
-
-    // Increase page view count for the affiliation
     await increasePageViewCount(affiliationId, 1);
 
     return res
       .status(200)
-      .json(new ApiResponse(200, product, "product fetched successfully"));
+      .json(
+        new ApiResponse(
+          200,
+          productWithShipping,
+          "product fetched successfully",
+        ),
+      );
   } catch (err) {
     return next(err);
   }
