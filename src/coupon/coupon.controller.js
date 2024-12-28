@@ -47,9 +47,6 @@ const createCoupon = asyncHandler(async (req, res, next) => {
       [
         "SUBTOTAL",
         "DELIVERY",
-        "SELECTED_PRODUCTS",
-        "BUY_X_GET_Y",
-        "PAYMENT_METHOD",
       ].includes(value),
     )
   ) {

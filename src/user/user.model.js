@@ -205,6 +205,18 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
+    privacyPolicy: {
+      type: String,
+      default: "",
+    },
+    termsAndConditions: {
+      type: String,
+      default: "",
+    },
+    refundPolicy: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,

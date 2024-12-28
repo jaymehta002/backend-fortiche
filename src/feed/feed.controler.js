@@ -149,6 +149,9 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       collections,
       shippingTo,
       influencerId: user._id,
+      privacyPolicy: user.privacyPolicy,
+      termsAndConditions: user.termsAndConditions,
+      refundPolicy: user.refundPolicy,
     };
 
     return res

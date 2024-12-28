@@ -9,7 +9,7 @@ const createCollection = asyncHandler(async (req, res, next) => {
   try {
     const { title, productIds } = req.body;
     const user = req.user;
-    if (user.accountType !== accountType.INFLUENCER) {
+    if (user.accountType !== accountType.INFLUENCER && user.accountType !== accountType.BRAND) {
       throw ApiError(401, "Unauthorized");
     }
 
@@ -32,7 +32,7 @@ const createCollection = asyncHandler(async (req, res, next) => {
 const getCollections = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-    if (user.accountType !== accountType.INFLUENCER) {
+    if (user.accountType !== accountType.INFLUENCER && user.accountType !== accountType.BRAND) {
       throw ApiError(401, "Unauthorized");
     }
 
@@ -60,7 +60,7 @@ const getCollectionbyId = asyncHandler(async (req, res, next) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    if (user.accountType !== accountType.INFLUENCER) {
+    if (user.accountType !== accountType.INFLUENCER && user.accountType !== accountType.BRAND) {
       throw ApiError(401, "Unauthorized");
     }
     const collection = await Collection.findById(id);
@@ -108,7 +108,7 @@ const updateCollection = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
     const { title, productIds } = req.body;
     const user = req.user;
-    if (user.accountType !== accountType.INFLUENCER) {
+    if (user.accountType !== accountType.INFLUENCER && user.accountType !== accountType.BRAND) {
       throw ApiError(401, "Unauthorized");
     }
 
@@ -131,7 +131,7 @@ const deleteCollection = asyncHandler(async (req, res, next) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    if (user.accountType !== accountType.INFLUENCER) {
+    if (user.accountType !== accountType.INFLUENCER && user.accountType !== accountType.BRAND) {
       throw ApiError(401, "Unauthorized");
     }
     await Collection.findByIdAndDelete(id);

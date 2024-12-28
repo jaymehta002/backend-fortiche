@@ -26,11 +26,10 @@ const couponSchema = new Schema({
     enum: [
       "SUBTOTAL",
       "DELIVERY",
-      "SELECTED_PRODUCTS",
-      "BUY_X_GET_Y",
-      "PAYMENT_METHOD",
+      // "SELECTED_PRODUCTS",
+      // "BUY_X_GET_Y",
+      // "PAYMENT_METHOD",
     ],
-    required: true,
   },
   discount: {
     type: {

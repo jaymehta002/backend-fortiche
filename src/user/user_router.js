@@ -21,6 +21,9 @@ import {
   updateInfluencerAddress,
   updateBrandAddress,
   getInfluencerOrdersController,
+  updatePrivacyPolicyController,
+  updateTermsAndConditionsController,
+  updateRefundPolicyController,
   
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
@@ -51,6 +54,9 @@ userRouter
     upload.single("thumbnail"),
     updateAdditionalLinksController,
   )
+  .patch("/update-privacy-policy", updatePrivacyPolicyController)
+  .patch("/update-terms-and-conditions", updateTermsAndConditionsController)
+  .patch("/update-refund-policy", updateRefundPolicyController)
   .patch("/handle-link-order", handleLinkOrder)
   .delete("/delete-additional-link/:id", deleteLink)
   .get("/get-additional-links", getAdditionalLinksController)

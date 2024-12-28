@@ -791,6 +791,61 @@ const getInfluencerOrdersController = asyncHandler(async (req, res) => {
   });
 });
 
+const updatePrivacyPolicyController = asyncHandler(async (req, res, next) => {
+  const { privacyPolicy } = req.body;
+  const userId = req.user.id;
+  if (!privacyPolicy) {
+    return res.status(200).json({
+      success: true,
+      message: "Privacy policy is empty"
+    });
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(userId, { privacyPolicy });
+
+  return res.status(200).json({
+    success: true,
+    data: updatedUser
+  });
+});
+
+const updateTermsAndConditionsController = asyncHandler(async (req, res, next) => {
+  const { termsAndConditions } = req.body;
+  const userId = req.user.id;
+  if (!termsAndConditions) {
+    return res.status(200).json({
+      success: true,
+      message: "Terms and conditions are empty"
+    });
+  }
+  const updatedUser = await User.findByIdAndUpdate(userId, { termsAndConditions });
+
+
+  return res.status(200).json({
+    success: true,
+    data: updatedUser
+  });
+});
+
+const updateRefundPolicyController = asyncHandler(async (req, res, next) => {
+  const { refundPolicy } = req.body;
+  const userId = req.user.id;
+  if (!refundPolicy) {
+    return res.status(200).json({
+      success: true,
+      message: "Refund policy is empty"
+    });
+  }
+  const updatedUser = await User.findByIdAndUpdate(userId, { refundPolicy });
+  
+  return res.status(200).json({
+    success: true,
+    data: updatedUser
+  });
+});
+
+
+
 export {
   getUserDetailsController,
   updateUserDetailsController,
@@ -812,4 +867,7 @@ export {
   updateInfluencerAddress,
   updateBrandAddress,
   getInfluencerOrdersController,
+  updatePrivacyPolicyController,
+  updateTermsAndConditionsController,
+  updateRefundPolicyController,
 };
