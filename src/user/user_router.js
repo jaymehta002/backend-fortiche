@@ -24,6 +24,7 @@ import {
   updatePrivacyPolicyController,
   updateTermsAndConditionsController,
   updateRefundPolicyController,
+  disconnectStripeController,
   
 } from "./user_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
@@ -70,6 +71,7 @@ userRouter
   .post("/upgrade-subscription", upgradeSubscription)
   .post("/toggle-auto-renewal", toggleAutoRenewal)
   .post("/connect-stripe", connectStripeController)
+  .post("/disconnect-stripe",disconnectStripeController)
   .delete("/delete-account", deleteAccountController)
   .patch("/update-seo", updateSeo)
   .patch("/update-influencer-address",updateInfluencerAddress)

@@ -8,16 +8,18 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { fetchProductByFilter, fetchProductById } from "./product_service.js";
 import { User } from "../user/user.model.js";
 import { Collection } from "../models/collection.model.js";
-import  Shipping  from "../shipping/shipping.model.js";
+import Shipping from "../shipping/shipping.model.js";
 
 const createProduct = asyncHandler(async (req, res, next) => {
   try {
     if (req.user.accountType !== "brand") {
       throw ApiError(400, "Action restricted for Influencer accounts");
     }
+
     const userProductCount = await Product.countDocuments({
       brandId: req.user.id,
     });
+
     if (req.user.plan === "basic" && userProductCount >= 8) {
       throw ApiError(
         403,
@@ -39,7 +41,6 @@ const createProduct = asyncHandler(async (req, res, next) => {
       downloadableDetails,
       virtualDetails,
       tags,
-      
     } = req.body;
 
     if (!["physical", "virtual", "downloadable"].includes(productType)) {
@@ -49,31 +50,46 @@ const createProduct = asyncHandler(async (req, res, next) => {
     let imageUrls = [];
     if (req.files && req.files.imageUrls && req.files.imageUrls.length > 0) {
       const imageUrlsLocal = req.files.imageUrls.map((file) => file.path);
- 
+
       imageUrls = await Promise.all(
-          imageUrlsLocal.map(async (image) => {
-              const result = await uploadOnCloudinary(image);
-              return result.url;
-          }),
+        imageUrlsLocal.map(async (image) => {
+          const result = await uploadOnCloudinary(image);
+          return result.url;
+        }),
       );
-  }
-  
-  let specificationPdf = null;
-  if (req.files && req.files.specificationPdf && req.files.specificationPdf.length > 0) {
-      const pdfFile = req.files.specificationPdf[0]; 
+    }
+
+    let specificationPdf = null;
+    if (
+      req.files &&
+      req.files.specificationPdf &&
+      req.files.specificationPdf.length > 0
+    ) {
+      const pdfFile = req.files.specificationPdf[0];
       if (pdfFile.mimetype !== "application/pdf") {
-          throw ApiError(400, "Invalid file type. Only PDF files are allowed");
+        throw ApiError(400, "Invalid file type. Only PDF files are allowed");
       }
-  
+
       try {
- 
-          const uploadedFile = await uploadOnCloudinary(pdfFile.path);
-          specificationPdf = uploadedFile.url;
+        const uploadedFile = await uploadOnCloudinary(pdfFile.path);
+        specificationPdf = uploadedFile.url;
       } catch (error) {
-          throw ApiError(500, "Failed to upload specification PDF to Cloudinary");
+        throw ApiError(500, "Failed to upload specification PDF to Cloudinary");
       }
-  }
-  
+    }
+    let downloadableFileUrl = null;
+    if (
+      productType === "downloadable" &&
+      req.files?.["downloadableDetails[fileUpload]"]?.length > 0
+    ) {
+      const downloadableFile = req.files["downloadableDetails[fileUpload]"][0];
+      try {
+        const uploadedFile = await uploadOnCloudinary(downloadableFile.path);
+        downloadableFileUrl = uploadedFile.url;
+      } catch (error) {
+        throw ApiError(500, "Failed to upload downloadable file to Cloudinary");
+      }
+    }
 
     const productData = {
       title,
@@ -87,6 +103,9 @@ const createProduct = asyncHandler(async (req, res, next) => {
       rating,
       specificationPdf,
       isRecommended,
+      downloadableDetails: {
+        fileUpload: downloadableFileUrl,
+      },
       tags,
       commissionPercentage,
       brandId: req.user.id,
@@ -102,7 +121,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
         );
       }
       const { weight, height, width, length, packageFormat, ean, sku } =
-      physicalDetails;
+        physicalDetails;
 
       if (ean) {
         const existingProductByEan = await Product.findOne({
@@ -130,16 +149,16 @@ const createProduct = asyncHandler(async (req, res, next) => {
         ...(ean && { ean }),
         ...(sku && { sku }),
       };
-
-
     } else if (productType === "downloadable") {
-      if (!downloadableDetails || !downloadableDetails.fileUpload) {
+      if (!downloadableFileUrl) {
         throw ApiError(
           400,
-          "File upload URL is required for downloadable products",
+          "File upload is required for downloadable products",
         );
       }
-      productData.downloadableDetails = downloadableDetails;
+      productData.downloadableDetails = {
+        fileUpload: downloadableFileUrl,
+      };
     } else if (productType === "virtual") {
       if (!virtualDetails || !virtualDetails.link) {
         throw ApiError(400, "Link is required for virtual products");
@@ -148,7 +167,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
     }
 
     const product = await Product.create(productData);
- 
+
     return res
       .status(201)
       .json(new ApiResponse(201, product, "Product created successfully"));
@@ -358,7 +377,7 @@ const updateProduct = asyncHandler(async (req, res, next) => {
       virtualDetails,
       tags,
     } = req.body;
- 
+
     if (req.user.accountType !== "brand") {
       throw ApiError(400, "Action restricted for influencers");
     }

@@ -104,8 +104,13 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
       influencerId: user._id,
     }).populate("productId");
 
+    // Filter out affiliations where the product has been deleted
+    const validAffiliations = affiliations.filter(
+      (affiliation) => affiliation.productId != null,
+    );
+
     const affiliationsWithShipping = await Promise.all(
-      affiliations.map(async (affiliation) => {
+      validAffiliations.map(async (affiliation) => {
         const shipping = await Shipping.findOne({
           brandId: affiliation.productId.brandId,
         });
@@ -124,7 +129,7 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
 
     const collections = await fetchCollectionsAndProducts(user._id);
 
-    const shippingTo = await Shipping.findOne({ brandId: user._id }); 
+    const shippingTo = await Shipping.findOne({ brandId: user._id });
 
     const payload = {
       seo: user.seo,

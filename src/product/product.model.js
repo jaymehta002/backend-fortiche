@@ -4,11 +4,11 @@ import { category } from "../common/common_constants.js";
 // Sub-schema for Physical Products
 const physicalProductSchema = new mongoose.Schema(
   {
-    weight: { type: Number, required: true },
-    height: { type: Number, required: true },
-    width: { type: Number, required: true },
-    length: { type: Number, required: true },
-    packageFormat: { type: String, required: true },
+    weight: { type: Number,},
+    height: { type: Number, },
+    width: { type: Number,  },
+    length: { type: Number, },
+    packageFormat: { type: String, },
     ean: { type: String,   unique: true },  
     sku: { type: String,  unique: true },
   },

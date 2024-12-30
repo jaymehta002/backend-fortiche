@@ -29,11 +29,24 @@ productRouter
   .get("/get-product-details/:id", getProductDetails)
   .get("/get-most-viewed-products", getMostViewedProductsController)
   .get("/search", searchProduct)
-  .post("/create-product",upload.fields([{
-    name:"imageUrls",maxCount:5
-  },{
-    name:"specificationPdf",maxCount:1
-  }]), createProduct)
+  .post(
+    "/create-product",
+    upload.fields([
+      {
+        name: "imageUrls",
+        maxCount: 5,
+      },
+      {
+        name: "specificationPdf",
+        maxCount: 1,
+      },
+      {
+        name: "downloadableDetails[fileUpload]",
+        maxCount: 5,
+      },
+    ]),
+    createProduct,
+  )
   .delete("/delete-product/:id", deleteProduct)
   .patch("/update-product/:id", updateProduct)
   .get("/get-products-by-user", getProductsByUser)

@@ -642,6 +642,17 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const disconnectStripeController = asyncHandler(async (req, res, next) => {
+  const user = req.user;
+  if (!user) throw ApiError(401, "Unauthorized request");
+  if (!user.stripeAccountId) {
+    return res.status(200).json(new ApiResponse(200, null, "Stripe account not connected"));
+  }
+   await User.findByIdAndUpdate(user._id,{stripeAccountId:null})
+
+  return res.status(200).json(new ApiResponse(200, null, "Stripe account disconnected"));
+});
+
 const deleteAccountController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
@@ -862,6 +873,7 @@ export {
   deleteLink,
   updateFeedLinkController,
   connectStripeController,
+  disconnectStripeController,
   deleteAccountController,
   updateSeo,
   updateInfluencerAddress,
