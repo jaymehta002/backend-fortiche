@@ -18,7 +18,7 @@ const physicalProductSchema = new mongoose.Schema(
 // Sub-schema for Downloadable Products
 const downloadableProductSchema = new mongoose.Schema(
   {
-    fileUpload: { type: String, required: true },
+    fileUpload: { type: String },
   },
   { _id: false },
 );
