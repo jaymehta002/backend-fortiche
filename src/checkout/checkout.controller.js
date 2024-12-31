@@ -1173,6 +1173,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
           // Skip shipping charges for downloadable products
           if (product.productType === "downloadable") {
             item.shippingAmount = 0;
+            item.vatAmount = 0;
             item.totalAmount = item.unitPrice * item.quantity + item.vatAmount;
           }
 
@@ -1310,25 +1311,26 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           )?.percentage || product.commissionPercentage;
 
         const quantity = Number(p.quantity) || 1;
-
-        const unitPrice = product.pricing;
-        const shippingAmount =
+        const unitPrice = Number(product.pricing);
+        const shippingAmount = 
+          product.productType === "downloadable" ? 0 :
           (await calculateShipping(product.brandId, addressData.country)) || 0;
-        const vatAmount =
+        const vatAmount = 
+          product.productType === "downloadable" ? 0 :
           Number(quantity * unitPrice * countryVat(addressData.country)) || 0;
-        let commission = Number((unitPrice * commissionPercentage) / 100) || 0;
+        const commission = Number((unitPrice * commissionPercentage) / 100) || 0;
+        const totalAmount = quantity * unitPrice + shippingAmount + vatAmount;
 
         return {
           productId: p._id,
-          brandId: product.brandId, // Add brandId
-          name: product.title,
+          brandId: product.brandId,
           quantity,
-          unitPrice, // Use unitPrice instead of price
-          totalAmount: quantity * unitPrice + shippingAmount + vatAmount, // Calculate total amount
-          shippingAmount:
-            product.productType === "downloadable" ? 0 : shippingAmount, // Ensure shipping amount
-          vatAmount, // Calculate VAT
+          unitPrice,
           commission,
+          vatAmount,
+          shippingAmount, 
+          totalAmount,
+          status: "pending"
         };
       }),
     );
@@ -1362,6 +1364,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
               item.unitPrice - coupon.discount.amount,
             );
           }
+          
           item.totalAmount =
             item.unitPrice * item.quantity +
             item.shippingAmount +
@@ -1383,7 +1386,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       },
       userId: buyer._id,
       userModel: buyer instanceof Guest ? "Guest" : "User",
-      totalAmount: session.amount_total / 100,
       paymentId: session.payment_intent,
       paymentStatus: "paid",
       shippingStatus: "pending",
@@ -1398,6 +1400,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         ) || 0,
       shippingAmount:
         Number(orderItems.reduce((sum, p) => sum + p.shippingAmount, 0)) || 0,
+        totalAmount: session.amount_total / 100,
       metadata: {
         sessionId: session_id,
       },
@@ -1425,6 +1428,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       let physicalProducts = [];
       let downloadableProducts = [];
 
+     
       // Separate physical and downloadable products
       for (const item of orderItems) {
         const product = await Product.findById(item.productId);
@@ -1441,71 +1445,72 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       }
 
       // Create email content
-      let emailContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333;">${isDownloadable ? "Digital Product Purchase" : "Order Confirmation"}</h1>
-          <p>Order Number: ${orderNumber}</p>
-          <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-            <h3>Product Details:</h3>
-            <p><strong>Product:</strong> ${product.title}</p>
-            <p><strong>Quantity:</strong> ${quantity}</p>
-            <p><strong>Unit Price:</strong> €${unitPrice}</p>
-            ${vatAmount > 0 ? `<p><strong>VAT:</strong> €${vatAmount}</p>` : ""}
-            ${!isDownloadable ? `<p><strong>Shipping:</strong> €${shippingAmount}</p>` : ""}
-            <p><strong>Total Amount:</strong> €${totalAmount}</p>
-          </div>
-      `;
-
-      if (isDownloadable && recipientType === "influencer") {
-        baseContent += `
-          <div style="margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
-            <h3>Download Your Product</h3>
-            <p>Your download link: <a href="${product.downloadableDetails.fileUpload}">Click here to download</a></p>
-            <p style="color: #ff0000;"><strong>Important:</strong> This download link will expire in 24 hours.</p>
-          </div>
-        `;
-      }
-
-      if (!isDownloadable && recipientType === "influencer") {
-        baseContent += `
-          <div style="margin: 20px 0;">
-            <h3>Shipping Details:</h3>
-            <p>${JSON.parse(address).line1}</p>
-            <p>${JSON.parse(address).city}, ${JSON.parse(address).state}</p>
-            <p>${JSON.parse(address).postalCode}, ${JSON.parse(address).country}</p>
+      let emailContent = '';
+      
+      // Handle physical products
+      if (physicalProducts.length > 0) {
+        emailContent += `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Order Confirmation</h1>
+            <p>Order Number: ${order.orderNumber}</p>
+            <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+              <h3>Physical Products:</h3>
+              ${physicalProducts.map(item => `
+                <div style="margin-bottom: 15px;">
+                  <p><strong>Product:</strong> ${item.name}</p>
+                  <p><strong>Quantity:</strong> ${item.quantity}</p>
+                  <p><strong>Unit Price:</strong> €${item.unitPrice}</p>
+                  ${item.vatAmount > 0 ? `<p><strong>VAT:</strong> €${item.vatAmount}</p>` : ''}
+                  <p><strong>Shipping:</strong> €${item.shippingAmount}</p>
+                  <p><strong>Total Amount:</strong> €${item.totalAmount}</p>
+                </div>
+              `).join('')}
+            </div>
+            <div style="margin: 20px 0;">
+              <h3>Shipping Details:</h3>
+              <p>${addressData.line1}</p>
+              <p>${addressData.city}, ${addressData.state}</p>
+              <p>${addressData.postalCode}, ${addressData.country}</p>
+            </div>
           </div>
         `;
       }
 
-      if (recipientType === "brand") {
-        baseContent += `
-          <div style="margin: 20px 0;">
-            <h3>Buyer Information:</h3>
-            <p><strong>Influencer Name:</strong> ${influencerData.fullName}</p>
-            <p><strong>Email:</strong> ${influencerData.email}</p>
-            ${
-              !isDownloadable
-                ? `
-              <h3>Shipping Address:</h3>
-              <p>${JSON.parse(address).line1}</p>
-              <p>${JSON.parse(address).city}, ${JSON.parse(address).state}</p>
-              <p>${JSON.parse(address).postalCode}, ${JSON.parse(address).country}</p>
-            `
-                : ""
-            }
+      // Handle downloadable products
+      if (downloadableProducts.length > 0) {
+        emailContent += `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Digital Product Purchase</h1>
+            <p>Order Number: ${order.orderNumber}</p>
+            <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+              <h3>Digital Products:</h3>
+              ${downloadableProducts.map(item => `
+                <div style="margin-bottom: 15px;">
+                  <p><strong>Product:</strong> ${item.name}</p>
+                  <p><strong>Quantity:</strong> ${item.quantity}</p>
+                  <p><strong>Unit Price:</strong> €${item.unitPrice}</p>
+                  ${item.vatAmount > 0 ? `<p><strong>VAT:</strong> €${item.vatAmount}</p>` : ''}
+                  <p><strong>Total Amount:</strong> €${item.totalAmount}</p>
+                  <div style="margin: 10px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+                    <h4>Download Your Product</h4>
+                    <p>Your download link: <a href="${item.downloadLink}">Click here to download</a></p>
+                    <p style="color: #ff0000;"><strong>Important:</strong> This download link will expire in 24 hours.</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
           </div>
         `;
       }
 
-      baseContent += `
-          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
-            <p>Thank you for your business!</p>
-            <p>If you have any questions, please contact our support team.</p>
-          </div>
+      emailContent += `
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+          <p>Thank you for your business!</p>
+          <p>If you have any questions, please contact our support team.</p>
         </div>
       `;
 
-      return baseContent;
+      return emailContent;
     };
 
     const emailContent = await guestEmailContent(
