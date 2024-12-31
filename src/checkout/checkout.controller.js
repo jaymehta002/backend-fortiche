@@ -4,7 +4,11 @@ import { Affiliation } from "../affiliation/affiliation_model.js";
 import Commision from "../commision/commision.model.js";
 import Coupon from "../coupon/coupon_model.js";
 import Guest from "../guest/guest.model.js";
-import { sendBrandNewOrderEmail, sendCustomEmail, sendOrderConfirmationEmail } from "../mail/mailgun.service.js";
+import {
+  sendBrandNewOrderEmail,
+  sendCustomEmail,
+  sendOrderConfirmationEmail,
+} from "../mail/mailgun.service.js";
 import Order from "../orders/order.model.js"; // Assuming you have an Order model
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { Product } from "../product/product.model.js";
@@ -253,10 +257,7 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
         (sum, item) => sum + item.shippingAmount,
         0,
       ),
-      totalAmount: orderItems.reduce(
-        (sum, item) => sum + item.totalAmount,
-        0,
-      ),
+      totalAmount: orderItems.reduce((sum, item) => sum + item.totalAmount, 0),
       status: "pending",
       paymentStatus: "paid",
       paymentId: session.payment_intent,
@@ -308,8 +309,6 @@ const sendOrderEmails = async (order, guest, brand) => {
   await sendOrderConfirmationEmail(guest.email, order, productDetails);
   await sendBrandNewOrderEmail(brand.email, order, productDetails);
 };
-
-
 
 // Create a payment session for an influencer
 export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
@@ -768,6 +767,7 @@ export const handleGuestSuccess = asyncHandler(async (req, res, next) => {
       amount: influencerAmount,
       currency: "eur",
       destination: influencerId,
+      delay_days: 30,
     });
 
     const platformAmount = totalPrice - influencerAmount;
@@ -1679,7 +1679,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
           amount: amountInCents,
           currency: "eur",
           destination: stripeAccountId,
-
+          delay_days: 14,
           // source_transaction: paymentIntentId,
         })
         .catch((error) => {
@@ -1693,6 +1693,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
         amount: Math.max(0, Math.round(influencerFee * 100)),
         currency: "eur",
         destination: influencer.stripeAccountId,
+        delay_days: 30,
         // source_transaction: paymentIntentId,
       })
       .catch((error) => {
@@ -1847,6 +1848,7 @@ export const handleTippingSuccess = asyncHandler(async (req, res) => {
       currency: "eur",
       destination: influencer.stripeAccountId,
       transfer_group: `tip_${session_id}`, // Help track related transfers
+      delay_days: 14,
     });
 
     // Send email notification
