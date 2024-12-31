@@ -86,7 +86,6 @@ const OrderSchema = new mongoose.Schema(
     influencerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -115,6 +114,8 @@ const OrderSchema = new mongoose.Schema(
     },
     shippingAddress: {
       street: { type: String },
+      line1: { type: String },
+      line2: { type: String },
       apartment: String,
       city: { type: String, required: true },
       state: { type: String },

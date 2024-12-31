@@ -10,6 +10,8 @@ import {
   handleStripeCheckout,
   handleTipping,
   handleTippingSuccess,
+  handleBrandGuestSuccess,
+  brandCheckout,
   //   handleStripeWebhook,
 } from "./checkout.controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
@@ -22,6 +24,8 @@ checkoutRouter.post("/test", handleCheckout);
 checkoutRouter.post("/verify/test", handleStripeCheckout);
 checkoutRouter.post("/tipping", handleTipping);
 checkoutRouter.post("/verify/tipping", handleTippingSuccess);
+checkoutRouter.post("/brand-guest",brandCheckout);
+checkoutRouter.post("/verify/brand-guest",handleBrandGuestSuccess);
 
 checkoutRouter.use(auth);
 checkoutRouter.post("/influencer", checkoutInfluencer);

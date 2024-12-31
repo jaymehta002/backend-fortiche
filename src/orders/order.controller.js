@@ -62,31 +62,38 @@ export const getUserOrders = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, orders, "User orders retrieved successfully"));
 });
-
 export const updateUserOrders = asyncHandler(async (req, res) => {
-  const { orderId,status } = req.body; 
+  const { orderId, status } = req.body;
 
-  if (!orderId  || !status) {
+  if (!orderId || !status) {
     throw new ApiError(
       400,
-      "Missing required fields: orderId, productId, or status",
+      "Missing required fields: orderId or status"
     );
   }
- 
+
+  // Update both orderItems status and brandOrders status
   const order = await Order.findOneAndUpdate(
     { _id: orderId },
-    { $set: { "orderItems.$[].status": status } },
+    { 
+      $set: {
+        "orderItems.$[].status": status,
+        "brandOrders.$[].status": status
+      }
+    },
     { new: true }
-  ).populate("orderItems.productId")
-    .populate("userId");
+  )
+  .populate("orderItems.productId")
+  .populate("userId");
 
   if (!order) {
     throw new ApiError(404, "Order not found");
-  } 
+  }
+
   res
     .status(200)
     .json(
-      new ApiResponse(200, order, "Order item status updated successfully"),
+      new ApiResponse(200, order, "Order status updated successfully")
     );
 });
 

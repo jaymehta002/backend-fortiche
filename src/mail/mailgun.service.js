@@ -237,6 +237,137 @@ const content=`<div class="header">
 
 }
 
+const sendOrderConfirmationEmail = async (to, order, productDetails) => {
+  const content = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #333; text-align: center;">Order Confirmation</h1>
+      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h2 style="color: #444; margin-top: 0;">Order Details</h2>
+        <p><strong>Order Number:</strong> ${order.orderNumber}</p>
+        <p><strong>Total Amount:</strong> €${order.totalAmount.toFixed(2)}</p>
+      </div>
+
+      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h2 style="color: #444; margin-top: 0;">Shipping Information</h2>
+        <p><strong>Address:</strong><br>
+          ${order.shippingAddress.line1 || ''}${order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ''}<br>
+          ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''} ${order.shippingAddress.postalCode || ''}<br>
+          ${order.shippingAddress.country || ''}
+        </p>
+      </div>
+
+      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h2 style="color: #444; margin-top: 0;">Order Summary</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="border-bottom: 1px solid #ddd;">
+            <th style="text-align: left; padding: 8px;">Product</th>
+            <th style="text-align: center; padding: 8px;">Quantity</th>
+            <th style="text-align: right; padding: 8px;">Price</th>
+          </tr>
+          ${productDetails.map(item => `
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 8px;">${item.title}</td>
+              <td style="text-align: center; padding: 8px;">${item.quantity}</td>
+              <td style="text-align: right; padding: 8px;">€${item.totalPrice.toFixed(2)}</td>
+            </tr>
+          `).join('')}
+          <tr>
+            <td colspan="2" style="text-align: right; padding: 8px;"><strong>Total:</strong></td>
+            <td style="text-align: right; padding: 8px;"><strong>€${order.totalAmount.toFixed(2)}</strong></td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <p style="color: #666;">Thank you for your purchase! We'll notify you when your order ships.</p>
+        <p style="color: #666;">If you have any questions about your order, please contact our support team at <a href="mailto:support@fortiche.com" style="color: #007bff;">support@fortiche.com</a></p>
+      </div>
+
+      <div style="border-top: 1px solid #ddd; padding-top: 20px; margin-top: 30px; text-align: center; color: #666;">
+        <p>Best regards,<br>The Team at Fortiche</p>
+      </div>
+    </div>
+  `;
+
+  const response = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+    from: `Support <noreply@${process.env.MAILGUN_DOMAIN}>`,
+    to,
+    subject: "Order Confirmation",
+    html: createEmailTemplate("Order Confirmation", content),
+  });
+  return response;
+};
+
+const sendBrandNewOrderEmail = async (to, order, productDetails) => {
+  const content = `
+  <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+    <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
+      <h1 style="color: #2c3e50; margin: 0;">New Order Received!</h1>
+      <p style="color: #7f8c8d; font-size: 16px;">Order #${order.orderNumber}</p>
+    </div>
+
+    <div style="padding: 20px;">
+      <div style="background-color: #ffffff; border: 1px solid #e1e1e1; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
+        <h2 style="color: #2c3e50; font-size: 18px; margin-top: 0;">Order Details</h2>
+        <p><strong>Total Amount:</strong> €${order.totalAmount.toFixed(2)}</p>
+        <p><strong>Order Date:</strong> ${new Date().toLocaleDateString()}</p>
+      </div>
+
+      <div style="background-color: #ffffff; border: 1px solid #e1e1e1; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
+        <h2 style="color: #2c3e50; font-size: 18px; margin-top: 0;">Customer Information</h2>
+        <p><strong>Name:</strong> ${order.customerInfo.name}</p>
+        <p><strong>Email:</strong> ${order.customerInfo.email}</p>
+        ${order.customerInfo.phone ? `<p><strong>Phone:</strong> ${order.customerInfo.phone}</p>` : ''}
+      </div>
+
+      <div style="background-color: #ffffff; border: 1px solid #e1e1e1; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
+        <h2 style="color: #2c3e50; font-size: 18px; margin-top: 0;">Shipping Address</h2>
+        <p>${order.shippingAddress.line1 || ''}${order.shippingAddress.line2 ?`, ${order.shippingAddress.line2}` : ''}<br>
+        ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''} ${order.shippingAddress.postalCode || ''}<br>
+        ${order.shippingAddress.country || ''}</p>
+      </div>
+
+      <div style="background-color: #ffffff; border: 1px solid #e1e1e1; border-radius: 5px; padding: 15px;">
+        <h2 style="color: #2c3e50; font-size: 18px; margin-top: 0;">Order Items</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="background-color: #f8f9fa;">
+            <th style="padding: 10px; text-align: left;">Product</th>
+            <th style="padding: 10px; text-align: center;">Quantity</th>
+            <th style="padding: 10px; text-align: right;">Price</th>
+          </tr>
+          ${productDetails.map(item => `
+            <tr style="border-bottom: 1px solid #e1e1e1;">
+              <td style="padding: 10px;">${item.title}</td>
+              <td style="padding: 10px; text-align: center;">${item.quantity}</td>
+              <td style="padding: 10px; text-align: right;">€${item.totalPrice.toFixed(2)}</td>
+            </tr>
+          `).join('')}
+          <tr>
+            <td colspan="2" style="padding: 10px; text-align: right;"><strong>Total:</strong></td>
+            <td style="padding: 10px; text-align: right;"><strong>€${order.totalAmount.toFixed(2)}</strong></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div style="text-align: center; padding: 20px; background-color: #f8f9fa; margin-top: 20px;">
+      <p style="margin-bottom: 10px;">Thank you for your business!</p>
+      <p style="margin-bottom: 10px;">If you have any questions, please contact our support team at <a href="mailto:support@fortiche.com" style="color: #3498db;">support@fortiche.com</a></p>
+      <p style="color: #7f8c8d;">Best regards,<br>The Team at Fortiche</p>
+    </div>
+  </div>
+  `;
+
+  const response = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+    from: `Support <noreply@${process.env.MAILGUN_DOMAIN}>`,
+    to,
+    subject: "New Order Received",
+    html: createEmailTemplate("New Order Received", content),
+  });
+  return response;
+};
+
+
 export {
   sendOTPEmail,
   sendResetPasswordEmail,
@@ -244,4 +375,6 @@ export {
   sendPaymentConfirmationEmail,
   sendCustomEmail,
   sendPageViewedEmail,
+  sendOrderConfirmationEmail,
+  sendBrandNewOrderEmail,
 };

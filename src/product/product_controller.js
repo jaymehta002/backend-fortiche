@@ -223,8 +223,8 @@ const getAllProducts = asyncHandler(async (req, res, next) => {
 const getProductDetails = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
-
-    if (user.accountType !== accountType.INFLUENCER) {
+ 
+    if (user.accountType !== accountType.INFLUENCER && user.accountType !== accountType.BRAND)  {
       throw ApiError(403, "user should be an influencer or a brand");
     }
     const id = req.params.id;
@@ -477,6 +477,41 @@ const searchProduct = asyncHandler(async (req, res, next) => {
   }
 });
 
+const getProductDetailsByBrand = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+ 
+    if (user.accountType !== accountType.BRAND) {
+      throw new ApiError(403, "user should be a brand");
+    }
+    const id = req.params.id;
+    const product = await fetchProductById(id);
+    if (!product) {
+      throw new ApiError(404, "invalid productId, not found in the database");
+    }
+
+    // Get shipping rules for this product's brand only
+    const shipping = await Shipping.findOne({ brandId: product.brandId });
+    const productWithShipping = {
+      ...product.toObject(),
+      shippingTo: shipping || null,
+    };
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          productWithShipping,
+          "product fetched successfully",
+        ),
+      );
+  } catch (err) {
+    return next(err);
+  }
+});
+
+
 export {
   createProduct,
   getAllProducts,
@@ -486,4 +521,5 @@ export {
   deleteProduct,
   updateProduct,
   searchProduct,
+  getProductDetailsByBrand,
 };

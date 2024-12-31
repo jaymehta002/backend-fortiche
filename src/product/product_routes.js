@@ -27,6 +27,7 @@ productRouter.use(auth);
 productRouter
   .get("/get-all-products", getAllProducts)
   .get("/get-product-details/:id", getProductDetails)
+  .get("/get-product-details-by-brand/:id", getProductDetails)
   .get("/get-most-viewed-products", getMostViewedProductsController)
   .get("/search", searchProduct)
   .post(

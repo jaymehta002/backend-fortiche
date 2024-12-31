@@ -4,7 +4,7 @@ import { Affiliation } from "../affiliation/affiliation_model.js";
 import Commision from "../commision/commision.model.js";
 import Coupon from "../coupon/coupon_model.js";
 import Guest from "../guest/guest.model.js";
-import { sendCustomEmail } from "../mail/mailgun.service.js";
+import { sendBrandNewOrderEmail, sendCustomEmail, sendOrderConfirmationEmail } from "../mail/mailgun.service.js";
 import Order from "../orders/order.model.js"; // Assuming you have an Order model
 import { sendProductPurchaseMail } from "../preference/preference.service.js";
 import { Product } from "../product/product.model.js";
@@ -23,6 +23,293 @@ const platformFee = {
   professional: 2,
   enterprise: 1,
 };
+
+export const brandCheckout = asyncHandler(async (req, res) => {
+  try {
+    const { products, email, name, phone, address, couponCode } = req.body;
+
+    // Validate required fields
+    if (!email || !name || !address || !products?.length) {
+      throw ApiError(400, "Missing required fields");
+    }
+
+    // Get product details and validate brand
+    const productData = await Product.find({
+      _id: { $in: products.map((p) => p.productId) },
+    }).select(
+      "_id brandId title pricing description productType downloadableDetails",
+    );
+
+    if (!productData.length) {
+      throw ApiError(404, "Products not found");
+    }
+
+    // Ensure all products are from same brand
+    const brandId = productData[0].brandId;
+    if (
+      !productData.every((p) => p.brandId.toString() === brandId.toString())
+    ) {
+      throw ApiError(400, "All products must be from the same brand");
+    }
+
+    const brand = await User.findById(brandId);
+    if (!brand?.stripeAccountId) {
+      throw ApiError(404, "Brand not found or not properly setup");
+    }
+
+    let orderItems = [];
+    let subtotal = 0;
+    let vatAmount = 0;
+    const vatRate = Number(countryVat(address.country)) || 0;
+
+    // Calculate items and totals
+    for (const item of products) {
+      const product = productData.find(
+        (p) => p._id.toString() === item.productId,
+      );
+      if (!product) continue;
+
+      const quantity = Number(item.quantity) || 1;
+      let unitPrice = Number(product.pricing);
+      const itemVat = Number(unitPrice * quantity * vatRate) || 0;
+      const shippingAmount =
+        product.productType === "downloadable"
+          ? 0
+          : (await calculateShipping(brandId, address.country)) || 0;
+
+      const itemTotal = unitPrice * quantity;
+      subtotal += itemTotal;
+      vatAmount += itemVat;
+
+      orderItems.push({
+        productId: product._id,
+        brandId: product.brandId,
+        quantity,
+        commission: 0,
+        unitPrice,
+        vatAmount: itemVat,
+        shippingAmount,
+        totalAmount: itemTotal + itemVat + shippingAmount,
+      });
+    }
+
+    // Handle coupon if provided
+    let couponDiscount = 0;
+    if (couponCode) {
+      const coupon = await Coupon.findOne({
+        name: couponCode,
+        brandId,
+        isActive: true,
+      });
+
+      if (
+        !coupon ||
+        (coupon.expiry && new Date() > coupon.expiry) ||
+        coupon.usage >= coupon.usageLimit
+      ) {
+        throw ApiError(400, "Invalid or expired coupon");
+      }
+
+      if (coupon.discount.type === "PERCENTAGE") {
+        couponDiscount = (subtotal * coupon.discount.amount) / 100;
+      } else {
+        couponDiscount = Math.min(coupon.discount.amount, subtotal);
+      }
+
+      // Apply discount to order items proportionally
+      const discountRatio = 1 - couponDiscount / subtotal;
+      orderItems = orderItems.map((item) => ({
+        ...item,
+        unitPrice: item.unitPrice * discountRatio,
+        totalAmount:
+          (item.totalAmount - item.vatAmount - item.shippingAmount) *
+            discountRatio +
+          item.vatAmount +
+          item.shippingAmount,
+      }));
+    }
+
+    const totalAmount = orderItems.reduce(
+      (sum, item) => sum + item.totalAmount,
+      0,
+    );
+
+    const platformFeePercentage = platformFee[brand.plan] || 10;
+    const platformFeeAmount = (totalAmount * platformFeePercentage) / 100;
+
+    // Create line items for Stripe with individual products
+    const lineItems = orderItems.map((item) => {
+      const product = productData.find(
+        (p) => p._id.toString() === item.productId.toString(),
+      );
+      return {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: product.title,
+            description: product.description,
+          },
+          unit_amount: Math.round((item.totalAmount / item.quantity) * 100), // Price per unit including VAT and shipping
+        },
+        quantity: item.quantity,
+      };
+    });
+
+    // Create Stripe session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      line_items: lineItems,
+      customer_email: email,
+      success_url: `${process.env.CLIENT_URL}/brand-guest-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.CLIENT_URL}/cart`,
+      metadata: {
+        type: "brand_guest_purchase",
+        brandId: brand._id.toString(),
+        orderItems: JSON.stringify(orderItems),
+        customerInfo: JSON.stringify({ name, email, phone }),
+        address: JSON.stringify(address),
+        couponCode,
+        platformFee: platformFeeAmount.toString(),
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      checkoutUrl: session.url,
+      breakdown: {
+        subtotal,
+        vatAmount,
+        couponDiscount,
+        platformFee: platformFeeAmount,
+        total: totalAmount,
+      },
+    });
+  } catch (error) {
+    throw ApiError(500, error.message);
+  }
+});
+
+export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
+  try {
+    const { session_id } = req.body;
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+
+    if (session.payment_status !== "paid") {
+      throw ApiError(400, "Payment not successful");
+    }
+
+    // Check for existing order
+    const existingOrder = await Order.findOne({
+      paymentId: session.payment_intent,
+    });
+
+    if (existingOrder) {
+      return res.status(200).json({
+        success: true,
+        message: "Order already processed",
+        orderId: existingOrder._id,
+      });
+    }
+
+    const {
+      type,
+      brandId,
+      orderItems: orderItemsJson,
+      customerInfo: customerInfoJson,
+      address: addressJson,
+    } = session.metadata;
+
+    if (type !== "brand_guest_purchase") {
+      throw ApiError(400, "Invalid session type");
+    }
+
+    const orderItems = JSON.parse(orderItemsJson);
+    const customerInfo = JSON.parse(customerInfoJson);
+    const address = JSON.parse(addressJson);
+
+    // Create or find guest
+    let guest = await Guest.findOne({ email: customerInfo.email });
+    if (!guest) {
+      guest = new Guest({
+        name: customerInfo.name,
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        address,
+      });
+      await guest.save();
+    }
+
+    // Create single brand order
+    const brandOrder = {
+      brandId,
+      items: orderItems.map((item) => item.productId),
+      subtotal: orderItems.reduce(
+        (sum, item) => sum + item.unitPrice * item.quantity,
+        0,
+      ),
+      vatAmount: orderItems.reduce((sum, item) => sum + item.vatAmount, 0),
+      shippingAmount: orderItems.reduce(
+        (sum, item) => sum + item.shippingAmount,
+        0,
+      ),
+      totalAmount: orderItems.reduce(
+        (sum, item) => sum + item.totalAmount,
+        0,
+      ),
+      status: "pending",
+      paymentStatus: "paid",
+      paymentId: session.payment_intent,
+    };
+
+    // Create order
+    const newOrder = new Order({
+      orderNumber: generateOrderNumber(),
+      userId: guest._id,
+      userModel: "Guest",
+      orderItems,
+      brandOrders: [brandOrder],
+      totalAmount: session.amount_total / 100,
+      paymentStatus: "paid",
+      paymentId: session.payment_intent,
+      shippingAddress: address,
+      customerInfo,
+    });
+
+    await newOrder.save();
+    await handlePaymentTransfers(newOrder, session.payment_intent);
+
+    // Send confirmation emails
+    const brand = await User.findById(brandId);
+    await sendOrderEmails(newOrder, guest, brand);
+
+    res.status(200).json({
+      success: true,
+      message: "Order created successfully",
+      orderId: newOrder._id,
+    });
+  } catch (error) {
+    throw ApiError(500, error.message);
+  }
+});
+
+// Helper function for sending order emails
+const sendOrderEmails = async (order, guest, brand) => {
+  const productDetails = await Promise.all(
+    order.orderItems.map(async (item) => {
+      const product = await Product.findById(item.productId);
+      return {
+        ...product.toObject(),
+        quantity: item.quantity,
+        totalPrice: item.totalAmount,
+      };
+    }),
+  );
+  await sendOrderConfirmationEmail(guest.email, order, productDetails);
+  await sendBrandNewOrderEmail(brand.email, order, productDetails);
+};
+
+
 
 // Create a payment session for an influencer
 export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
@@ -49,7 +336,9 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
     const vatRate = Number(countryVat(user.address?.country)) || 0;
     const vatAmount = Number(quantity * unitPrice * vatRate) || 0;
     const shippingAmount =
-      (await calculateShipping(brand._id, user.address?.country)) || 0;
+      product.productType === "downloadable"
+        ? 0
+        : (await calculateShipping(brand._id, user.address?.country)) || 0;
     const commission = 0;
     const totalAmount = unitPrice * quantity + vatAmount + shippingAmount;
 
@@ -81,6 +370,7 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
       metadata: {
         type: "influencer_purchase",
         productId,
+        productType: product.productType,
         influencerId: user._id.toString(),
         brandId: brand._id.toString(),
         quantity,
@@ -112,6 +402,7 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
         platformFee: platformFeeAmount,
         total: totalAmount,
       },
+      isDownloadable: product.productType === "downloadable",
     });
   } catch (error) {
     next(error);
@@ -142,6 +433,7 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
 
     const {
       productId,
+      productType,
       influencerId,
       brandId,
       quantity,
@@ -154,9 +446,18 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
     } = session.metadata;
 
     const influencerData = await User.findById(influencerId);
+    const brandData = await User.findById(brandId);
+    const product = await Product.findById(productId);
+
+    if (!influencerData || !brandData || !product) {
+      throw ApiError(404, "Required data not found");
+    }
+
+    console.log(influencerData, "influencerData");
+    console.log(brandData, "brandData");
 
     // Generate a single order number
-    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36)}`;
 
     // Create order items
     const orderItem = {
@@ -204,13 +505,101 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
 
     await newOrder.save();
 
-    // Handle transfers
+    const getEmailContent = (isDownloadable, recipientType) => {
+      let baseContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #333;">${isDownloadable ? "Digital Product Purchase" : "Order Confirmation"}</h1>
+          <p>Order Number: ${orderNumber}</p>
+          <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+            <h3>Product Details:</h3>
+            <p><strong>Product:</strong> ${product.title}</p>
+            <p><strong>Quantity:</strong> ${quantity}</p>
+            <p><strong>Unit Price:</strong> €${unitPrice}</p>
+            ${vatAmount > 0 ? `<p><strong>VAT:</strong> €${vatAmount}</p>` : ""}
+            ${!isDownloadable ? `<p><strong>Shipping:</strong> €${shippingAmount}</p>` : ""}
+            <p><strong>Total Amount:</strong> €${totalAmount}</p>
+          </div>
+      `;
+
+      if (isDownloadable && recipientType === "influencer") {
+        baseContent += `
+          <div style="margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+            <h3>Download Your Product</h3>
+            <p>Your download link: <a href="${product.downloadableDetails.fileUpload}">Click here to download</a></p>
+            <p style="color: #ff0000;"><strong>Important:</strong> This download link will expire in 24 hours.</p>
+          </div>
+        `;
+      }
+
+      if (!isDownloadable && recipientType === "influencer") {
+        baseContent += `
+          <div style="margin: 20px 0;">
+            <h3>Shipping Details:</h3>
+            <p>${JSON.parse(address).line1}</p>
+            <p>${JSON.parse(address).city}, ${JSON.parse(address).state}</p>
+            <p>${JSON.parse(address).postalCode}, ${JSON.parse(address).country}</p>
+          </div>
+        `;
+      }
+
+      if (recipientType === "brand") {
+        baseContent += `
+          <div style="margin: 20px 0;">
+            <h3>Buyer Information:</h3>
+            <p><strong>Influencer Name:</strong> ${influencerData.fullName}</p>
+            <p><strong>Email:</strong> ${influencerData.email}</p>
+            ${
+              !isDownloadable
+                ? `
+              <h3>Shipping Address:</h3>
+              <p>${JSON.parse(address).line1}</p>
+              <p>${JSON.parse(address).city}, ${JSON.parse(address).state}</p>
+              <p>${JSON.parse(address).postalCode}, ${JSON.parse(address).country}</p>
+            `
+                : ""
+            }
+          </div>
+        `;
+      }
+
+      baseContent += `
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p>Thank you for your business!</p>
+            <p>If you have any questions, please contact our support team.</p>
+          </div>
+        </div>
+      `;
+
+      return baseContent;
+    };
+
+    const isDownloadable = productType === "downloadable";
+
+    await sendCustomEmail(
+      influencerData.email,
+      isDownloadable
+        ? "Your Digital Product Purchase"
+        : "Your Order Confirmation",
+      getEmailContent(isDownloadable, "influencer"),
+    );
+
+    if (brandData?.email) {
+      await sendCustomEmail(
+        brandData.email`New ${isDownloadable ? "Digital" : ""} Order Received`,
+        getEmailContent(isDownloadable, "brand"),
+      );
+    }
+
     await handlePaymentTransfers(newOrder, session.payment_intent);
 
     res.status(200).json({
       success: true,
       message: "Payment successful and order created",
       orderId: newOrder._id,
+      downloadLink: isDownloadable
+        ? product.downloadableDetails.fileUpload
+        : null,
+      isDownloadable,
     });
   } catch (error) {
     console.error("Error in handleSuccessPage:", error);
@@ -801,7 +1190,7 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       );
       return items;
     }),
-  ).then(arrays => arrays.flat());
+  ).then((arrays) => arrays.flat());
 
   // Create Stripe checkout session
   const session = await stripe.checkout.sessions.create({
@@ -924,7 +1313,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
 
         const unitPrice = product.pricing;
         const shippingAmount =
-          (await calculateShipping(product.brandId, addressData.country)) || 0 ;
+          (await calculateShipping(product.brandId, addressData.country)) || 0;
         const vatAmount =
           Number(quantity * unitPrice * countryVat(addressData.country)) || 0;
         let commission = Number((unitPrice * commissionPercentage) / 100) || 0;
@@ -936,7 +1325,8 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           quantity,
           unitPrice, // Use unitPrice instead of price
           totalAmount: quantity * unitPrice + shippingAmount + vatAmount, // Calculate total amount
-          shippingAmount: product.productType === "downloadable" ? 0 : shippingAmount, // Ensure shipping amount
+          shippingAmount:
+            product.productType === "downloadable" ? 0 : shippingAmount, // Ensure shipping amount
           vatAmount, // Calculate VAT
           commission,
         };
@@ -1052,63 +1442,70 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
 
       // Create email content
       let emailContent = `
-        <div>
-          <h1>Order Confirmation</h1>
-          <p>Dear ${customerData.name},</p>
-          <p>Thank you for your order! Here are your order details:</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #333;">${isDownloadable ? "Digital Product Purchase" : "Order Confirmation"}</h1>
+          <p>Order Number: ${orderNumber}</p>
+          <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+            <h3>Product Details:</h3>
+            <p><strong>Product:</strong> ${product.title}</p>
+            <p><strong>Quantity:</strong> ${quantity}</p>
+            <p><strong>Unit Price:</strong> €${unitPrice}</p>
+            ${vatAmount > 0 ? `<p><strong>VAT:</strong> €${vatAmount}</p>` : ""}
+            ${!isDownloadable ? `<p><strong>Shipping:</strong> €${shippingAmount}</p>` : ""}
+            <p><strong>Total Amount:</strong> €${totalAmount}</p>
+          </div>
       `;
 
-      // Add downloadable products section if any
-      if (downloadableProducts.length > 0) {
-        emailContent += `
-          <h2>Your Digital Products</h2>
-          <p>Here are your download links:</p>
-          <ul>
-            ${downloadableProducts
-              .map(
-                (item) => `
-              <li>
-                <strong>Product:</strong> ${item.name}<br>
-                <strong>Download Link:</strong> <a href="${item.downloadLink}">Click here to download</a><br>
-                <p>Note: Please save your downloads immediately. These links will expire in 24 hours.</p>
-              </li>
-            `,
-              )
-              .join("")}
-          </ul>
+      if (isDownloadable && recipientType === "influencer") {
+        baseContent += `
+          <div style="margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+            <h3>Download Your Product</h3>
+            <p>Your download link: <a href="${product.downloadableDetails.fileUpload}">Click here to download</a></p>
+            <p style="color: #ff0000;"><strong>Important:</strong> This download link will expire in 24 hours.</p>
+          </div>
         `;
       }
 
-      // Add physical products section if any
-      if (physicalProducts.length > 0) {
-        emailContent += `
-          <h2>Physical Products</h2>
-          <ul>
-            ${physicalProducts
-              .map(
-                (item) => `
-              <li>
-                <strong>Product:</strong> ${item.name}<br>
-                <strong>Quantity:</strong> ${item.quantity}<br>
-                <strong>VAT:</strong> $${item.vatAmount}<br>
-                <strong>Shipping:</strong> $${item.shippingAmount}<br>
-                <strong>Price:</strong> $${item.totalAmount}<br>
-              </li>
-            `,
-              )
-              .join("")}
-          </ul>
-          <p><strong>Shipping Address:</strong></p>
-          <p>${addressData.line1 || ""}, ${addressData.line2 || ""}, ${addressData.city || ""}, ${addressData.state || ""}, ${addressData.postalCode || ""}</p>
+      if (!isDownloadable && recipientType === "influencer") {
+        baseContent += `
+          <div style="margin: 20px 0;">
+            <h3>Shipping Details:</h3>
+            <p>${JSON.parse(address).line1}</p>
+            <p>${JSON.parse(address).city}, ${JSON.parse(address).state}</p>
+            <p>${JSON.parse(address).postalCode}, ${JSON.parse(address).country}</p>
+          </div>
         `;
       }
 
-      emailContent += `
-          <p>We appreciate your business!</p>
+      if (recipientType === "brand") {
+        baseContent += `
+          <div style="margin: 20px 0;">
+            <h3>Buyer Information:</h3>
+            <p><strong>Influencer Name:</strong> ${influencerData.fullName}</p>
+            <p><strong>Email:</strong> ${influencerData.email}</p>
+            ${
+              !isDownloadable
+                ? `
+              <h3>Shipping Address:</h3>
+              <p>${JSON.parse(address).line1}</p>
+              <p>${JSON.parse(address).city}, ${JSON.parse(address).state}</p>
+              <p>${JSON.parse(address).postalCode}, ${JSON.parse(address).country}</p>
+            `
+                : ""
+            }
+          </div>
+        `;
+      }
+
+      baseContent += `
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p>Thank you for your business!</p>
+            <p>If you have any questions, please contact our support team.</p>
+          </div>
         </div>
       `;
 
-      return emailContent;
+      return baseContent;
     };
 
     const emailContent = await guestEmailContent(
@@ -1187,7 +1584,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
 });
 
 function generateOrderNumber() {
-  return `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `ORD-${Date.now()}-${Math.random().toString(36)}`;
 }
 
 // Helper function to handle payment transfers

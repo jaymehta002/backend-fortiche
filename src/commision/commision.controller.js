@@ -103,9 +103,8 @@ export const deleteCommision = asyncHandler(async (req, res) => {
   const commision = await Commision.findById(commisionId);
   if (!commision) throw ApiError(404, "Commission not found");
 
-  // Verify ownership through product
-  const product = await Product.findById(commision.productId);
-  if (product.brandId.toString() !== req.user._id.toString()) {
+  // Check if user is authorized to delete this commission
+  if (commision.brandId.toString() !== req.user._id.toString()) {
     throw ApiError(403, "You are not authorized to delete this commission");
   }
 
