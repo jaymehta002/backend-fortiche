@@ -8,6 +8,7 @@ import {
   deleteProduct,
   updateProduct,
   searchProduct,
+  getProductDetailsByBrand,
 } from "./product_controller.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -22,12 +23,12 @@ import {
 
 const productRouter = Router();
 productRouter.get("/get-collection/:id", getCheckoutCollectionById);
+productRouter.get("/get-product-details-by-brand/:id", getProductDetailsByBrand);
 productRouter.use(auth);
 
 productRouter
-  .get("/get-all-products", getAllProducts)
+.get("/get-all-products", getAllProducts)
   .get("/get-product-details/:id", getProductDetails)
-  .get("/get-product-details-by-brand/:id", getProductDetails)
   .get("/get-most-viewed-products", getMostViewedProductsController)
   .get("/search", searchProduct)
   .post(

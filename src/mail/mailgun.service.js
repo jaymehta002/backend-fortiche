@@ -236,8 +236,7 @@ const content=`<div class="header">
   return response;
 
 }
-
-const sendOrderConfirmationEmail = async (to, order, productDetails) => {
+const sendOrderConfirmationEmail = async (to, order, productDetails, isDownloadable) => {
   const content = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h1 style="color: #333; text-align: center;">Order Confirmation</h1>
@@ -247,14 +246,16 @@ const sendOrderConfirmationEmail = async (to, order, productDetails) => {
         <p><strong>Total Amount:</strong> €${order.totalAmount.toFixed(2)}</p>
       </div>
 
-      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <h2 style="color: #444; margin-top: 0;">Shipping Information</h2>
-        <p><strong>Address:</strong><br>
-          ${order.shippingAddress.line1 || ''}${order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ''}<br>
-          ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''} ${order.shippingAddress.postalCode || ''}<br>
-          ${order.shippingAddress.country || ''}
-        </p>
-      </div>
+      ${!isDownloadable ? `
+        <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h2 style="color: #444; margin-top: 0;">Shipping Information</h2>
+          <p><strong>Address:</strong><br>
+            ${order.shippingAddress.line1 || ''}${order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ''}<br>
+            ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''} ${order.shippingAddress.postalCode || ''}<br>
+            ${order.shippingAddress.country || ''}
+          </p>
+        </div>
+      ` : ''}
 
       <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
         <h2 style="color: #444; margin-top: 0;">Order Summary</h2>
@@ -269,8 +270,10 @@ const sendOrderConfirmationEmail = async (to, order, productDetails) => {
               <td style="padding: 8px;">${item.title}</td>
               <td style="text-align: center; padding: 8px;">${item.quantity}</td>
               <td style="text-align: right; padding: 8px;">€${item.totalPrice.toFixed(2)}</td>
+              ${item.isDownloadable ? `<td style="text-align: right; padding: 8px;"><a href="${item.downloadableDetails.fileUpload}">Download</a></td>` : ''}
             </tr>
           `).join('')}
+
           <tr>
             <td colspan="2" style="text-align: right; padding: 8px;"><strong>Total:</strong></td>
             <td style="text-align: right; padding: 8px;"><strong>€${order.totalAmount.toFixed(2)}</strong></td>
@@ -279,7 +282,7 @@ const sendOrderConfirmationEmail = async (to, order, productDetails) => {
       </div>
 
       <div style="text-align: center; margin: 30px 0;">
-        <p style="color: #666;">Thank you for your purchase! We'll notify you when your order ships.</p>
+        <p style="color: #666;">Thank you for your purchase! ${!isDownloadable ? "We'll notify you when your order ships." : ""}</p>
         <p style="color: #666;">If you have any questions about your order, please contact our support team at <a href="mailto:support@fortiche.com" style="color: #007bff;">support@fortiche.com</a></p>
       </div>
 
@@ -297,8 +300,7 @@ const sendOrderConfirmationEmail = async (to, order, productDetails) => {
   });
   return response;
 };
-
-const sendBrandNewOrderEmail = async (to, order, productDetails) => {
+const sendBrandNewOrderEmail = async (to, order, productDetails, isDownloadable) => {
   const content = `
   <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
     <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
@@ -320,12 +322,14 @@ const sendBrandNewOrderEmail = async (to, order, productDetails) => {
         ${order.customerInfo.phone ? `<p><strong>Phone:</strong> ${order.customerInfo.phone}</p>` : ''}
       </div>
 
+      ${!isDownloadable ? `
       <div style="background-color: #ffffff; border: 1px solid #e1e1e1; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
         <h2 style="color: #2c3e50; font-size: 18px; margin-top: 0;">Shipping Address</h2>
-        <p>${order.shippingAddress.line1 || ''}${order.shippingAddress.line2 ?`, ${order.shippingAddress.line2}` : ''}<br>
+        <p>${order.shippingAddress.line1 || ''}${order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ''}<br>
         ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''} ${order.shippingAddress.postalCode || ''}<br>
         ${order.shippingAddress.country || ''}</p>
       </div>
+      ` : ''}
 
       <div style="background-color: #ffffff; border: 1px solid #e1e1e1; border-radius: 5px; padding: 15px;">
         <h2 style="color: #2c3e50; font-size: 18px; margin-top: 0;">Order Items</h2>

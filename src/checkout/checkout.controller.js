@@ -75,7 +75,10 @@ export const brandCheckout = asyncHandler(async (req, res) => {
 
       const quantity = Number(item.quantity) || 1;
       let unitPrice = Number(product.pricing);
-      const itemVat = Number(unitPrice * quantity * vatRate) || 0;
+      const itemVat =
+        product.productType === "downloadable"
+          ? 0
+          : Number(unitPrice * quantity * vatRate) || 0;
       const shippingAmount =
         product.productType === "downloadable"
           ? 0
@@ -151,9 +154,8 @@ export const brandCheckout = asyncHandler(async (req, res) => {
           currency: "eur",
           product_data: {
             name: product.title,
-            description: product.description,
           },
-          unit_amount: Math.round((item.totalAmount / item.quantity) * 100), // Price per unit including VAT and shipping
+          unit_amount: Math.round((item.totalAmount / item.quantity) * 100), 
         },
         quantity: item.quantity,
       };
@@ -166,7 +168,7 @@ export const brandCheckout = asyncHandler(async (req, res) => {
       line_items: lineItems,
       customer_email: email,
       success_url: `${process.env.CLIENT_URL}/brand-guest-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/cart`,
+      cancel_url: `${process.env.CLIENT_URL}/`,
       metadata: {
         type: "brand_guest_purchase",
         brandId: brand._id.toString(),
@@ -223,15 +225,15 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
       customerInfo: customerInfoJson,
       address: addressJson,
     } = session.metadata;
-
+ 
     if (type !== "brand_guest_purchase") {
       throw ApiError(400, "Invalid session type");
     }
-
+ 
     const orderItems = JSON.parse(orderItemsJson);
     const customerInfo = JSON.parse(customerInfoJson);
     const address = JSON.parse(addressJson);
-
+ 
     // Create or find guest
     let guest = await Guest.findOne({ email: customerInfo.email });
     if (!guest) {
@@ -276,6 +278,7 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
       shippingAddress: address,
       customerInfo,
     });
+  
 
     await newOrder.save();
     await handlePaymentTransfers(newOrder, session.payment_intent);
@@ -299,15 +302,23 @@ const sendOrderEmails = async (order, guest, brand) => {
   const productDetails = await Promise.all(
     order.orderItems.map(async (item) => {
       const product = await Product.findById(item.productId);
+      if (!product) {
+        throw new Error(`Product not found for id: ${item.productId}`);
+      }
       return {
         ...product.toObject(),
+        title: product.title,
         quantity: item.quantity,
         totalPrice: item.totalAmount,
+        downloadableDetails: product.downloadableDetails,
+        isDownloadable: product.productType === "downloadable"
       };
     }),
   );
-  await sendOrderConfirmationEmail(guest.email, order, productDetails);
-  await sendBrandNewOrderEmail(brand.email, order, productDetails);
+
+
+  await sendOrderConfirmationEmail(guest.email, order, productDetails, productDetails.isDownloadable);
+  await sendBrandNewOrderEmail(brand.email, order, productDetails, productDetails.isDownloadable);
 };
 
 // Create a payment session for an influencer
@@ -351,7 +362,6 @@ export const checkoutInfluencer = asyncHandler(async (req, res, next) => {
         currency: "eur",
         product_data: {
           name: product.title,
-          description: product.description,
         },
         unit_amount: Math.round(totalAmount * 100),
       },
@@ -1312,25 +1322,31 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
 
         const quantity = Number(p.quantity) || 1;
         const unitPrice = Number(product.pricing);
-        const shippingAmount = 
-          product.productType === "downloadable" ? 0 :
-          (await calculateShipping(product.brandId, addressData.country)) || 0;
-        const vatAmount = 
-          product.productType === "downloadable" ? 0 :
-          Number(quantity * unitPrice * countryVat(addressData.country)) || 0;
-        const commission = Number((unitPrice * commissionPercentage) / 100) || 0;
+        const shippingAmount =
+          product.productType === "downloadable"
+            ? 0
+            : (await calculateShipping(product.brandId, addressData.country)) ||
+              0;
+        const vatAmount =
+          product.productType === "downloadable"
+            ? 0
+            : Number(quantity * unitPrice * countryVat(addressData.country)) ||
+              0;
+        const commission =
+          Number((unitPrice * commissionPercentage) / 100) || 0;
         const totalAmount = quantity * unitPrice + shippingAmount + vatAmount;
 
         return {
           productId: p._id,
           brandId: product.brandId,
+          title: product.title,
           quantity,
           unitPrice,
           commission,
           vatAmount,
-          shippingAmount, 
+          shippingAmount,
           totalAmount,
-          status: "pending"
+          status: "pending",
         };
       }),
     );
@@ -1364,7 +1380,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
               item.unitPrice - coupon.discount.amount,
             );
           }
-          
+
           item.totalAmount =
             item.unitPrice * item.quantity +
             item.shippingAmount +
@@ -1379,6 +1395,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
     const order = new Order({
       orderNumber: generateOrderNumber(),
       influencerId,
+      
       orderItems,
       customerInfo: {
         name: customerData.name,
@@ -1400,7 +1417,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         ) || 0,
       shippingAmount:
         Number(orderItems.reduce((sum, p) => sum + p.shippingAmount, 0)) || 0,
-        totalAmount: session.amount_total / 100,
+      totalAmount: session.amount_total / 100,
       metadata: {
         sessionId: session_id,
       },
@@ -1428,7 +1445,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       let physicalProducts = [];
       let downloadableProducts = [];
 
-     
       // Separate physical and downloadable products
       for (const item of orderItems) {
         const product = await Product.findById(item.productId);
@@ -1437,6 +1453,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         if (product.productType === "downloadable") {
           downloadableProducts.push({
             ...item,
+            title: product.title,
             downloadLink: product.downloadableDetails.fileUpload,
           });
         } else {
@@ -1445,8 +1462,8 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       }
 
       // Create email content
-      let emailContent = '';
-      
+      let emailContent = "";
+
       // Handle physical products
       if (physicalProducts.length > 0) {
         emailContent += `
@@ -1455,16 +1472,20 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
             <p>Order Number: ${order.orderNumber}</p>
             <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
               <h3>Physical Products:</h3>
-              ${physicalProducts.map(item => `
+              ${physicalProducts
+                .map(
+                  (item) => `
                 <div style="margin-bottom: 15px;">
-                  <p><strong>Product:</strong> ${item.name}</p>
+                  <p><strong>Product:</strong> ${item.title}</p>
                   <p><strong>Quantity:</strong> ${item.quantity}</p>
                   <p><strong>Unit Price:</strong> €${item.unitPrice}</p>
-                  ${item.vatAmount > 0 ? `<p><strong>VAT:</strong> €${item.vatAmount}</p>` : ''}
+                  ${item.vatAmount > 0 ? `<p><strong>VAT:</strong> €${item.vatAmount}</p>` : ""}
                   <p><strong>Shipping:</strong> €${item.shippingAmount}</p>
                   <p><strong>Total Amount:</strong> €${item.totalAmount}</p>
                 </div>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </div>
             <div style="margin: 20px 0;">
               <h3>Shipping Details:</h3>
@@ -1484,12 +1505,14 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
             <p>Order Number: ${order.orderNumber}</p>
             <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
               <h3>Digital Products:</h3>
-              ${downloadableProducts.map(item => `
+              ${downloadableProducts
+                .map(
+                  (item) => `
                 <div style="margin-bottom: 15px;">
-                  <p><strong>Product:</strong> ${item.name}</p>
+                  <p><strong>Product:</strong> ${item.title}</p>
                   <p><strong>Quantity:</strong> ${item.quantity}</p>
                   <p><strong>Unit Price:</strong> €${item.unitPrice}</p>
-                  ${item.vatAmount > 0 ? `<p><strong>VAT:</strong> €${item.vatAmount}</p>` : ''}
+                  ${item.vatAmount > 0 ? `<p><strong>VAT:</strong> €${item.vatAmount}</p>` : ""}
                   <p><strong>Total Amount:</strong> €${item.totalAmount}</p>
                   <div style="margin: 10px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
                     <h4>Download Your Product</h4>
@@ -1497,7 +1520,9 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
                     <p style="color: #ff0000;"><strong>Important:</strong> This download link will expire in 24 hours.</p>
                   </div>
                 </div>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </div>
           </div>
         `;
@@ -1528,7 +1553,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
             .map(
               (item) => `
             <li>
-              <strong>Product:</strong> ${item.name}<br>
+              <strong>Product:</strong> ${item.title}<br>
               <strong>Quantity:</strong> ${item.quantity}<br>
               <strong>Price:</strong> $${item.totalAmount}<br>
               <strong>Commission:</strong> $${item.commission}<br>
@@ -1547,24 +1572,31 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
 
       const brandEmailContent = `
         <div>
-          <h1>Order Received</h1>
-          <p>A new order has been placed by ${customerData.name} with the following details:</p>
-          <ul>
-            ${items
-              .map(
-                (item) => `
-              <li>
-                <strong>Product:</strong> ${item.name}<br>
-                <strong>Quantity:</strong> ${item.quantity}<br>
-                <strong>VAT:</strong> $${item.vatAmount}<br>
-                <strong>Shipping:</strong> $${item.shippingAmount}<br>
-                <strong>Commission:</strong> $${item.commission}<br>
-                <strong>Price:</strong> $${item.totalAmount}<br>
-              </li>
-            `,
-              )
-              .join("")}
-          </ul>
+          <h1>New Orders Received</h1>
+          <p>You have received ${items.length} new order(s) from ${customerData.name}:</p>
+          
+          ${items.map((item, index) => `
+            <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+              <h3 style="margin-top: 0;">Order #${index + 1}</h3>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <div>
+                  <strong>Product:</strong> ${item.title}<br>
+                  <strong>Quantity:</strong> ${item.quantity}<br>
+                  <strong>VAT:</strong> $${item.vatAmount}
+                </div>
+                <div>
+                  <strong>Shipping:</strong> $${item.shippingAmount}<br>
+                  <strong>Commission:</strong> $${item.commission}<br>
+                  <strong>Total Price:</strong> $${item.totalAmount}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+          
+          <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd;">
+            <p><strong>Total Orders:</strong> ${items.length}</p>
+            <p><strong>Total Amount:</strong> $${items.reduce((sum, item) => sum + item.totalAmount, 0).toFixed(2)}</p>
+          </div>
         </div>
       `;
 

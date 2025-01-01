@@ -479,11 +479,6 @@ const searchProduct = asyncHandler(async (req, res, next) => {
 
 const getProductDetailsByBrand = asyncHandler(async (req, res, next) => {
   try {
-    const user = req.user;
- 
-    if (user.accountType !== accountType.BRAND) {
-      throw new ApiError(403, "user should be a brand");
-    }
     const id = req.params.id;
     const product = await fetchProductById(id);
     if (!product) {
