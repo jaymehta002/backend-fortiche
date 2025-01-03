@@ -117,6 +117,13 @@ export const brandCheckout = asyncHandler(async (req, res) => {
         throw ApiError(400, "Invalid or expired coupon");
       }
 
+      if (coupon.minimumOrderValue > 0 && subtotal < coupon.minimumOrderValue) {
+        throw ApiError(
+          400,
+          `Minimum order value of €${coupon.minimumOrderValue} required for this coupon`,
+        );
+      }
+
       if (coupon.discount.type === "PERCENTAGE") {
         couponDiscount = (subtotal * coupon.discount.amount) / 100;
       } else {
@@ -134,6 +141,8 @@ export const brandCheckout = asyncHandler(async (req, res) => {
           item.vatAmount +
           item.shippingAmount,
       }));
+
+   
     }
 
     const totalAmount = orderItems.reduce(
@@ -155,7 +164,7 @@ export const brandCheckout = asyncHandler(async (req, res) => {
           product_data: {
             name: product.title,
           },
-          unit_amount: Math.round((item.totalAmount / item.quantity) * 100), 
+          unit_amount: Math.round((item.totalAmount / item.quantity) * 100),
         },
         quantity: item.quantity,
       };
@@ -224,16 +233,17 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
       orderItems: orderItemsJson,
       customerInfo: customerInfoJson,
       address: addressJson,
+      couponCode
     } = session.metadata;
- 
+
     if (type !== "brand_guest_purchase") {
       throw ApiError(400, "Invalid session type");
     }
- 
+
     const orderItems = JSON.parse(orderItemsJson);
     const customerInfo = JSON.parse(customerInfoJson);
     const address = JSON.parse(addressJson);
- 
+
     // Create or find guest
     let guest = await Guest.findOne({ email: customerInfo.email });
     if (!guest) {
@@ -264,6 +274,17 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
       paymentStatus: "paid",
       paymentId: session.payment_intent,
     };
+    
+    let coupon = "";
+    if(couponCode){
+      coupon = await Coupon.findOne({name: couponCode, brandId, isActive: true});
+    }
+
+    if(coupon){
+      coupon.usage += 1;
+      await coupon.save();
+    }
+
 
     // Create order
     const newOrder = new Order({
@@ -278,7 +299,6 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
       shippingAddress: address,
       customerInfo,
     });
-  
 
     await newOrder.save();
     await handlePaymentTransfers(newOrder, session.payment_intent);
@@ -311,14 +331,23 @@ const sendOrderEmails = async (order, guest, brand) => {
         quantity: item.quantity,
         totalPrice: item.totalAmount,
         downloadableDetails: product.downloadableDetails,
-        isDownloadable: product.productType === "downloadable"
+        isDownloadable: product.productType === "downloadable",
       };
     }),
   );
 
-
-  await sendOrderConfirmationEmail(guest.email, order, productDetails, productDetails.isDownloadable);
-  await sendBrandNewOrderEmail(brand.email, order, productDetails, productDetails.isDownloadable);
+  await sendOrderConfirmationEmail(
+    guest.email,
+    order,
+    productDetails,
+    productDetails.isDownloadable,
+  );
+  await sendBrandNewOrderEmail(
+    brand.email,
+    order,
+    productDetails,
+    productDetails.isDownloadable,
+  );
 };
 
 // Create a payment session for an influencer
@@ -505,7 +534,7 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
       totalAmount: Number(totalAmount),
       paymentStatus: "paid",
       paymentId: session.payment_intent,
-      shippingAddress: JSON.parse(address),
+      shippingAddress: address,
       customerInfo: {
         email: influencerData.email,
         name: influencerData.fullName,
@@ -892,127 +921,6 @@ export const getTaxes = asyncHandler(async (req, res, next) => {
   });
 });
 
-// export const handleCheckout = asyncHandler(async (req, res, next) => {
-//   const { influencerId, products, address, email, name, phone } = req.body;
-//   const affiliation = await Affiliation.find({
-//     influencerId,
-//     productId: { $in: products.map((p) => p.productId) },
-//     $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }],
-//   });
-
-//   const sponsor = await sponsorshipModel.find({
-//     influencerId: influencerId,
-//     productId: { $in: products.map((p) => p.productId) },
-//     endDate: { $gte: new Date() },
-//     startDate: { $lte: new Date() },
-//   });
-//   if (!affiliation) throw ApiError(404, "Affiliation not found");
-//   const productData = await Product.find({
-//     _id: { $in: products.map((p) => p.productId) },
-//   })
-//     .select("_id brandId commissionPercentage pricing wholesalePricing")
-//     .lean();
-
-//   const brandIds = productData.map((p) => p.brandId.toString());
-//   const shipping = await Shipping.find({
-//     brandId: { $in: brandIds },
-//     countries: { $in: address.country },
-//   });
-//   const totalPrice = products.reduce((sum, p) => {
-//     const product = productData.find(
-//       (prod) => prod._id.toString() === p.productId.toString(),
-//     );
-//     const shippingCharges =
-//       shipping.find(
-//         (ship) => ship.brandId.toString() === product.brandId.toString(),
-//       )?.shippingCharges || 0;
-//     return (
-//       sum +
-//       p.quantity * product.pricing +
-//       p.quantity * product.pricing * countryVat(address.country) +
-//       shippingCharges
-//     );
-//   }, 0);
-
-//   const productDataWithQuantity = productData.map((product) => {
-//     const matchedProduct = products.find(
-//       (p) => p.productId === product._id.toString(),
-//     );
-//     return {
-//       ...product,
-//       quantity: matchedProduct ? matchedProduct.quantity : 0,
-//       shippingCharges: shipping.find(
-//         (ship) => ship.brandId.toString() === product.brandId.toString(),
-//       ).shippingCharges,
-//     };
-//   });
-//   const session = await stripe.checkout.sessions.create({
-//     payment_method_types: ["card"],
-//     mode: "payment",
-//     line_items: products.map((p) => {
-//       const product = productData.find(
-//         (prod) => prod._id.toString() === p.productId.toString(),
-//       );
-//       const shippingCharges =
-//         shipping.find(
-//           (ship) => ship.brandId.toString() === product.brandId.toString(),
-//         )?.shippingCharges || 0;
-//       const unitPrice =
-//         p.quantity * product.pricing +
-//         p.quantity * product.pricing * countryVat(address.country) +
-//         shippingCharges;
-
-//       return {
-//         price_data: {
-//           currency: "usd",
-//           product_data: {
-//             name: product.title || "Product",
-//             description: `Quantity: ${p.quantity}`,
-//           },
-//           unit_amount: Math.round(unitPrice * 100),
-//         },
-//         quantity: 1,
-//       };
-//     }),
-//     customer_email: email,
-//     success_url: `${process.env.CLIENT_URL}/product-success?session_id={CHECKOUT_SESSION_ID}`,
-//     cancel_url: `${process.env.CLIENT_URL}/cancel`,
-//     metadata: {
-//       influencerId,
-//       products: JSON.stringify({ productDataWithQuantity }),
-//       address: JSON.stringify(address),
-//       brandIds: JSON.stringify(brandIds),
-//       affiliation: JSON.stringify(affiliation),
-//       sponsor: JSON.stringify(sponsor),
-//       email,
-//       name,
-//       phone,
-//       invoice: true,
-//     },
-//     payment_intent_data: {
-//       metadata: {
-//         generate_invoice: true, // Add this to track which payments need invoices
-//       },
-//     },
-//   });
-
-//   // // Create invoice
-//   // const invoice = await stripe.invoices.create({
-//   //   customer_email: email,
-//   //   customer_name: name,
-//   //   collection_method: "send_invoice",
-//   //   metadata: {
-//   //     address: JSON.stringify(address),
-//   //   },
-//   // });
-
-//   res.status(200).json({
-//     success: true,
-//     checkoutUrl: session.url,
-//     totalPrice: totalPrice.toFixed(2),
-//   });
-// });
-
 export const handleCheckout = asyncHandler(async (req, res, next) => {
   const { influencerId, products, address, email, name, phone, couponCode } =
     req.body;
@@ -1061,35 +969,12 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
   const brandSummaries = {};
   const orderItems = [];
 
-  let coupon;
-  if (couponCode) {
-    coupon = await Coupon.findOne({
-      name: couponCode,
-      brandId: { $in: productData.map((p) => p.brandId) },
-      isActive: true,
-    });
-
-    if (!coupon) {
-      throw ApiError(404, "Coupon not found or inactive");
-    }
-
-    if (coupon.expiry && new Date() > coupon.expiry) {
-      throw ApiError(400, "Coupon has expired");
-    }
-
-    if (coupon.usage > coupon.usageLimit) {
-      throw ApiError(400, "Coupon usage limit reached");
-    }
-  }
-
+  // Process products first to calculate brand-specific totals
   for (const product of products) {
     const productInfo = productData.find(
       (p) => p._id.toString() === product.productId,
     );
-    if (!productInfo) {
-      console.warn("Product info not found for productId:", product.productId);
-      continue;
-    }
+    if (!productInfo) continue;
 
     const brandId = productInfo.brandId.toString();
     if (!brandSummaries[brandId]) {
@@ -1105,18 +990,9 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       };
     }
 
-    // Calculate item-specific totals
+    // Calculate base amounts before coupon
     let unitPrice = Number(productInfo.pricing);
     const quantity = Number(product.quantity) || 1;
-
-    if (coupon && coupon.brandId.toString() === brandId) {
-      if (coupon.discount.type === "PERCENTAGE") {
-        unitPrice *= 1 - Number(coupon.discount.amount) / 100;
-      } else if (coupon.discount.type === "AMOUNT") {
-        unitPrice = Math.max(0, unitPrice - Number(coupon.discount.amount));
-      }
-    }
-
     const vatRate = Number(countryVat(address.country)) || 0;
     const vatAmount = Number(unitPrice * quantity * vatRate) || 0;
     const shippingAmount =
@@ -1127,7 +1003,74 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
     const subtotal = Number(unitPrice * quantity) || 0;
     const totalAmount = Number(subtotal + vatAmount + shippingAmount) || 0;
 
-    // Add to orderItems
+    // Add to brand summary for coupon validation
+    brandSummaries[brandId].subtotal += subtotal;
+    brandSummaries[brandId].items.push(product.productId);
+  }
+
+  // Handle coupon if provided
+  let coupon;
+  if (couponCode) {
+    coupon = await Coupon.findOne({
+      name: couponCode,
+      brandId: { $in: Object.keys(brandSummaries) },
+      isActive: true,
+    });
+
+    if (!coupon) {
+      throw ApiError(404, "Coupon not found or inactive");
+    }
+
+    if (coupon.expiry && new Date() > coupon.expiry) {
+      throw ApiError(400, "Coupon has expired");
+    }
+
+    if (coupon.usage >= coupon.usageLimit) {
+      throw ApiError(400, "Coupon usage limit reached");
+    }
+
+    const brandSubtotal = brandSummaries[coupon.brandId.toString()].subtotal;
+    if (
+      coupon.minimumOrderValue > 0 &&
+      brandSubtotal < coupon.minimumOrderValue
+    ) {
+      throw ApiError(
+        400,
+        `Minimum order value of €${coupon.minimumOrderValue} required for this coupon`,
+      );
+    }
+  }
+
+  // Now process products again to apply discounts and create final order items
+  for (const product of products) {
+    const productInfo = productData.find(
+      (p) => p._id.toString() === product.productId,
+    );
+    if (!productInfo) continue;
+
+    let unitPrice = Number(productInfo.pricing);
+    const quantity = Number(product.quantity) || 1;
+    const brandId = productInfo.brandId.toString();
+
+    // Apply coupon discount if applicable
+    if (coupon && coupon.brandId.toString() === brandId) {
+      if (coupon.discount.type === "PERCENTAGE") {
+        unitPrice *= 1 - coupon.discount.amount / 100;
+      } else if (coupon.discount.type === "AMOUNT") {
+        unitPrice = Math.max(0, unitPrice - coupon.discount.amount);
+      }
+    }
+
+    const vatRate = Number(countryVat(address.country)) || 0;
+    const vatAmount = Number(unitPrice * quantity * vatRate) || 0;
+    const shippingAmount =
+      Number(await calculateShipping(brandId, address.country)) || 0;
+    const commissionPercentage = Number(productInfo.commissionPercentage) || 0;
+    const commission = Number((unitPrice * commissionPercentage) / 100) || 0;
+
+    const totalAmount = unitPrice * quantity + vatAmount + shippingAmount;
+
+    // Create order item
     orderItems.push({
       productId: productInfo._id,
       brandId: productInfo.brandId,
@@ -1139,78 +1082,32 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       totalAmount,
     });
 
-    // Update brand summary
-    brandSummaries[brandId].items.push(product.productId);
-    brandSummaries[brandId].subtotal += isNaN(unitPrice * quantity)
-      ? 0
-      : Number(unitPrice * quantity) || 0;
-    brandSummaries[brandId].vatAmount += isNaN(vatAmount)
-      ? 0
-      : Number(vatAmount) || 0;
-    brandSummaries[brandId].shippingAmount += isNaN(shippingAmount)
-      ? 0
-      : Number(shippingAmount) || 0;
-    brandSummaries[brandId].commission += isNaN(commission)
-      ? 0
-      : Number(commission * quantity) || 0;
-    brandSummaries[brandId].totalAmount += isNaN(totalAmount)
-      ? 0
-      : Number(totalAmount) || 0;
+    // Update brand summary with final amounts
+    brandSummaries[brandId].vatAmount += vatAmount;
+    brandSummaries[brandId].shippingAmount += shippingAmount;
+    brandSummaries[brandId].commission += commission;
+    brandSummaries[brandId].totalAmount += totalAmount;
   }
-  if (coupon) {
-    const brandTotal = brandSummaries[coupon.brandId.toString()].subtotal;
-    if (
-      coupon.activateCondition &&
-      coupon.activateCondition.minOrderValue &&
-      brandTotal < coupon.activateCondition.minOrderValue
-    ) {
-      throw ApiError(
-        400,
-        `Minimum order value of ${coupon.activateCondition.minOrderValue} is required to apply this coupon`,
-      );
-    }
-  }
-  // Generating stripe check out session
-  const stripeLineItems = await Promise.all(
-    Object.values(brandSummaries).flatMap(async (brand) => {
-      const items = await Promise.all(
-        brand.items.map(async (productId) => {
-          const item = orderItems.find(
-            (oi) => oi.productId.toString() === productId,
-          );
-          const product = await Product.findById(productId);
-
-          // Skip shipping charges for downloadable products
-          if (product.productType === "downloadable") {
-            item.shippingAmount = 0;
-            item.vatAmount = 0;
-            item.totalAmount = item.unitPrice * item.quantity + item.vatAmount;
-          }
-
-          return {
-            price_data: {
-              currency: "eur",
-              product_data: {
-                name: product.title,
-              },
-              unit_amount: Math.round(Number(item.totalAmount) * 100),
-            },
-            quantity: 1,
-          };
-        }),
-      );
-      return items;
-    }),
-  ).then((arrays) => arrays.flat());
 
   // Create Stripe checkout session
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
-    line_items: stripeLineItems,
+    line_items: orderItems.map((item) => ({
+      price_data: {
+        currency: "eur",
+        product_data: {
+          name: productData.find(
+            (p) => p._id.toString() === item.productId.toString(),
+          ).title,
+        },
+        unit_amount: Math.round(item.totalAmount * 100),
+      },
+      quantity: 1,
+    })),
     customer_email: email,
     success_url: `${process.env.CLIENT_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.CLIENT_URL}/cart`,
+    cancel_url: `${process.env.CLIENT_URL}/${influencer.username}/cart`,
     metadata: {
       influencerId,
       brandSummary: JSON.stringify(Object.values(brandSummaries)),
@@ -1220,11 +1117,6 @@ export const handleCheckout = asyncHandler(async (req, res, next) => {
       couponCode: coupon ? coupon.name : "",
     },
   });
-
-  if (coupon) {
-    coupon.usage += 1;
-    await coupon.save();
-  }
 
   const totalAmount = Object.values(brandSummaries).reduce(
     (sum, brand) => sum + brand.totalAmount,
@@ -1370,6 +1262,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         throw ApiError(400, "Coupon usage limit reached");
       }
 
+    
       orderItems.forEach((item) => {
         if (item.brandId.toString() === coupon.brandId.toString()) {
           if (coupon.discount.type === "PERCENTAGE") {
@@ -1387,15 +1280,14 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
             item.vatAmount;
         }
       });
-      coupon.usage += 1;
-      await coupon.save();
+  
     }
 
     // Create the order with more comprehensive details
     const order = new Order({
       orderNumber: generateOrderNumber(),
       influencerId,
-      
+
       orderItems,
       customerInfo: {
         name: customerData.name,
@@ -1422,7 +1314,11 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         sessionId: session_id,
       },
     });
-
+    
+    if(coupon){
+      coupon.usage += 1;
+      await coupon.save();
+    }
     await order.save();
 
     // payment transfers and affiliation updates
@@ -1575,7 +1471,9 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
           <h1>New Orders Received</h1>
           <p>You have received ${items.length} new order(s) from ${customerData.name}:</p>
           
-          ${items.map((item, index) => `
+          ${items
+            .map(
+              (item, index) => `
             <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
               <h3 style="margin-top: 0;">Order #${index + 1}</h3>
               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
@@ -1591,7 +1489,9 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
                 </div>
               </div>
             </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
           
           <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd;">
             <p><strong>Total Orders:</strong> ${items.length}</p>

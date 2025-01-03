@@ -96,6 +96,22 @@ const updateUserAvatarController = asyncHandler(async (req, res, next) => {
   }
 });
 
+const removeUserAvatarController = asyncHandler(async (req, res, next) => {
+  try {
+    const user = req.user;
+    const updates = { avatar: "" };
+    const updatedUser = await updateUserByUserId(user._id, updates);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, updatedUser, "avatar removed successfully"),
+      );
+  } catch (err) {
+    return next(err);
+  }
+});
+
 const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
   try {
     const user = req.user;
@@ -882,4 +898,5 @@ export {
   updatePrivacyPolicyController,
   updateTermsAndConditionsController,
   updateRefundPolicyController,
+  removeUserAvatarController,
 };

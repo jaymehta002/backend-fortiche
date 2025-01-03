@@ -3,6 +3,7 @@ import {
   getUserDetailsController,
   updateUserDetailsController,
   updateUserAvatarController,
+  removeUserAvatarController,
   updateUserCoverImageController,
   updateAdditionalLinksController,
   getAllBrandsController,
@@ -45,6 +46,7 @@ userRouter
   .get("/my-profile", getUserDetailsController)
   .patch("/update-account", updateUserDetailsController)
   .patch("/update-avatar", upload.single("avatar"), updateUserAvatarController)
+  .delete("/remove-avatar", removeUserAvatarController)
   .patch(
     "/update-cover-image",
     upload.single("coverImage"),

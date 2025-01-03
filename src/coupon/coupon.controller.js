@@ -24,7 +24,7 @@ const createCoupon = asyncHandler(async (req, res, next) => {
     discountAmount,
     expiry,
     cumulative,
-    activateCondition,
+    minimumOrderValue,
   } = req.body;
 
   // Enhanced validation
@@ -43,12 +43,7 @@ const createCoupon = asyncHandler(async (req, res, next) => {
   if (
     !Array.isArray(applyTo) ||
     applyTo.length === 0 ||
-    !applyTo.every((value) =>
-      [
-        "SUBTOTAL",
-        "DELIVERY",
-      ].includes(value),
-    )
+    !applyTo.every((value) => ["SUBTOTAL", "DELIVERY"].includes(value))
   ) {
     return next(ApiError(400, "Invalid or empty applyTo value(s)"));
   }
@@ -82,9 +77,14 @@ const createCoupon = asyncHandler(async (req, res, next) => {
     return next(ApiError(400, "Expiry date must be in the future"));
   }
 
-  // Validate activateCondition if provided
-  if (activateCondition && typeof activateCondition !== "object") {
-    return next(ApiError(400, "Activate condition must be an object"));
+  // Add validation for minimumOrderValue
+  if (
+    minimumOrderValue &&
+    (typeof minimumOrderValue !== "number" || minimumOrderValue < 0)
+  ) {
+    return next(
+      ApiError(400, "Minimum order value must be a non-negative number"),
+    );
   }
 
   // Check if coupon name already exists for this brand
@@ -107,7 +107,7 @@ const createCoupon = asyncHandler(async (req, res, next) => {
     },
     expiry: expiryDate,
     cumulative: Boolean(cumulative),
-    activateCondition: new Map(Object.entries(activateCondition || {})),
+    minimumOrderValue: minimumOrderValue || 0,
     brandId: user._id,
     isActive: true,
     usage: 0,
@@ -161,7 +161,7 @@ const updateCoupon = asyncHandler(async (req, res, next) => {
     discountAmount,
     expiry,
     cumulative,
-    activateCondition,
+    minimumOrderValue,
     isActive,
   } = req.body;
 
@@ -178,9 +178,7 @@ const updateCoupon = asyncHandler(async (req, res, next) => {
         }),
         ...(expiry && { expiry }),
         ...(cumulative !== undefined && { cumulative }),
-        ...(activateCondition !== undefined && {
-          activateCondition: activateCondition || {},
-        }),
+        ...(minimumOrderValue !== undefined && { minimumOrderValue }),
         ...(isActive !== undefined && { isActive }),
       },
     },
@@ -231,7 +229,7 @@ const deactivateCoupon = asyncHandler(async (req, res, next) => {
 
 // Controller to apply a coupon
 const applyCoupon = asyncHandler(async (req, res, next) => {
-  const { couponCode, brandId } = req.body;
+  const { couponCode, brandId, orderValue } = req.body;
 
   const coupon = await Coupon.findOne({
     name: couponCode,
@@ -250,12 +248,11 @@ const applyCoupon = asyncHandler(async (req, res, next) => {
     return next(ApiError(400, "Coupon usage limit reached"));
   }
 
-  const conditions = coupon.activateCondition || {};
-  if (conditions.minOrderValue && orderValue < conditions.minOrderValue) {
+  if (coupon.minimumOrderValue > 0 && orderValue < coupon.minimumOrderValue) {
     return next(
       ApiError(
         400,
-        `Minimum order value of ${conditions.minOrderValue} is required to apply this coupon`,
+        `Minimum order value of ${coupon.minimumOrderValue} is required to apply this coupon`,
       ),
     );
   }
@@ -269,9 +266,10 @@ const applyCoupon = asyncHandler(async (req, res, next) => {
     isActive: coupon.isActive,
     usageLimit: coupon.usageLimit,
     usage: coupon.usage,
+    minimumOrderValue: coupon.minimumOrderValue,
   };
   // Additional logic for validating usage limits, expiry, and activation conditions can be added here
- 
+
   return res
     .status(200)
     .json(new ApiResponse(200, sanitizedCoupon, "Coupon applied successfully"));

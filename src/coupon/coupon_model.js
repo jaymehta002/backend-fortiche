@@ -48,9 +48,20 @@ const couponSchema = new Schema({
     default: false,
   },
   activateCondition: {
-    type: Map, // Dynamic key-value pair for conditions like minimum order, number of items, etc.
-    of: Number, // The value could be a number, representing order amount or item count, etc.
-    default: {}, // Optional: initialize with empty conditions
+    type: {
+      type: String,
+      enum: ["Subtotal", "Items"],
+    
+    },
+    value: {
+      type: Number,
+      min: 0,
+    },
+  },
+  minimumOrderValue: {
+    type: Number,
+    min: 0,
+    default: 0
   },
   brandId: {
     type: mongoose.Schema.Types.ObjectId, // Reference to the brand (User)
