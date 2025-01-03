@@ -11,7 +11,6 @@ const shippingSchema = new Schema({
   },
   shippingMethod: {
     type: String,
-    required: String,
   },
   shippingCharges: {
     type: Number,
@@ -19,7 +18,6 @@ const shippingSchema = new Schema({
   },
   zone: {
     type: String,
-    required: true,
   },
   deliveryTime: {
     type: String,
