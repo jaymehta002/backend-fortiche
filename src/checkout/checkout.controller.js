@@ -1616,7 +1616,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
           amount: amountInCents,
           currency: "eur",
           destination: stripeAccountId,
-          delay_days: 14,
+          // delay_days: 14,
           // source_transaction: paymentIntentId,
         })
         .catch((error) => {
@@ -1630,7 +1630,7 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
         amount: Math.max(0, Math.round(influencerFee * 100)),
         currency: "eur",
         destination: influencer.stripeAccountId,
-        delay_days: 30,
+        // delay_days: 30,
         // source_transaction: paymentIntentId,
       })
       .catch((error) => {
@@ -1785,7 +1785,7 @@ export const handleTippingSuccess = asyncHandler(async (req, res) => {
       currency: "eur",
       destination: influencer.stripeAccountId,
       transfer_group: `tip_${session_id}`, // Help track related transfers
-      delay_days: 14,
+      // delay_days: 14,
     });
 
     // Send email notification

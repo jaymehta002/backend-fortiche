@@ -574,7 +574,6 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
         await stripeClient.accounts.update(user.stripeAccountId, {
           capabilities: { transfers: { requested: true } },
         });
-    
       }
 
       // Onboarding and capabilities complete
@@ -602,8 +601,8 @@ const connectStripeController = asyncHandler(async (req, res, next) => {
       settings: {
         payouts: {
           schedule: {
-            // delay_days: user.accountType === accountType.INFLUENCER ? 30 : 7,
-            interval: "manual",
+            delay_days: user.accountType === accountType.INFLUENCER ? 30 : 7,
+            interval: "daily",
           },
         },
       },
