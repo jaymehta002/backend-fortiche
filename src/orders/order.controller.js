@@ -36,13 +36,12 @@ export const createOrder = asyncHandler(async (req, res) => {
 });
 
 export const getOrder = asyncHandler(async (req, res) => {
-  const order = await Order.findOne({
+  const order = await Order.findById({
     _id: req.params.id,
     userId: req.user._id,
-  }).populate("items.productId");
-
+  });
   if (!order) {
-    throw new ApiError(404, "Order not found");
+    throw ApiError(404, "Order not found");
   }
 
   res
@@ -66,25 +65,22 @@ export const updateUserOrders = asyncHandler(async (req, res) => {
   const { orderId, status } = req.body;
 
   if (!orderId || !status) {
-    throw new ApiError(
-      400,
-      "Missing required fields: orderId or status"
-    );
+    throw new ApiError(400, "Missing required fields: orderId or status");
   }
 
   // Update both orderItems status and brandOrders status
   const order = await Order.findOneAndUpdate(
     { _id: orderId },
-    { 
+    {
       $set: {
         "orderItems.$[].status": status,
-        "brandOrders.$[].status": status
-      }
+        "brandOrders.$[].status": status,
+      },
     },
-    { new: true }
+    { new: true },
   )
-  .populate("orderItems.productId")
-  .populate("userId");
+    .populate("orderItems.productId")
+    .populate("userId");
 
   if (!order) {
     throw new ApiError(404, "Order not found");
@@ -92,9 +88,7 @@ export const updateUserOrders = asyncHandler(async (req, res) => {
 
   res
     .status(200)
-    .json(
-      new ApiResponse(200, order, "Order status updated successfully")
-    );
+    .json(new ApiResponse(200, order, "Order status updated successfully"));
 });
 
 export const deleteOrder = asyncHandler(async (req, res) => {
