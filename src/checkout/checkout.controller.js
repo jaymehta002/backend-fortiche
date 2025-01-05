@@ -491,8 +491,7 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
       throw ApiError(404, "Required data not found");
     }
 
-    console.log(influencerData, "influencerData");
-    console.log(brandData, "brandData");
+   
 
     // Generate a single order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36)}`;
@@ -522,6 +521,8 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
       paymentStatus: "paid",
       paymentId: session.payment_intent,
     };
+ 
+   const shippingAddress = JSON.parse(address);
 
     // Create the order
     const newOrder = new Order({
@@ -534,7 +535,7 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
       totalAmount: Number(totalAmount),
       paymentStatus: "paid",
       paymentId: session.payment_intent,
-      shippingAddress: address,
+      shippingAddress: shippingAddress,
       customerInfo: {
         email: influencerData.email,
         name: influencerData.fullName,
@@ -623,7 +624,7 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
 
     if (brandData?.email) {
       await sendCustomEmail(
-        brandData.email`New ${isDownloadable ? "Digital" : ""} Order Received`,
+        brandData.email,`New ${isDownloadable ? "Digital" : ""} Order Received`,
         getEmailContent(isDownloadable, "brand"),
       );
     }

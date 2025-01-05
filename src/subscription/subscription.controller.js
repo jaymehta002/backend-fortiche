@@ -7,10 +7,10 @@ import Subscription from "./subscription.model.js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PLAN_TO_PRICE_MAPPING = {
-  starter: "price_1QYhx9HRK1oXhYsF4kGJjMTC",
-  believer: "price_1QYhxMHRK1oXhYsFfIsh85Vi",
-  professional: "price_1QYhxXHRK1oXhYsFq1oepwiZ",
-  enterprise: "price_1QYi8pHRK1oXhYsFkmohTHE8",
+  starter: process.env.STRIPE_STARTER_PRICE_ID,
+  believer: process.env.STRIPE_BELIEVER_PRICE_ID,
+  professional: process.env.STRIPE_PROFESSIONAL_PRICE_ID,
+  enterprise: process.env.STRIPE_ENTERPRISE_PRICE_ID,
 };
 
 export const createCheckoutSession = async (req, res) => {
