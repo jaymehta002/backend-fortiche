@@ -31,7 +31,7 @@ export const createCheckoutSession = async (req, res) => {
       customer_email: user.email,
       line_items: [{ price: stripePriceId, quantity: 1 }],
       success_url: `${process.env.CLIENT_URL}/upgrade-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/cancel`,
+      cancel_url: `${process.env.CLIENT_URL}/upgrade-account`,
       billing_address_collection: "required",
       metadata: {
         customer_name: user.fullName,

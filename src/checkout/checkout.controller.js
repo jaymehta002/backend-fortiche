@@ -177,7 +177,7 @@ export const brandCheckout = asyncHandler(async (req, res) => {
       line_items: lineItems,
       customer_email: email,
       success_url: `${process.env.CLIENT_URL}/brand-guest-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/`,
+      cancel_url: `${process.env.CLIENT_URL}/b/${brand.username}/cart`,
       metadata: {
         type: "brand_guest_purchase",
         brandId: brand._id.toString(),

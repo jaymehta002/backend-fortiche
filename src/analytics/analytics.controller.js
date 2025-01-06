@@ -349,6 +349,7 @@ export const getInfluencerOrderAnalytics = asyncHandler(async (req, res, next) =
         $project: {
           orderNumber: 1,
           createdAt: 1,
+          customerInfo: 1,
           orderItems: {
             $map: {
               input: "$orderItems",
