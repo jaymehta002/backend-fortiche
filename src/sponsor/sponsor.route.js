@@ -302,22 +302,26 @@ const handleOrderSuccess = asyncHandler(async (req, res) => {
 
 // Routes
 sponsorRouter.get("/terms/:influencerId", async (req, res) => {
-  const influencerId = req.params.influencerId;
-  if (!influencerId) {
-    return res.status(400).json({ message: "Influencer ID is required" });
-  }
-  const terms = await SponsorshipTerms.findOne({
-    influencerId,
-    isActive: true,
-  });
+  try {
+    const influencerId = req.params.influencerId;
+    if (!influencerId) {
+      return res.status(400).json({ message: "Influencer ID is required" });
+    }
 
-  if (!terms) {
-    return res
-      .status(404)
-      .json({ message: "No active sponsorship terms found" });
-  }
+    const terms = await SponsorshipTerms.findOne({
+      influencerId,
+      isActive: true,
+    });
 
-  res.status(200).json({ terms });
+    // Return empty terms object if none found instead of error
+    return res.status(200).json({ 
+      terms: terms || {},
+      success: true
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 sponsorRouter.get("/sponsorproducts/:influencerId", async (req, res) => {
