@@ -9,8 +9,8 @@ const physicalProductSchema = new mongoose.Schema(
     width: { type: Number,  },
     length: { type: Number, },
     packageFormat: { type: String, },
-    ean: { type: String,   unique: true },  
-    sku: { type: String,  unique: true },
+    ean: { type: String },
+    sku: { type: String},
   },
   { _id: false },
 );

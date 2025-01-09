@@ -17,6 +17,11 @@ import sponsorshipModel from "../sponsor/sponsorship.model.js";
 import { User } from "../user/user.model.js";
 import { ApiError } from "../utils/APIError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import {
+  createBrandCheckoutNotification,
+  createGuestCheckoutNotification,
+  createInfluencerCheckoutNotification,
+} from "../notification/notification.service.js";
 // Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -141,8 +146,6 @@ export const brandCheckout = asyncHandler(async (req, res) => {
           item.vatAmount +
           item.shippingAmount,
       }));
-
-   
     }
 
     const totalAmount = orderItems.reduce(
@@ -233,7 +236,7 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
       orderItems: orderItemsJson,
       customerInfo: customerInfoJson,
       address: addressJson,
-      couponCode
+      couponCode,
     } = session.metadata;
 
     if (type !== "brand_guest_purchase") {
@@ -274,17 +277,20 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
       paymentStatus: "paid",
       paymentId: session.payment_intent,
     };
-    
+
     let coupon = "";
-    if(couponCode){
-      coupon = await Coupon.findOne({name: couponCode, brandId, isActive: true});
+    if (couponCode) {
+      coupon = await Coupon.findOne({
+        name: couponCode,
+        brandId,
+        isActive: true,
+      });
     }
 
-    if(coupon){
+    if (coupon) {
       coupon.usage += 1;
       await coupon.save();
     }
-
 
     // Create order
     const newOrder = new Order({
@@ -305,7 +311,9 @@ export const handleBrandGuestSuccess = asyncHandler(async (req, res) => {
 
     // Send confirmation emails
     const brand = await User.findById(brandId);
+
     await sendOrderEmails(newOrder, guest, brand);
+    await createBrandCheckoutNotification(newOrder, guest, brand);
 
     res.status(200).json({
       success: true,
@@ -491,10 +499,8 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
       throw ApiError(404, "Required data not found");
     }
 
-   
-
     // Generate a single order number
-    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36)}`;
+    const orderNumber = `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`;
 
     // Create order items
     const orderItem = {
@@ -521,8 +527,8 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
       paymentStatus: "paid",
       paymentId: session.payment_intent,
     };
- 
-   const shippingAddress = JSON.parse(address);
+
+    const shippingAddress = JSON.parse(address);
 
     // Create the order
     const newOrder = new Order({
@@ -624,12 +630,19 @@ export const handleSuccessPage = asyncHandler(async (req, res) => {
 
     if (brandData?.email) {
       await sendCustomEmail(
-        brandData.email,`New ${isDownloadable ? "Digital" : ""} Order Received`,
+        brandData.email,
+        `New ${isDownloadable ? "Digital" : ""} Order Received`,
         getEmailContent(isDownloadable, "brand"),
       );
     }
 
     await handlePaymentTransfers(newOrder, session.payment_intent);
+    await createInfluencerCheckoutNotification(
+      newOrder,
+      brandData,
+      influencerData,
+      isDownloadable,
+    );
 
     res.status(200).json({
       success: true,
@@ -1263,7 +1276,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         throw ApiError(400, "Coupon usage limit reached");
       }
 
-    
       orderItems.forEach((item) => {
         if (item.brandId.toString() === coupon.brandId.toString()) {
           if (coupon.discount.type === "PERCENTAGE") {
@@ -1281,7 +1293,6 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
             item.vatAmount;
         }
       });
-  
     }
 
     // Create the order with more comprehensive details
@@ -1315,8 +1326,8 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
         sessionId: session_id,
       },
     });
-    
-    if(coupon){
+
+    if (coupon) {
       coupon.usage += 1;
       await coupon.save();
     }
@@ -1337,6 +1348,20 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
       acc[item.brandId].push(item);
       return acc;
     }, {});
+
+    const brandOrders = Object.entries(orderItemsByBrand).map(
+      ([brandId, items]) => ({
+        brandId,
+        items,
+      }),
+    );
+
+    await createGuestCheckoutNotification(
+      order,
+      customerData,
+      brandOrders,
+      influencer,
+    );
 
     const guestEmailContent = async (orderItems, customerData, addressData) => {
       let physicalProducts = [];
@@ -1522,7 +1547,7 @@ export const handleStripeCheckout = asyncHandler(async (req, res, next) => {
 });
 
 function generateOrderNumber() {
-  return `ORD-${Date.now()}-${Math.random().toString(36)}`;
+  return `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`;
 }
 
 // Helper function to handle payment transfers
@@ -1626,18 +1651,20 @@ const handlePaymentTransfers = async (order, paymentIntentId) => {
         });
     }),
 
-    stripe.transfers
-      .create({
-        amount: Math.max(0, Math.round(influencerFee * 100)),
-        currency: "eur",
-        destination: influencer.stripeAccountId,
-        // delay_days: 30,
-        // source_transaction: paymentIntentId,
-      })
-      .catch((error) => {
-        console.error(`Transfer to influencer failed:`, error);
-        return null;
-      }),
+    influencerFee > 0
+      ? stripe.transfers
+          .create({
+            amount: Math.round(influencerFee * 100),
+            currency: "eur",
+            destination: influencer.stripeAccountId,
+            // delay_days: 30,
+            // source_transaction: paymentIntentId,
+          })
+          .catch((error) => {
+            console.error(`Transfer to influencer failed:`, error);
+            return null;
+          })
+      : Promise.resolve(null),
   ];
 
   // Wait for all transfers

@@ -20,6 +20,7 @@ import authRoutes from "./auth.routes.js";
 import commisionRouter from "../commision/commision.route.js";
 import tippingRouter from "./tipping.route.js";
 import { wishlistRouter } from "../whishlist/wishlist_route.js";
+import notificationRouter from "../notification/notification.router.js";
 
 const router = express.Router();
 const publicRouter = express.Router();
@@ -48,6 +49,6 @@ router
   .use("/course", courseRouter)
   .use("/sponsorship", sponsorRouter)
   .use("/commision", commisionRouter)
-  .use("/tipping", tippingRouter);
-
+  .use("/tipping", tippingRouter)
+  .use("/notification", notificationRouter);
 export default router;

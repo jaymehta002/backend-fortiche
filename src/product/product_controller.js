@@ -122,33 +122,38 @@ const createProduct = asyncHandler(async (req, res, next) => {
       }
       const { weight, height, width, length, packageFormat, ean, sku } =
         physicalDetails;
+ 
+if (ean && ean.trim()) {
+  const existingProductByEan = await Product.findOne({
+    "physicalDetails.ean": ean.trim()
+  });
+  if (existingProductByEan) {
+    throw ApiError(409, "A product with this EAN already exists");
+  }
+}
 
-      if (ean) {
-        const existingProductByEan = await Product.findOne({
-          "physicalDetails.ean": ean,
-        });
-        if (existingProductByEan) {
-          throw ApiError(409, "EAN must be unique");
-        }
-      }
+if (sku && sku.trim()) {
+  const existingProductBySku = await Product.findOne({
+    "physicalDetails.sku": sku.trim()
+  });
+  if (existingProductBySku) {
+    throw ApiError(409, "A product with this SKU already exists");
+  }
+}
 
-      if (sku) {
-        const existingProductBySku = await Product.findOne({
-          "physicalDetails.sku": sku,
-        });
-        if (existingProductBySku) {
-          throw ApiError(409, "SKU must be unique");
-        }
-      }
-      productData.physicalDetails = {
-        weight,
-        height,
-        width,
-        length,
-        packageFormat,
-        ...(ean && { ean }),
-        ...(sku && { sku }),
-      };
+ 
+productData.physicalDetails = {
+  weight,
+  height,
+  width,
+  length,
+  packageFormat,
+  ...(ean && ean.trim() ? { ean: ean.trim() } : {}),
+  ...(sku && sku.trim() ? { sku: sku.trim() } : {}),
+};
+
+ 
+      console.log(productData.physicalDetails);
     } else if (productType === "downloadable") {
       if (!downloadableFileUrl) {
         throw ApiError(
@@ -165,12 +170,18 @@ const createProduct = asyncHandler(async (req, res, next) => {
       }
       productData.virtualDetails = virtualDetails;
     }
-
-    const product = await Product.create(productData);
-
-    return res
-      .status(201)
-      .json(new ApiResponse(201, product, "Product created successfully"));
+    try {
+      const product = await Product.create(productData);
+      return res
+        .status(201)
+        .json(new ApiResponse(201, product, "Product created successfully"));
+    } catch (error) {
+      if (error.code === 11000) {
+        const duplicateField = Object.keys(error.keyPattern)[0];
+        throw ApiError(409, `A product with this ${duplicateField} already exists`);
+      }
+      throw error;
+    }
   } catch (err) {
     next(err);
   }
