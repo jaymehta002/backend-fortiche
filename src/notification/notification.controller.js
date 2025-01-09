@@ -33,3 +33,11 @@ export const markNotificationAsRead = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, notification, "Notification marked as read"));
 });
+
+export const markAllNotificationsAsRead = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  await Notification.updateMany({ userId }, { isRead: true });
+  return res.status(200).json(new ApiResponse(200, null, "All notifications marked as read"));
+});
+
+
