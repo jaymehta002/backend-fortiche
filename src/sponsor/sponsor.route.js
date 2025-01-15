@@ -102,7 +102,7 @@ const updateSponsorshipStatus = async (req, res) => {
 const handlePayment = async (req, res) => {
   const { sponsorshipId } = req.body;
   const userId = req.user._id;
-
+  const email = req.user.email
   try {
     const sponsorship = await Sponsorship.findOne({ _id: sponsorshipId });
 
@@ -117,7 +117,6 @@ const handlePayment = async (req, res) => {
     if (sponsorship.paymentStatus === "completed") {
       return res.status(400).json({ message: "Payment already completed" });
     }
-
     // Create Stripe payment session
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -134,6 +133,7 @@ const handlePayment = async (req, res) => {
           quantity: 1,
         },
       ],
+      customer_email: email,
       mode: "payment",
       success_url: `${process.env.CLIENT_URL}/brands/sponsorship/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/sponsorship/cancel`,
@@ -190,6 +190,7 @@ const handleSuccessPage = async (req, res) => {
 const handleSponsoredProductCheckout = async (req, res) => {
   const { productId, shippingAddress, quantity, brandId } = req.body;
   const { sponsorshipId, address } = req.body;
+  const email = req.user.email;
   const brandStripeAccountId =
     await User.findById(brandId).select("stripeAccountId");
   try {
@@ -206,10 +207,11 @@ const handleSponsoredProductCheckout = async (req, res) => {
       return res
         .status(404)
         .json({ message: "Product or active sponsorship not found" });
-    }
-
+    } 
+    console.log("brandStripeAccountId");
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
+      customer_email: email,
       line_items: [
         {
           price_data: {
