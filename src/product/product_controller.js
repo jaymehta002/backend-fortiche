@@ -85,6 +85,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
       const downloadableFile = req.files["downloadableDetails[fileUpload]"][0];
       try {
         const uploadedFile = await uploadOnCloudinary(downloadableFile.path);
+        console.log(uploadedFile, 'asd')
         downloadableFileUrl = uploadedFile.url;
       } catch (error) {
         throw ApiError(500, "Failed to upload downloadable file to Cloudinary");
