@@ -1,1 +1,0 @@
-import{j as e}from"./main-17S3Hvul.js";const l=({type:n,placeholder:t,className:o,...r})=>{const s=r.disabled;return e.jsx(e.Fragment,{children:e.jsx("input",{type:n,placeholder:t,className:`px-4 py-1.5 rounded-3xl w-full border border-green-light focus:border-green outline-none placeholder:text-sm ${s?"bg-green-light":"bg-primary"} ${o}`,...r})})},d=l;export{d as I};
