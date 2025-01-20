@@ -16,6 +16,8 @@ import router from "./routes/index.js";
 import { setupSocketEvents } from "./socket.js";
 import MongoStore from "connect-mongo";
 import mg from "./mail/mail.client.js";
+
+import path from "path";
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -85,7 +87,7 @@ app.use((req, res, next) => {
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(express.static("public"));
+app.use(express.static(path.resolve(process.cwd(), "public/dist")));
 app.use(initializePassport());
 app.use(sessionPassport());
 
@@ -95,12 +97,18 @@ io.use(authenticateSocket);
 // Setup Socket.IO events
 setupSocketEvents(io);
 
-app.get("/", async (req, res) => {
-  res.send("hello world");
-});
+const publicPath = path.resolve(process.cwd(), "public/dist");
 
-// Routes
+// Routes should come BEFORE the catch-all route
 app.use("/api/v1", router);
 app.use(globalErrorHandler);
+
+// Serve static files
+app.use(express.static(path.resolve(process.cwd(), "public/dist")));
+
+// Catch-all route should be LAST
+app.get("/*", async (req, res) => {
+    res.sendFile(path.join(publicPath, "index.html"));
+});
 
 export { app, io };
