@@ -1,1 +1,0 @@
-import{j as s}from"./main-DA-vLYwL.js";import{c as n}from"./cn-DUyS5Z8L.js";const c=({className:t="",loaderHeight:r="h-5",loaderWidth:e="w-5",color:a="border-white"})=>s.jsx("div",{className:n("text-center",t),children:s.jsx("div",{className:`${r||"h-5"} ${e||"w-5"} border-2 mx-auto ${a} border-t-transparent rounded-full animate-spin`})});export{c as C};
