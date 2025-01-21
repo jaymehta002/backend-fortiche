@@ -97,8 +97,12 @@ io.use(authenticateSocket);
 // Setup Socket.IO events
 setupSocketEvents(io);
 
-// Routes should come BEFORE the catch-all route
+
 app.use("/api/v1", router);
 app.use(globalErrorHandler);
+
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+})
 
 export { app, io };
