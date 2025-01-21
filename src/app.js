@@ -41,6 +41,7 @@ const corsOptions = {
     process.env.CLIENT_URL,
     "https://fortiche-frontend.vercel.app",
     "http://localhost:5173",
+    "https://fortiche.com"
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"],
