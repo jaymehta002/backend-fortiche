@@ -86,18 +86,111 @@ const createEmailTemplate = (title, content) => `
 
 const sendOTPEmail = async (to, otp) => {
   const content = `
-    <div class="header">
-      <h1>Verify Your Email</h1>
-    </div>
-    <div class="content">
-      <h2>Hello!</h2>
-      <p>Thank you for registering. Please use the following verification code:</p>
-      <div class="code">${otp}</div>
-      <p>This code will expire in ${process.env.OTP_EXPIRY_MINUTES} minutes.</p>
-      <div class="highlight-box">
-        <p>If you didn't request this code, please ignore this email.</p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          text-align: center;
+          padding: 20px 0;
+          background-color: #f8f9fa;
+          border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+          color: #2c3e50;
+          margin: 0;
+          font-size: 24px;
+        }
+        .content {
+          padding: 30px 20px;
+          background: #ffffff;
+          border-radius: 0 0 8px 8px;
+        }
+        .code {
+          text-align: center;
+          font-size: 32px;
+          font-weight: bold;
+          letter-spacing: 8px;
+          color: #2c3e50;
+          padding: 20px;
+          margin: 20px 0;
+          background-color: #f8f9fa;
+          border-radius: 4px;
+        }
+        .highlight-box {
+          background-color: #fff8dc;
+          border-left: 4px solid #ffd700;
+          padding: 15px;
+          margin-top: 20px;
+          border-radius: 4px;
+        }
+        .footer {
+          text-align: center;
+          font-size: 12px;
+          color: #666;
+          margin-top: 20px;
+        }
+        .button {
+          display: inline-block;
+          padding: 10px 20px;
+          background-color: #007bff;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+          margin-top: 15px;
+        }
+        @media only screen and (max-width: 480px) {
+          .container {
+            padding: 10px;
+          }
+          .code {
+            font-size: 24px;
+            letter-spacing: 6px;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Verify Your Email</h1>
+        </div>
+        <div class="content">
+          <p>Hello,</p>
+          <p>Thank you for creating an account with us. To ensure the security of your account, please verify your email address using the following code:</p>
+          
+          <div class="code">${otp}</div>
+          
+          <p>This verification code will expire in <strong>${process.env.OTP_EXPIRY_MINUTES} minutes</strong>.</p>
+          
+          <p>Enter this code on the verification page to complete your registration.</p>
+          
+          <div class="highlight-box">
+            <p>🔒 <strong>Security Notice:</strong> If you didn't request this verification code, please disregard this email and contact our support team immediately.</p>
+          </div>
+
+          <div class="footer">
+            <p>This is an automated message, please do not reply to this email.</p>
+            <p>Need help? Contact our support team at ${process.env.SUPPORT_EMAIL}</p>
+          </div>
+        </div>
       </div>
-    </div>
+    </body>
+    </html>
   `;
  
   const response = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
