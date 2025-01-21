@@ -97,18 +97,8 @@ io.use(authenticateSocket);
 // Setup Socket.IO events
 setupSocketEvents(io);
 
-const publicPath = path.resolve(process.cwd(), "public/dist");
-
 // Routes should come BEFORE the catch-all route
 app.use("/api/v1", router);
 app.use(globalErrorHandler);
-
-// Serve static files
-app.use(express.static(path.resolve(process.cwd(), "public/dist")));
-
-// Catch-all route should be LAST
-app.get("/*", async (req, res) => {
-    res.sendFile(path.join(publicPath, "index.html"));
-});
 
 export { app, io };
