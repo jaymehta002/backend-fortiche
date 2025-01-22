@@ -12,7 +12,8 @@ import bcrypt from "bcrypt";
 const additionalLinkSchema = new Schema({
   thumbnail: {
     type: String,
-    required: true,
+    // required: true,
+    default: 'https://res.cloudinary.com/dxf2rgb6t/image/upload/v1737563716/link_tqsc0k.png'
   },
   host: {
     type: String,

@@ -87,6 +87,10 @@ const getFeedByUsername = asyncHandler(async (req, res, next) => {
 
     const user = await findUserByUsername(username);
 
+    if(!user){
+      throw ApiError(404, "User not found");
+    }
+
     const [products, affiliatedProductIds, userPosts] = await Promise.all([
       fetchUserProducts(user._id, validatedLimit, validatedPage),
       fetchAffiliatedProductIds(user._id),

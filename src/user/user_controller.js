@@ -138,28 +138,29 @@ const updateUserCoverImageController = asyncHandler(async (req, res, next) => {
   }
 });
 
+
 const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
   const user = req.user;
 
   try {
     const { id, host, url, isActive } = req.body;
-    const thumbnail = req.file ? req.file?.path : req.body.thumbnail;
+    const thumbnail = req.file?.path || req.body.thumbnail; // Either uploaded file path or provided URL
     let existingLinkIndex = -1;
+
     if (id) {
       existingLinkIndex = user.additionalLinks.findIndex(
-        (link) => link._id.toString() === id,
+        (link) => link._id.toString() === id
       );
     } else {
       existingLinkIndex = user.additionalLinks.findIndex(
-        (link) => link.host === host,
+        (link) => link.host === host
       );
     }
+
     let processedThumbnail = thumbnail;
     if (thumbnail && !thumbnail.startsWith("http")) {
       const uploadedThumbnail = await uploadOnCloudinary(thumbnail);
-      processedThumbnail = uploadedThumbnail.url
-        ? uploadedThumbnail.url.toString()
-        : uploadedThumbnail;
+      processedThumbnail = uploadedThumbnail.url || thumbnail;
     }
 
     if (existingLinkIndex !== -1) {
@@ -167,7 +168,7 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
         ...user.additionalLinks[existingLinkIndex],
         host,
         url,
-        thumbnail: processedThumbnail,
+        thumbnail: processedThumbnail || user.additionalLinks[existingLinkIndex].thumbnail,
         isActive:
           isActive !== undefined
             ? isActive
@@ -177,10 +178,11 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
       user.additionalLinks.push({
         host,
         url,
-        thumbnail: processedThumbnail,
+        thumbnail: processedThumbnail ||"https://res.cloudinary.com/dxf2rgb6t/image/upload/v1737563716/link_tqsc0k.png",
         isActive: isActive !== undefined ? isActive : true,
       });
     }
+
     const updatedUser = await user.save();
     return res
       .status(200)
@@ -189,6 +191,59 @@ const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
     return next(err);
   }
 });
+
+
+// const updateAdditionalLinksController = asyncHandler(async (req, res, next) => {
+//   const user = req.user;
+
+//   try {
+//     const { id, host, url, isActive } = req.body;
+//     const thumbnail = req.file ? req.file?.path : req.body.thumbnail;
+//     let existingLinkIndex = -1;
+//     if (id) {
+//       existingLinkIndex = user.additionalLinks.findIndex(
+//         (link) => link._id.toString() === id,
+//       );
+//     } else {
+//       existingLinkIndex = user.additionalLinks.findIndex(
+//         (link) => link.host === host,
+//       );
+//     }
+//     let processedThumbnail = thumbnail;
+//     if (thumbnail && !thumbnail.startsWith("http")) {
+//       const uploadedThumbnail = await uploadOnCloudinary(thumbnail);
+//       processedThumbnail = uploadedThumbnail.url
+//         ? uploadedThumbnail.url.toString()
+//         : uploadedThumbnail;
+//     }
+
+//     if (existingLinkIndex !== -1) {
+//       user.additionalLinks[existingLinkIndex] = {
+//         ...user.additionalLinks[existingLinkIndex],
+//         host,
+//         url,
+//         thumbnail: processedThumbnail,
+//         isActive:
+//           isActive !== undefined
+//             ? isActive
+//             : user.additionalLinks[existingLinkIndex].isActive,
+//       };
+//     } else {
+//       user.additionalLinks.push({
+//         host,
+//         url,
+//         thumbnail: processedThumbnail,
+//         isActive: isActive !== undefined ? isActive : true,
+//       });
+//     }
+//     const updatedUser = await user.save();
+//     return res
+//       .status(200)
+//       .json(new ApiResponse(200, updatedUser, "Links updated successfully"));
+//   } catch (err) {
+//     return next(err);
+//   }
+// });
 
 const getAllBrandsController = asyncHandler(async (req, res, next) => {
   try {

@@ -54,7 +54,18 @@ userRouter
   )
   .patch(
     "/update-additional-links",
-    upload.single("thumbnail"),
+    (req, res, next) => {
+      if (req.headers['content-type'].includes('multipart/form-data')) {
+        upload.single('thumbnail')(req, res, (err) => {
+          if (err) {
+            return res.status(400).json({ error: 'File upload error' });
+          }
+          next();
+        });
+      } else {
+        next();
+      }
+    },
     updateAdditionalLinksController,
   )
   .patch("/update-privacy-policy", updatePrivacyPolicyController)
