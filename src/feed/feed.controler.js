@@ -81,7 +81,7 @@ const fetchCollectionsAndProducts = async (userId) => {
 const getFeedByUsername = asyncHandler(async (req, res, next) => {
   try {
     const { username } = req.params;
-    const { limit = 10, page = 1 } = req.query;
+    const { limit = 500, page = 1 } = req.query;
 
     const { validatedLimit, validatedPage } = validatePagination(limit, page);
 
