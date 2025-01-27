@@ -260,7 +260,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   }
 
   const token = generateTokens(user._id).accessToken;
-
+  console.log(process.env.CLIENT_URL);
   const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
   // const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
 

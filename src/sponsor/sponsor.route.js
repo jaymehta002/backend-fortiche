@@ -123,7 +123,7 @@ const handlePayment = async (req, res) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "eur",
             product_data: {
               name: "Sponsorship Payment",
               description: `Sponsorship payment for influencer collaboration`,
@@ -215,7 +215,7 @@ const handleSponsoredProductCheckout = async (req, res) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "eur",
             product_data: {
               name: product.name,
               description: product.description,
