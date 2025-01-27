@@ -260,10 +260,8 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   }
 
   const token = generateTokens(user._id).accessToken;
-  console.log(process.env.CLIENT_URL);
   const resetPasswordLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
   // const resetPasswordLink = `http://localhost:5173/reset-password?token=${token}`;
-
   const bool = await sendResetPasswordEmail(email, resetPasswordLink);
  
   res.status(200).json({
@@ -298,7 +296,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
 
 const validateToken = asyncHandler(async (req, res, next) => {
   const { token } = req.query;
-
+  
   if (!token) {
     return next(ApiError(400, "Token is required"));
   }
@@ -307,10 +305,11 @@ const validateToken = asyncHandler(async (req, res, next) => {
     const decodedToken = verifyToken(token, process.env.ACCESS_TOKEN_SECRET);
 
     const user = await User.findById(decodedToken._id);
-
+    
     if (!user) {
       return res.status(200).json({ valid: false });
     }
+    
 
     res.status(200).json({ valid: true });
   } catch (error) {
